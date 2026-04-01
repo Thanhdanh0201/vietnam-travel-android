@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c6102e",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#221013",
+                    },
+                    fontFamily: {
+                        "display": ["Be Vietnam Pro"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .ao-dai-pattern {
+            background-color: #f8f6f6;
+            background-image: radial-gradient(#c6102e 0.5px, transparent 0.5px), radial-gradient(#c6102e 0.5px, #f8f6f6 0.5px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            opacity: 0.03;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="font-display bg-background-light text-slate-900">
+<div class="relative flex min-h-screen w-full flex-col overflow-hidden bg-slate-200">
+<!-- Background/Map Placeholder -->
+<div class="absolute inset-0 z-0">
+<img alt="Ho Chi Minh City Map" class="h-full w-full object-cover grayscale-[20%] opacity-50" data-alt="Detailed map view of Ho Chi Minh City streets" data-location="Ho Chi Minh City" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYNhSSF3p6RObBCVbWEGBjGDXJne6rWQZURk2YZgcNpbiewHl71vQi4I8PStnjhSmwr7gVemSbNCWgkx8Y3x7X18kV9lMmnKVRjoh1zfhyliK3moyA3WmOGCp2H_OHVUIZEc6XKWJAiBBABx72mR9Lk0gWGNupxtmccIzzHTT-ABoGcBVaNm_2v1pIcCgibDzrWu05hkDI1_zp_kLRn_pa-stNWnFFCzU7e-wnGZ1z_7thRDmI4lLJQ_H3DjgJjFTfWQnCYSBC7w"/>
+</div>
+<!-- Bottom Sheet Overlay -->
+<div class="flex absolute top-0 left-0 h-full w-full flex-col justify-end items-stretch bg-slate-900/40 backdrop-blur-sm z-10">
+<div class="relative flex flex-col items-stretch bg-background-light rounded-t-xl max-h-[795px] overflow-y-auto">
+<!-- Subtle Ao Dai Pattern Overlay -->
+<div class="ao-dai-pattern absolute inset-0 pointer-events-none"></div>
+<!-- Handle Bar -->
+<button class="flex h-6 w-full items-center justify-center shrink-0 z-20">
+<div class="h-1.5 w-12 rounded-full bg-slate-300"></div>
+</button>
+<!-- Header -->
+<div class="flex items-center p-4 border-b border-slate-100 z-20">
+<button class="text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<h2 class="text-slate-900 text-xl font-bold leading-tight tracking-tight flex-1 text-center pr-6">Thông báo cho bạn</h2>
+</div>
+<div class="p-4 space-y-6 z-20">
+<!-- Section 1: Lễ hội sắp tới -->
+<section>
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary text-xl">event_upcoming</span>
+<h3 class="text-slate-900 text-lg font-bold leading-tight tracking-tight">Lễ hội sắp tới</h3>
+</div>
+<div class="flex flex-col items-stretch justify-start rounded-xl shadow-sm bg-white border border-slate-100 overflow-hidden">
+<div class="w-full bg-center bg-no-repeat aspect-video bg-cover" data-alt="Da Nang International Fireworks Festival over Han River" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDw-CayfQQLvDBTlMudtIxpZZhfjRhjhEl2RNIP6mfim7iG1711YGYr9f-VaOI5Fxw_Njy59b0EIyd4QS83tfp7qX-WzHVmZzlM8x9YMelG-r8zzTxHe3t631MUneFXm0OiR0kP6wBtz2cRmCFjCuXJbaw3WVd0YV-Irjv5edqXY4qFwT-nfa-M60KwDnBTl2eOJ84MXGzRYJx_UQBUn25uHPOiaWNLdOzTX5ysLsAGmU2r_pFQJfUpK9ZTxyMgRvlDj-gr5oTUyQ");'>
+</div>
+<div class="flex flex-col p-4 gap-2">
+<p class="text-slate-900 text-lg font-bold">Lễ hội Pháo hoa Đà Nẵng</p>
+<p class="text-slate-600 text-sm">Sự kiện rực rỡ sắc màu bên bờ sông Hàn. Một trải nghiệm không thể bỏ lỡ mùa hè này.</p>
+<button class="mt-2 flex w-full cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors">
+<span>Xem chi tiết</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Section 2: Gợi ý mùa du lịch -->
+<section>
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary text-xl">park</span>
+<h3 class="text-slate-900 text-lg font-bold leading-tight tracking-tight">Gợi ý mùa du lịch</h3>
+</div>
+<div class="bg-primary/5 rounded-xl p-4 border border-primary/10 flex gap-4">
+<div class="shrink-0">
+<div class="w-16 h-16 rounded-lg bg-cover bg-center" data-alt="Green rice flakes (Com) from Hanoi on a leaf" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBP3ZMsW6hJcdx_aehzHxhUFXoTxAMKRbBCYvXjFJJfLgTf2Jpe82oM17laSlPI-29Xxl-GT8X1bgPSHlOX5KJVHZMC_3urJP45oGFhY9t3tABX2l3LAQKozw2Ipha43aD0QQIy9oe-IsySxITIaEy5ZulUgZks98T5et0X1vJqaf5OfPPuLBBDSqZPJDhGyS7hAX_bvAh94F9NGaj96sQXwp2c10A5hL7nvnPI9Lbz3vQG56rX5rEzS7xgdh3_22Tk8ZTbFjpIEg')"></div>
+</div>
+<div class="flex-1">
+<p class="text-slate-800 font-medium text-base mb-1">Mùa thu Hà Nội</p>
+<p class="text-slate-600 text-sm leading-relaxed">Hiện tại là mùa thu, Hà Nội đang rất đẹp với hương cốm mới và gió heo may.</p>
+<button class="mt-2 text-primary text-sm font-bold flex items-center gap-1">
+                                    Khám phá ngay <span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Section 3: Lời nhắc nhở -->
+<section>
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary text-xl">notifications_active</span>
+<h3 class="text-slate-900 text-lg font-bold leading-tight tracking-tight">Lời nhắc nhở</h3>
+</div>
+<div class="rounded-xl p-4 border shadow-sm flex items-start gap-3 bg-primary/5 border-primary/10">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary">notifications_active</span>
+</div>
+<div class="flex flex-col gap-2">
+<p class="text-slate-800 text-sm leading-relaxed">
+    Đã <span class="font-bold text-primary">3 tháng</span> rồi bạn chưa có chuyến đi nào mới! Việt Nam còn rất nhiều cảnh đẹp đang chờ đón bạn. Lên kế hoạch ngay thôi!
+</p>
+<button class="text-primary text-sm font-bold flex items-center gap-1 w-fit">
+    Lên kế hoạch ngay <span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Footer Action -->
+<div class="pt-4 pb-8">
+<button class="w-full flex items-center justify-center rounded-xl h-12 bg-slate-100 text-slate-600 text-base font-bold hover:bg-slate-200 transition-colors">
+                            Đóng thông báo
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

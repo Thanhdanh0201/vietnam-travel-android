@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#c6102e",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#221013",
+                    },
+                    fontFamily: {
+                        "display": ["Be Vietnam Pro"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom pattern representing subtle Ao Dai silk textures using SVG */
+        .ao-dai-pattern {
+            background-color: #f8f6f6;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 30c0-11.046 8.954-20 20-20h10V0H50C22.386 0 0 22.386 0 50v10h10V50c0-11.046 8.954-20 20-20zM10 60h40v-10H10v10z' fill='%23c6102e' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light text-slate-900 antialiased">
+<div class="relative flex min-h-screen w-full flex-col bg-background-light ao-dai-pattern pb-24">
+<!-- Header -->
+<header class="sticky top-0 z-50 flex items-center bg-white/80 backdrop-blur-md px-4 py-3 border-b border-primary/10 justify-between">
+<div class="flex size-10 shrink-0 items-center justify-center text-primary cursor-pointer">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</div>
+<h1 class="text-primary text-xl font-bold leading-tight tracking-tight flex-1 text-center">Bình Thuận</h1>
+<div class="flex w-10 items-center justify-end">
+<button class="flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">search</span>
+</button>
+</div>
+</header>
+<!-- Categories / Filters -->
+<div class="flex gap-3 p-4 overflow-x-auto no-scrollbar">
+<button class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-primary px-5 text-white shadow-sm shadow-primary/20">
+<span class="text-sm font-medium leading-normal">Tất cả</span>
+</button>
+<button class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white border border-primary/20 px-5 text-slate-700">
+<span class="text-sm font-medium leading-normal">Biển đảo</span>
+<span class="material-symbols-outlined text-lg">expand_more</span>
+</button>
+<button class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white border border-primary/20 px-5 text-slate-700">
+<span class="text-sm font-medium leading-normal">Vùng núi</span>
+<span class="material-symbols-outlined text-lg">expand_more</span>
+</button>
+<button class="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-white border border-primary/20 px-5 text-slate-700">
+<span class="text-sm font-medium leading-normal">Đô thị</span>
+<span class="material-symbols-outlined text-lg">expand_more</span>
+</button>
+</div>
+<!-- Results Section Title -->
+<div class="px-4 py-2">
+<h2 class="text-slate-900 text-lg font-bold">Kết quả tìm kiếm</h2>
+</div>
+<!-- Destination List -->
+<div class="flex flex-col gap-4 p-4">
+<!-- Item 1: Mũi Né -->
+<div class="group flex flex-col items-stretch justify-start rounded-xl overflow-hidden shadow-md bg-white border border-primary/5 transition-transform active:scale-[0.98]">
+<div class="relative w-full aspect-[16/9] bg-center bg-no-repeat bg-cover" data-alt="Breathtaking sand dunes and coastline of Mui Ne" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAnf1YyZ7w-3n7S8-oV9jV8v0y8B_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8C_v7T_U8n1X9V8j8"); background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDgRM_oNoHB5As-I2OtcH91sCBbu8PbmsY_Y-uDZc7zqAFozdqcb4FRMn6aRQarCdhrOVWx5DBsupFrYFKH1GT1SDcKvTb3MxYJMJfsjITro13W85PeT4TZNoPa-H5WqlASQVjryNxEC_3S0wIuXb3iK1KkdO8vwFZJ-nVh00gQMKuQlBKq9ee9FmZdgITuCmfFlqFGHRK4zyCa4xR_BKVlpYhPeQlQ8gxJsMoicScEfM8051MBp1yLMaYhdNpBQoNI_CF3DmJKfQ");'>
+<div class="absolute top-3 right-3 bg-white/90 backdrop-blur rounded-full p-1.5 shadow-sm">
+<span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1">favorite</span>
+</div>
+</div>
+<div class="flex w-full flex-col p-4">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-slate-900 text-lg font-bold leading-tight">Mũi Né</p>
+<p class="text-primary/70 text-sm font-normal mt-0.5">Phan Thiết, Bình Thuận</p>
+</div>
+<div class="flex items-center gap-1 bg-primary/5 px-2 py-1 rounded-lg">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="text-primary font-bold text-sm">4.7</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-4">
+<div class="flex -space-x-2">
+<img alt="Reviewer" class="size-6 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7i6QXHeCmNL1G9c1T9EpkG2ABT6KEqVUSXCCnT4HnqUoZx-bN60dE_y7O_MVFtZ38pIOhQlwTBgA6474I05BTklid54AFAztMyObQriryZ1zQBaK2Qg10-ZQOamBcYtjHzHR19hD318rGj434HiodUP9-7N8oVth6pzMH20TsfUHfKh_3EjvNzKnV0hxguxkJjwNuVTc3bPw0Wee45WZTrqNZIsWt1Sp4z65KjXTHm1bUz9XHZV2vgSP0ESPbbboWgBuDpQUcng"/>
+<img alt="Reviewer" class="size-6 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC92lwd9zXvVR254ywLVU37LkVeSIXGmQSSPrQpCZqlxZ9ocZWl_kv3AyPM7cQk74_JE_LnLFqpOPIEQ3WtAE_H6jYVadiPN9zQgPbXV7ZfTDd-R8uquBzitlFhrSPhUv4HnzPEw3GhkGK9W8ypzi7vwYmaxT72twFI1cyVzdJ1OSy1nYrdh4IazTluWhyGEOYLYmjQavpUR2-892JIidPSx_YOqkpKF98VgaHVEA7RIifCmylUgKv-a-1865UXoXS_0QNfRQASvQ"/>
+<div class="size-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-500">+3.1k</div>
+</div>
+<button class="flex min-w-[100px] cursor-pointer items-center justify-center rounded-lg h-9 px-4 bg-primary text-white text-sm font-bold shadow-sm shadow-primary/20 active:bg-primary/90">
+                        Đánh giá
+                    </button>
+</div>
+</div>
+</div>
+<!-- Item 2: Bàu Trắng -->
+<div class="group flex flex-col items-stretch justify-start rounded-xl overflow-hidden shadow-md bg-white border border-primary/5 transition-transform active:scale-[0.98]">
+<div class="relative w-full aspect-[16/9] bg-center bg-no-repeat bg-cover" data-alt="White sand dunes and lotus lake in Bau Trang" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC5xoU9v8utFaEU8nFwhVrgoGLJcxtrnf6fJquW52lZn5Xq5uTKZUPvA87mx_9veRrQZtmYEtxlAdG8FHFGV5uF4I2SWzcMXIv72kXAc2xU4GPf69HPurKTbyYZvcszFvKUmW67vqLl8UmxfCy_mwBcnXnik1Z2PnpqC4aSrwGj2GkEYeLK_C9lwC8n0f13Okb4z5BUNMvPtriZlfmZUJ-TF864Cj0mcAEJORa7Tm8P3pBsEmIsx0T9hSIIIuBAgkHW-qKnHGhmyg");'>
+<div class="absolute top-3 right-3 bg-white/90 backdrop-blur rounded-full p-1.5 shadow-sm">
+<span class="material-symbols-outlined text-slate-400 text-xl">favorite</span>
+</div>
+</div>
+<div class="flex w-full flex-col p-4">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-slate-900 text-lg font-bold leading-tight">Bàu Trắng</p>
+<p class="text-primary/70 text-sm font-normal mt-0.5">Bắc Bình, Bình Thuận</p>
+</div>
+<div class="flex items-center gap-1 bg-primary/5 px-2 py-1 rounded-lg">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="text-primary font-bold text-sm">4.6</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-4">
+<div class="flex -space-x-2">
+<img alt="Reviewer" class="size-6 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBst-vdLrS2RjPCIyrqRrsh-l18c7mOD44Lv1PKylO9TJQmPl7hPBArp6pzUPmyeHdAAcIuuuV6PXw6P0yCfDXH3UkxD_nonboggOAIIu2i3y4215fKXQAn-lYkHnf8ilMF0deZOi2iCpGIcNvcnbWMMG279aFq3XIfYxxrLBnWRtj5xKMjukvvgH_cQWlzgf4MaFNgiKfFI5ysryBByrkAB6e6KpDIBHSGHhStxNFzXNLDXXGY5IAY-6KdAe2jbbmklhBu2GO4oQ"/>
+<img alt="Reviewer" class="size-6 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlrzzwf86TBchVBH6UUjaevHIz-HXBTee6JdjnHkdnZhuOqeC8KEnbZAgxPWe6ia_5EC8BOFliiELlA-hz0bcikh7kGdzRCQA1-OsxAx6XGQt1zM-3DCqwPTrx8Pq-WxCaJ1-bapGM-LhPZ42dzuWnnwLlogWycRFQjFXpeDzdZbQoi96ejZyKwXcTjNU9YQGPY52k6eXBI2yQqY2pvVw39p00wEhQCy2XDduSL45y51Y1pJRQlfBXDnGWX1IUZcTTF9J9kIu9Rg"/>
+<div class="size-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-500">+1.5k</div>
+</div>
+<button class="flex min-w-[100px] cursor-pointer items-center justify-center rounded-lg h-9 px-4 bg-primary text-white text-sm font-bold shadow-sm shadow-primary/20 active:bg-primary/90">
+                        Đánh giá
+                    </button>
+</div>
+</div>
+</div>
+<!-- Item 3: Đảo Phú Quý -->
+<div class="group flex flex-col items-stretch justify-start rounded-xl overflow-hidden shadow-md bg-white border border-primary/5 transition-transform active:scale-[0.98]">
+<div class="relative w-full aspect-[16/9] bg-center bg-no-repeat bg-cover" data-alt="Crystal clear waters of Phu Quy island" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAzaHd0PJ7tWAlkStayao0vPiPv2pPhZLqgo3krmCQIluaqDE-7PzhJYKvujqpLE2WzwnwcXPq0XepARg2psZW6T_CgMza1Z4O_NZsli1z1kjmZiHbPSOPRXlYPCdbWKT8Hx6lGFbXDXUhMTACCe6z0PulIiCDHGln2cd2N22qfDexGqhFWtoF4f4WpFzS0Tt5GBFXrUIhZqyylAiTVLLZo_2MPNbuC0mBhlNZRpy7GF_n1Lo2EqcAWcm5b0HDZiy1aTTv6dogQbg");'>
+<div class="absolute top-3 right-3 bg-white/90 backdrop-blur rounded-full p-1.5 shadow-sm">
+<span class="material-symbols-outlined text-slate-400 text-xl">favorite</span>
+</div>
+</div>
+<div class="flex w-full flex-col p-4">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-slate-900 text-lg font-bold leading-tight">Đảo Phú Quý</p>
+<p class="text-primary/70 text-sm font-normal mt-0.5">Huyện Phú Quý, Bình Thuận</p>
+</div>
+<div class="flex items-center gap-1 bg-primary/5 px-2 py-1 rounded-lg">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="text-primary font-bold text-sm">4.9</span>
+</div>
+</div>
+<div class="flex items-center justify-between mt-4">
+<div class="flex -space-x-2">
+<img alt="Reviewer" class="size-6 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUCVkjP5BefvFxUKUBO3fKidi3i5OgEQcDRhInjx_aC7UQPd6HeBKjiXzLxu7bR_aJuX3bm95mBEmqS1fJBUZFooIo8lrQqyVoMzY1U5bhEr3v-mYoooBVKKmdd00j2KQ8nFcCKzZWI0EoeMLaPwV_pZsAf9CQLxoOW6TBQbXhpr5h5B-ydDAgZRWD-WuSWL2ykJqbj0KldpGnL5glCpa_-ef0u22nXIWOPHdS3onG_LdbNIhdjkKD08u_7PmzCAILrlYLwGwv7A"/>
+<img alt="Reviewer" class="size-6 rounded-full border-2 border-white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZTY2bVNf7Ar2PWHbZVzSzKGXp8LAqgWO5q6w2S7TVIUEB0l2dXNlBQRTb7fPR_Z27tPPIKHrTcyX0mqoX5qSSPpcLnMGz_F6ZXFSKn_HJJH2HyHs5XxXW7lfRNCsMZaSVPrFcLHKjc964u37ldBK2UC0Y6s0GtNhTMzOcqdid8958cUAVl-CT9oeI1I9XEWWkDmFejD6cEPYHqEfSN6XjJpItPgTFA33e9INO5Bast-43d3ZwVUbJQ4F1d7bNrDqW7p27l0-eUg"/>
+<div class="size-6 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-500">+2.4k</div>
+</div>
+<button class="flex min-w-[100px] cursor-pointer items-center justify-center rounded-lg h-9 px-4 bg-primary text-white text-sm font-bold shadow-sm shadow-primary/20 active:bg-primary/90">
+                        Đánh giá
+                    </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 flex h-20 items-center justify-around border-t border-primary/10 bg-white/95 backdrop-blur-lg px-2 pb-4 pt-2 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1">search</span>
+<p class="text-[10px] font-bold tracking-tight uppercase">Tìm kiếm</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined text-[24px]">calendar_today</span>
+<p class="text-[10px] font-medium tracking-tight uppercase">Lên lịch</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined text-[24px]">favorite</span>
+<p class="text-[10px] font-medium tracking-tight uppercase">Yêu thích</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400" href="#">
+<span class="material-symbols-outlined text-[24px]">person</span>
+<p class="text-[10px] font-medium tracking-tight uppercase">Hồ sơ</p>
+</a>
+</nav>
+</div>
+</body></html>
