@@ -2,6 +2,10 @@ package com.example.vietnam_travel_itinerary_android.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vietnam_travel_itinerary_android.SupabaseObject
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,7 +13,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class LoginViewModel : ViewModel() {
+class LoginViewModel(
+    private val supabase: SupabaseClient // THÊM DÒNG NÀY
+) : ViewModel() {
 
     data class LoginUiState(
         val email: String = "",
@@ -80,23 +86,23 @@ class LoginViewModel : ViewModel() {
         }
 
         // Proceed with login
-        _uiState.update { it.copy(isLoading = true, generalError = null) }
+        _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
             try {
-                // TODO: Replace with actual API call
-                delay(1500) // Simulate network call
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        loginSuccess = true
-                    )
+                // GỌI SUPABASE THỰC TẾ
+                SupabaseObject.client.auth.signInWith(Email) {
+                    email = state.email
+                    password = state.password
                 }
+
+                // Nếu không văng catch nghĩa là login thành công
+                _uiState.update { it.copy(isLoading = false, loginSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        generalError = "Đăng nhập thất bại. Vui lòng thử lại."
+                        generalError = "Sai email hoặc mật khẩu!"
                     )
                 }
             }

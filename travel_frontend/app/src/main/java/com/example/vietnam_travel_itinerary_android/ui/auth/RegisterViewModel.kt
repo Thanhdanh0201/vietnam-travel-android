@@ -102,39 +102,34 @@ class RegisterViewModel(
 
         viewModelScope.launch {
             try {
-                // Step 1: Sign up with Supabase
+                // Step 1: Sign up with Supabase (This sends the 6-digit OTP to Gmail)
                 supabase.auth.signUpWith(Email) {
                     email = state.email
                     password = state.password
                 }
 
-                // Step 2: Get access token
-                val token = supabase.auth.currentAccessTokenOrNull()
-
-                if (token != null) {
-                    // Step 3: Call Spring Boot API to sync user
-                    val response = api.syncUser("Bearer $token")
-
-                    if (response.isSuccessful) {
-                        // Sync success -> Move to OTP screen
-                        _uiState.update { it.copy(isLoading = false, navigateToOtp = true) }
-                    } else {
-                        // Sync failed
-                        _uiState.update {
-                            it.copy(isLoading = false, generalError = "Sync Failed: Code ${response.code()}")
-                        }
-                    }
-                } else {
-                    // Token is null (e.g. Supabase requires email confirmation first)
-                    // Still move to OTP screen to verify
-                    _uiState.update { it.copy(isLoading = false, navigateToOtp = true) }
+                // Step 2: Since Confirm Email is ON, we don't have a token yet.
+                // Just move to OTP Screen and let OtpViewModel handle the Sync later.
+                println("Sign up successful, redirecting to OTP screen...")
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        navigateToOtp = true
+                    )
                 }
 
             } catch (e: Exception) {
-                // Network or Supabase error
-                _uiState.update {
-                    it.copy(isLoading = false, generalError = "Registration Error: ${e.message}")
+                // Check if email already exists
+                val errorMessage = if (e.message?.contains("already registered", ignoreCase = true) == true) {
+                    "This email is already registered"
+                } else {
+                    "Registration Error: ${e.localizedMessage}"
                 }
+
+                _uiState.update {
+                    it.copy(isLoading = false, generalError = errorMessage)
+                }
+                println("Register Error: ${e.message}")
             }
         }
     }

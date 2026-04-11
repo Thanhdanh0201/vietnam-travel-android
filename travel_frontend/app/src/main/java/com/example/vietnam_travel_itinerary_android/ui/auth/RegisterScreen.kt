@@ -39,7 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit = {},
-    onNavigateToOtp: (String) -> Unit = {},
+    onNavigateToOtp: (String, String) -> Unit = { email, name -> },
     viewModel: RegisterViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -48,7 +48,11 @@ fun RegisterScreen(
     // Navigation trigger
     LaunchedEffect(uiState.navigateToOtp) {
         if (uiState.navigateToOtp) {
-            onNavigateToOtp(uiState.email)
+
+            val fullName = "${uiState.firstName} ${uiState.lastName}".trim()
+
+            onNavigateToOtp(uiState.email, fullName)
+
             viewModel.resetNavigation()
         }
     }

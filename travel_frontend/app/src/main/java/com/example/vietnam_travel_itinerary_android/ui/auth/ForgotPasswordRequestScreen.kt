@@ -35,7 +35,7 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 fun ForgotPasswordRequestScreen(
     onNavigateBack: () -> Unit,
     onNavigateToOtp: (String) -> Unit,
-    viewModel: ForgotPasswordViewModel = viewModel()
+    viewModel: ForgotPasswordViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current

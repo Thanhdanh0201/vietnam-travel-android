@@ -19,10 +19,12 @@ object Routes {
     const val REGISTER = "register"
     const val FORGOT_PASSWORD = "forgot_password"
     const val RESET_PASSWORD = "reset_password"
-    const val OTP = "otp/{email}/{type}"
+    // 1. SỬA Route OTP để nhận thêm biến {name}
+    const val OTP = "otp/{email}/{name}/{type}"
     const val HOME = "home"
 
-    fun otp(email: String, type: String) = "otp/$email/$type"
+    // 2. SỬA hàm otp để nhận 3 tham số
+    fun otp(email: String, name: String, type: String): String = "otp/$email/$name/$type"
 }
 
 @Composable
@@ -68,37 +70,16 @@ fun AppNavigation() {
 
         // ===== HOME SCREEN =====
         composable(Routes.HOME) {
-            HomeScreen(
-                onNavigate = { route ->
-                    when {
-                        route.startsWith("place_detail/") -> {
-                            // Future: navController.navigate(route)
-                        }
-                        route == "search" -> {
-                            // Already on search, do nothing
-                        }
-                        route == "itinerary" -> {
-                            // Future: navController.navigate("itinerary")
-                        }
-                        route == "profile" -> {
-                            // Future: navController.navigate("profile")
-                        }
-                        else -> {
-                            // Other future routes
-                        }
-                    }
-                }
-            )
+            HomeScreen(onNavigate = { /* ... giữ nguyên code của ông ... */ })
         }
 
         // ===== REGISTER SCREEN =====
         composable(Routes.REGISTER) {
             RegisterScreen(
-                onNavigateToLogin = {
-                    navController.popBackStack()
-                },
-                onNavigateToOtp = { email ->
-                    navController.navigate(Routes.otp(email, "REGISTER"))
+                onNavigateToLogin = { navController.popBackStack() },
+                onNavigateToOtp = { email, name ->
+                    // 3. Truyền cả name vào đây
+                    navController.navigate(Routes.otp(email, name, "REGISTER"))
                 }
             )
         }
@@ -106,11 +87,10 @@ fun AppNavigation() {
         // ===== FORGOT PASSWORD REQUEST SCREEN =====
         composable(Routes.FORGOT_PASSWORD) {
             ForgotPasswordRequestScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
+                onNavigateBack = { navController.popBackStack() },
                 onNavigateToOtp = { email ->
-                    navController.navigate(Routes.otp(email, "FORGOT_PASSWORD"))
+                    // Trường hợp quên mật khẩu không có name thì để mặc định là "User"
+                    navController.navigate(Routes.otp(email, "User", "FORGOT_PASSWORD"))
                 }
             )
         }
@@ -120,20 +100,21 @@ fun AppNavigation() {
             route = Routes.OTP,
             arguments = listOf(
                 androidx.navigation.navArgument("email") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("name") { type = androidx.navigation.NavType.StringType }, // 4. THÊM ARGUMENT NAME
                 androidx.navigation.navArgument("type") { type = androidx.navigation.NavType.StringType }
             )
         ) { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email") ?: ""
+            val name = backStackEntry.arguments?.getString("name") ?: "Traveler" // 5. LẤY NAME RA
             val typeStr = backStackEntry.arguments?.getString("type") ?: "REGISTER"
-            val type = if (typeStr == "FORGOT_PASSWORD") OtpViewModel.VerificationType.FORGOT_PASSWORD 
-                       else OtpViewModel.VerificationType.REGISTER
-            
+            val type = if (typeStr == "FORGOT_PASSWORD") OtpViewModel.VerificationType.FORGOT_PASSWORD
+            else OtpViewModel.VerificationType.REGISTER
+
             OtpScreen(
                 email = email,
+                fullName = name, // 6. TRUYỀN NAME VÀO OTPSCREEN
                 type = type,
-                onBackClick = {
-                    navController.popBackStack()
-                },
+                onBackClick = { navController.popBackStack() },
                 onNavigateToLogin = {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(Routes.REGISTER) { inclusive = true }

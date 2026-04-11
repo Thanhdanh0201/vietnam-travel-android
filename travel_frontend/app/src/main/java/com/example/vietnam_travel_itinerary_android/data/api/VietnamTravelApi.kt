@@ -13,7 +13,10 @@ import retrofit2.http.Query
 interface VietnamTravelApi {
 
     @POST("api/auth/sync")
-    suspend fun syncUser(@Header("Authorization") token: String): Response<Unit>
+    suspend fun syncUser(
+        @Header("Authorization") token: String,
+        @Body request: UserSyncRequest // THÊM DÒNG NÀY VÀO ĐÂY
+    ): Response<Unit>
 
     @GET("api/user-settings/me")
     suspend fun getUserSettings(@Header("Authorization") token: String): Response<UserSettingResponseDto>

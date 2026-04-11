@@ -15,5 +15,31 @@ object AppViewModelProvider {
                 api = RetrofitInstance.api
             )
         }
+
+        initializer {
+            OtpViewModel(
+                supabase = SupabaseObject.client,
+                api = RetrofitInstance.api
+            )
+        }
+
+        initializer {
+            LoginViewModel(
+                supabase = SupabaseObject.client
+            )
+        }
+
+        initializer {
+            ForgotPasswordViewModel(
+                supabase = SupabaseObject.client
+            )
+        }
+
+        initializer {
+            ResetPasswordViewModel(
+                supabase = SupabaseObject.client
+            )
+        }
+
     }
 }
