@@ -48,9 +48,9 @@ class OtpViewModel : ViewModel() {
     }
 
     fun onOtpChange(otp: String) {
-        if (otp.length <= 4) {
+        if (otp.length <= 6) {
             _uiState.update { it.copy(otpCode = otp, otpError = null) }
-            if (otp.length == 4) {
+            if (otp.length == 6) {
                 onVerifyOtp()
             }
         }

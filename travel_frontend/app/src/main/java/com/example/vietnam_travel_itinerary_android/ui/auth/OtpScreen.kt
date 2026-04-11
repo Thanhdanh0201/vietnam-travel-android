@@ -166,7 +166,7 @@ private fun OtpForm(
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(24.dp)
+                .padding(16.dp)
                 .widthIn(max = 448.dp)
         ) {
             // Glassmorphism Card
@@ -179,7 +179,7 @@ private fun OtpForm(
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
             ) {
                 Column(
-                    modifier = Modifier.padding(32.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(32.dp)
                 ) {
                     // Header
@@ -201,7 +201,7 @@ private fun OtpForm(
                             )
                         }
                         Text(
-                            text = "Mã xác thực đã được gửi đến email ${uiState.email}. Vui lòng kiểm tra hộp thư và nhập mã 4 chữ số bên dưới.",
+                            text = "Mã xác thực đã được gửi đến email ${uiState.email}. Vui lòng kiểm tra hộp thư và nhập mã 6 chữ số bên dưới.",
                             fontFamily = BeVietnamPro,
                             fontSize = 14.sp,
                             lineHeight = 23.sp,
@@ -246,7 +246,7 @@ private fun OtpForm(
                     // Confirm Button
                     Button(
                         onClick = {
-                            if (uiState.otpCode.length == 4) {
+                            if (uiState.otpCode.length == 6) {
                                 onVerifyOtp()
                             }
                         },
@@ -398,17 +398,17 @@ private fun OtpInputField(
     otpCode: String,
     onOtpChange: (String) -> Unit
 ) {
-    val focusRequesters = remember { List(4) { FocusRequester() } }
+    val focusRequesters = remember { List(6) { FocusRequester() } }
     
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
     ) {
-        for (i in 0 until 4) {
+        for (i in 0 until 6) {
             val char = otpCode.getOrNull(i)?.toString() ?: ""
             Surface(
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(width = 42.dp, height = 56.dp)
                     .border(1.5.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
                     .shadow(elevation = 4.dp, shape = RoundedCornerShape(12.dp)),
                 color = Color.White,
@@ -429,14 +429,14 @@ private fun OtpInputField(
                                 onOtpChange(currentCode.joinToString(""))
                                 
                                 // Auto focus
-                                if (it.isNotEmpty() && i < 3) {
+                                if (it.isNotEmpty() && i < 5) {
                                     focusRequesters[i + 1].requestFocus()
                                 }
                             }
                         },
                         textStyle = TextStyle(
                             fontFamily = BeVietnamPro,
-                            fontSize = 24.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = Color(0xFF0F172A)
