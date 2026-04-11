@@ -84,4 +84,12 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.2"))
+
+    // Thư viện Auth (Thay thế cho gotrue-kt)
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+
+    // Bắt buộc phải có Ktor Client để Supabase chạy được mạng
+    implementation("io.ktor:ktor-client-android:3.0.1")
 }

@@ -2,14 +2,19 @@ package com.example.vietnam_travel_itinerary_android.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.example.vietnam_travel_itinerary_android.data.api.VietnamTravelApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-class RegisterViewModel : ViewModel() {
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
+class RegisterViewModel(
+    private val supabase: SupabaseClient,
+    private val api: VietnamTravelApi
+) : ViewModel() {
 
     data class RegisterUiState(
         val firstName: String = "",
@@ -68,9 +73,8 @@ class RegisterViewModel : ViewModel() {
 
     fun onRegisterClick() {
         val state = _uiState.value
-        
+
         // Simple Validation
-        var hasError = false
         val firstNameError = if (state.firstName.isBlank()) "Vui lòng nhập họ" else null
         val lastNameError = if (state.lastName.isBlank()) "Vui lòng nhập tên" else null
         val emailError = if (state.email.isBlank()) "Vui lòng nhập email" else null
@@ -78,9 +82,9 @@ class RegisterViewModel : ViewModel() {
         val confirmPasswordError = if (state.confirmPassword != state.password) "Mật khẩu không khớp" else null
         val termsError = if (!state.agreesToTerms) "Vui lòng đồng ý với điều khoản" else null
 
-        if (firstNameError != null || lastNameError != null || emailError != null || 
+        if (firstNameError != null || lastNameError != null || emailError != null ||
             passwordError != null || confirmPasswordError != null || termsError != null) {
-            _uiState.update { 
+            _uiState.update {
                 it.copy(
                     firstNameError = firstNameError,
                     lastNameError = lastNameError,
@@ -93,15 +97,44 @@ class RegisterViewModel : ViewModel() {
             return
         }
 
-        _uiState.update { it.copy(isLoading = true) }
+        // Start loading
+        _uiState.update { it.copy(isLoading = true, generalError = null) }
 
         viewModelScope.launch {
-            delay(1500) // Simulate API registration call
-            _uiState.update { 
-                it.copy(
-                    isLoading = false,
-                    navigateToOtp = true
-                )
+            try {
+                // Step 1: Sign up with Supabase
+                supabase.auth.signUpWith(Email) {
+                    email = state.email
+                    password = state.password
+                }
+
+                // Step 2: Get access token
+                val token = supabase.auth.currentAccessTokenOrNull()
+
+                if (token != null) {
+                    // Step 3: Call Spring Boot API to sync user
+                    val response = api.syncUser("Bearer $token")
+
+                    if (response.isSuccessful) {
+                        // Sync success -> Move to OTP screen
+                        _uiState.update { it.copy(isLoading = false, navigateToOtp = true) }
+                    } else {
+                        // Sync failed
+                        _uiState.update {
+                            it.copy(isLoading = false, generalError = "Sync Failed: Code ${response.code()}")
+                        }
+                    }
+                } else {
+                    // Token is null (e.g. Supabase requires email confirmation first)
+                    // Still move to OTP screen to verify
+                    _uiState.update { it.copy(isLoading = false, navigateToOtp = true) }
+                }
+
+            } catch (e: Exception) {
+                // Network or Supabase error
+                _uiState.update {
+                    it.copy(isLoading = false, generalError = "Registration Error: ${e.message}")
+                }
             }
         }
     }

@@ -34,12 +34,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun RegisterScreen(
     onNavigateToLogin: () -> Unit = {},
     onNavigateToOtp: (String) -> Unit = {},
-    viewModel: RegisterViewModel = viewModel()
+    viewModel: RegisterViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
