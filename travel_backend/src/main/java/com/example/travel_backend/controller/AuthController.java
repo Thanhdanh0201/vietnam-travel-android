@@ -37,7 +37,6 @@ public class AuthController {
         newUser.setId(request.getId());
         newUser.setEmail(request.getEmail());
         newUser.setName(request.getName());
-        newUser.setAvatarUrl(request.getAvatarUrl());
         newUser.setCreatedAt(OffsetDateTime.now());
 
         userRepository.save(newUser);
