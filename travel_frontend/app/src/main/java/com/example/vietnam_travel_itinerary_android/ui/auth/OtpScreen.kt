@@ -37,18 +37,19 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 @Composable
 fun OtpScreen(
     email: String,
+    fullName: String, // Nhận thêm fullName từ NavGraph
     type: OtpViewModel.VerificationType = OtpViewModel.VerificationType.REGISTER,
     onBackClick: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
     onNavigateToResetPassword: () -> Unit = {},
-    viewModel: OtpViewModel = viewModel()
+    viewModel: OtpViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
 
-    // Initialize ViewModel with data
-    LaunchedEffect(email, type) {
-        viewModel.init(email, type)
+    // SỬA TẠI ĐÂY: Truyền đúng 3 tham số (email, fullName, type) vào hàm init mới
+    LaunchedEffect(email, fullName, type) {
+        viewModel.init(email, fullName, type)
     }
 
     Box(
@@ -60,15 +61,13 @@ fun OtpScreen(
                 onClick = { focusManager.clearFocus() }
             )
     ) {
-        // Background
         OtpBackground(step = uiState.currentStep)
 
-        // Navigation Content
         AnimatedContent(
             targetState = uiState.currentStep,
             transitionSpec = {
                 fadeIn(animationSpec = tween(500)) togetherWith
-                fadeOut(animationSpec = tween(500))
+                        fadeOut(animationSpec = tween(500))
             },
             label = "OtpFlow"
         ) { step ->
@@ -99,22 +98,16 @@ fun OtpScreen(
     }
 }
 
+// --- Các hàm Composable phụ bên dưới giữ nguyên ---
+
 @Composable
 private fun OtpBackground(step: OtpViewModel.OtpStep) {
     when (step) {
         OtpViewModel.OtpStep.OTP -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFF8F6F6))
-            )
+            Box(modifier = Modifier.fillMaxSize().background(Color(0xFFF8F6F6)))
         }
         OtpViewModel.OtpStep.SUCCESS -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.White)
-            ) {
+            Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val spacing = 16.dp.toPx()
                     val alpha = 0.03f
@@ -142,55 +135,31 @@ private fun OtpForm(
     onBackClick: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
-        // Top Navigation
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
+            modifier = Modifier.fillMaxWidth().padding(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ChevronLeft,
-                    contentDescription = "Back",
-                    tint = VNRed
-                )
+            IconButton(onClick = onBackClick, modifier = Modifier.size(32.dp).clip(CircleShape)) {
+                Icon(imageVector = Icons.Default.ChevronLeft, contentDescription = "Back", tint = VNRed)
             }
         }
 
         Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(24.dp)
-                .widthIn(max = 448.dp)
+            modifier = Modifier.align(Alignment.Center).padding(16.dp).widthIn(max = 448.dp)
         ) {
-            // Glassmorphism Card
             Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(elevation = 15.dp, shape = RoundedCornerShape(24.dp)),
+                modifier = Modifier.fillMaxWidth().shadow(elevation = 15.dp, shape = RoundedCornerShape(24.dp)),
                 color = Color.White.copy(alpha = 0.95f),
                 shape = RoundedCornerShape(24.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE5E7EB))
             ) {
                 Column(
-                    modifier = Modifier.padding(32.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 32.dp),
                     verticalArrangement = Arrangement.spacedBy(32.dp)
                 ) {
-                    // Header
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .width(6.dp)
-                                    .height(24.dp)
-                                    .background(VNRed, CircleShape)
-                            )
+                            Box(modifier = Modifier.width(6.dp).height(24.dp).background(VNRed, CircleShape))
                             Text(
                                 text = "Xác thực tài khoản",
                                 fontFamily = BeVietnamPro,
@@ -201,7 +170,7 @@ private fun OtpForm(
                             )
                         }
                         Text(
-                            text = "Mã xác thực đã được gửi đến email ${uiState.email}. Vui lòng kiểm tra hộp thư và nhập mã 4 chữ số bên dưới.",
+                            text = "Mã xác thực đã được gửi đến email ${uiState.email}. Vui lòng kiểm tra hộp thư và nhập mã 6 chữ số bên dưới.",
                             fontFamily = BeVietnamPro,
                             fontSize = 14.sp,
                             lineHeight = 23.sp,
@@ -209,13 +178,8 @@ private fun OtpForm(
                         )
                     }
 
-                    // OTP Input
-                    OtpInputField(
-                        otpCode = uiState.otpCode,
-                        onOtpChange = onOtpChange
-                    )
+                    OtpInputField(otpCode = uiState.otpCode, onOtpChange = onOtpChange)
 
-                    // Timer & Resend
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -243,58 +207,19 @@ private fun OtpForm(
                         }
                     }
 
-                    // Confirm Button
                     Button(
-                        onClick = {
-                            if (uiState.otpCode.length == 4) {
-                                onVerifyOtp()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                            .shadow(
-                                elevation = 8.dp,
-                                shape = RoundedCornerShape(12.dp),
-                                spotColor = VNRed.copy(alpha = 0.4f)
-                            ),
+                        onClick = { if (uiState.otpCode.length == 6) onVerifyOtp() },
+                        modifier = Modifier.fillMaxWidth().height(52.dp).shadow(elevation = 8.dp, shape = RoundedCornerShape(12.dp), spotColor = VNRed.copy(alpha = 0.4f)),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = VNRed,
-                            contentColor = Color.White,
-                            disabledContainerColor = VNRed.copy(alpha = 0.5f),
-                            disabledContentColor = Color.White.copy(alpha = 0.8f)
-                        ),
+                        colors = ButtonDefaults.buttonColors(containerColor = VNRed, contentColor = Color.White),
                         enabled = !uiState.isLoading
                     ) {
                         if (uiState.isLoading) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                         } else {
-                            Text(
-                                text = "XÁC NHẬN",
-                                fontFamily = BeVietnamPro,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                letterSpacing = 1.4.sp,
-                                color = Color.White
-                            )
+                            Text(text = "XÁC NHẬN", fontFamily = BeVietnamPro, fontWeight = FontWeight.Bold, fontSize = 14.sp, letterSpacing = 1.4.sp)
                         }
                     }
-
-                    // Help
-                    Text(
-                        text = "Bạn không nhận được mã? Hãy thử lại",
-                        fontFamily = BeVietnamPro,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp,
-                        color = Color(0xFF475569),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
         }
@@ -302,157 +227,68 @@ private fun OtpForm(
 }
 
 @Composable
-private fun OtpSuccessForm(
-    type: OtpViewModel.VerificationType,
-    onPrimaryClick: () -> Unit
-) {
+private fun OtpSuccessForm(type: OtpViewModel.VerificationType, onPrimaryClick: () -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Success Icon
         Box(
-            modifier = Modifier
-                .size(96.dp)
-                .shadow(
-                    elevation = 20.dp,
-                    shape = CircleShape,
-                    spotColor = VNRed.copy(alpha = 0.2f)
-                )
-                .background(VNRed, CircleShape),
+            modifier = Modifier.size(96.dp).shadow(elevation = 20.dp, shape = CircleShape, spotColor = VNRed.copy(alpha = 0.2f)).background(VNRed, CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Success",
-                tint = Color.White,
-                modifier = Modifier.size(40.dp)
-            )
+            Icon(imageVector = Icons.Default.Check, contentDescription = "Success", tint = Color.White, modifier = Modifier.size(40.dp))
         }
-
         Spacer(modifier = Modifier.height(32.dp))
-
-        // Text
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(15.dp)
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(15.dp)) {
             val title = if (type == OtpViewModel.VerificationType.REGISTER) "Đăng ký thành công!" else "Xác thực thành công!"
-            val description = if (type == OtpViewModel.VerificationType.REGISTER) {
-                "Tài khoản của bạn đã được khởi tạo. Bắt đầu hành trình khám phá Việt Nam ngay thôi!"
-            } else {
-                "Mã xác thực chính xác. Bạn có thể tiến hành đặt lại mật khẩu của mình."
-            }
-
+            Text(text = title, fontFamily = BeVietnamPro, fontWeight = FontWeight.ExtraBold, fontSize = 30.sp, color = Color(0xFF1A1A1A))
             Text(
-                text = title,
-                fontFamily = BeVietnamPro,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 30.sp,
-                color = Color(0xFF1A1A1A),
-                letterSpacing = (-0.75).sp
-            )
-            Text(
-                text = description,
-                fontFamily = BeVietnamPro,
-                fontSize = 14.sp,
-                lineHeight = 23.sp,
-                color = Color(0xFF666666),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(max = 300.dp)
+                text = if (type == OtpViewModel.VerificationType.REGISTER) "Tài khoản đã sẵn sàng. Khám phá ngay!" else "Mã chính xác. Đặt lại mật khẩu thôi!",
+                fontFamily = BeVietnamPro, fontSize = 14.sp, color = Color(0xFF666666), textAlign = TextAlign.Center
             )
         }
-
         Spacer(modifier = Modifier.height(40.dp))
-
-        // Action Button
         Button(
             onClick = onPrimaryClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 346.dp)
-                .height(56.dp)
-                .shadow(
-                    elevation = 10.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    spotColor = VNRed.copy(alpha = 0.3f)
-                ),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 346.dp).height(56.dp).shadow(elevation = 10.dp, shape = RoundedCornerShape(12.dp)),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = VNRed)
         ) {
-            Text(
-                text = if (type == OtpViewModel.VerificationType.REGISTER) "Quay lại đăng nhập" else "Tiếp tục",
-                fontFamily = BeVietnamPro,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
+            Text(text = if (type == OtpViewModel.VerificationType.REGISTER) "Quay lại đăng nhập" else "Tiếp tục", fontFamily = BeVietnamPro, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
 }
 
 @Composable
-private fun OtpInputField(
-    otpCode: String,
-    onOtpChange: (String) -> Unit
-) {
-    val focusRequesters = remember { List(4) { FocusRequester() } }
-    
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
-    ) {
-        for (i in 0 until 4) {
+private fun OtpInputField(otpCode: String, onOtpChange: (String) -> Unit) {
+    val focusRequesters = remember { List(6) { FocusRequester() } }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)) {
+        for (i in 0 until 6) {
             val char = otpCode.getOrNull(i)?.toString() ?: ""
             Surface(
-                modifier = Modifier
-                    .size(64.dp)
-                    .border(1.5.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
-                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(12.dp)),
-                color = Color.White,
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier.size(width = 42.dp, height = 56.dp).border(1.5.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp)).shadow(elevation = 4.dp),
+                color = Color.White, shape = RoundedCornerShape(12.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     BasicTextField(
                         value = char,
                         onValueChange = {
                             if (it.length <= 1) {
-                                val currentCode = otpCode.toList().toMutableList()
-                                if (it.isEmpty()) {
-                                    if (currentCode.size > i) currentCode.removeAt(i)
-                                } else {
-                                    if (currentCode.size > i) currentCode[i] = it[0]
-                                    else currentCode.add(it[0])
-                                }
+                                val currentCode = otpCode.toMutableList()
+                                if (it.isEmpty()) { if (currentCode.size > i) currentCode.removeAt(i) }
+                                else { if (currentCode.size > i) currentCode[i] = it[0] else currentCode.add(it[0]) }
                                 onOtpChange(currentCode.joinToString(""))
-                                
-                                // Auto focus
-                                if (it.isNotEmpty() && i < 3) {
-                                    focusRequesters[i + 1].requestFocus()
-                                }
+                                if (it.isNotEmpty() && i < 5) focusRequesters[i + 1].requestFocus()
                             }
                         },
-                        textStyle = TextStyle(
-                            fontFamily = BeVietnamPro,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            color = Color(0xFF0F172A)
-                        ),
+                        textStyle = TextStyle(fontFamily = BeVietnamPro, fontSize = 18.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequesters[i])
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequesters[i])
                     )
                 }
             }
         }
     }
-    
-    // Initial focus
-    LaunchedEffect(Unit) {
-        focusRequesters[0].requestFocus()
-    }
+    LaunchedEffect(Unit) { focusRequesters[0].requestFocus() }
 }
