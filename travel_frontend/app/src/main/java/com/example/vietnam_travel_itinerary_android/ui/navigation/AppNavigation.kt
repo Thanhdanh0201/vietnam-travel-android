@@ -12,19 +12,28 @@ import com.example.vietnam_travel_itinerary_android.ui.auth.OtpScreen
 import com.example.vietnam_travel_itinerary_android.ui.auth.OtpViewModel
 import com.example.vietnam_travel_itinerary_android.ui.auth.ForgotPasswordRequestScreen
 import com.example.vietnam_travel_itinerary_android.ui.auth.ResetPasswordScreen
-import com.example.vietnam_travel_itinerary_android.ui.home.HomeScreen
-
+import android.net.Uri
 object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val FORGOT_PASSWORD = "forgot_password"
     const val RESET_PASSWORD = "reset_password"
-    // 1. SỬA Route OTP để nhận thêm biến {name}
     const val OTP = "otp/{email}/{name}/{type}"
-    const val HOME = "home"
+    const val MAIN = "main"
 
-    // 2. SỬA hàm otp để nhận 3 tham số
-    fun otp(email: String, name: String, type: String): String = "otp/$email/$name/$type"
+    // SỬA LẠI HÀM NÀY
+    fun otp(email: String, name: String, type: String): String {
+        // 1. Mã hóa email (để xử lý ký tự @ hoặc các ký tự lạ)
+        val encodedEmail = Uri.encode(email)
+
+        // 2. Đảm bảo name không bị rỗng. Nếu rỗng, URL sẽ thành otp/email//type -> Bị lỗi 2 gạch chéo
+        val safeName = if (name.isNotBlank()) name else "Traveler"
+
+        // 3. Mã hóa name (để xử lý khoảng trắng như "Nguyen Van A" thành "Nguyen%20Van%20A")
+        val encodedName = Uri.encode(safeName)
+
+        return "otp/$encodedEmail/$encodedName/$type"
+    }
 }
 
 @Composable
@@ -34,45 +43,30 @@ fun AppNavigation() {
     NavHost(
         navController = navController,
         startDestination = Routes.LOGIN,
-        enterTransition = {
-            fadeIn(animationSpec = tween(300)) +
-                    slideInHorizontally(animationSpec = tween(300), initialOffsetX = { it })
-        },
-        exitTransition = {
-            fadeOut(animationSpec = tween(300)) +
-                    slideOutHorizontally(animationSpec = tween(300), targetOffsetX = { -it })
-        },
-        popEnterTransition = {
-            fadeIn(animationSpec = tween(300)) +
-                    slideInHorizontally(animationSpec = tween(300), initialOffsetX = { -it })
-        },
-        popExitTransition = {
-            fadeOut(animationSpec = tween(300)) +
-                    slideOutHorizontally(animationSpec = tween(300), targetOffsetX = { it })
-        }
+        enterTransition = { fadeIn(animationSpec = tween(300)) + slideInHorizontally(animationSpec = tween(300), initialOffsetX = { it }) },
+        exitTransition = { fadeOut(animationSpec = tween(300)) + slideOutHorizontally(animationSpec = tween(300), targetOffsetX = { -it }) },
+        popEnterTransition = { fadeIn(animationSpec = tween(300)) + slideInHorizontally(animationSpec = tween(300), initialOffsetX = { -it }) },
+        popExitTransition = { fadeOut(animationSpec = tween(300)) + slideOutHorizontally(animationSpec = tween(300), targetOffsetX = { it }) }
     ) {
         // ===== LOGIN SCREEN =====
         composable(Routes.LOGIN) {
             LoginScreen(
                 onNavigateToHome = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    // 2. CHỈNH SỬA: Điều hướng vào MAIN thay vì HOME
+                    navController.navigate(Routes.MAIN) {
+                        popUpTo(Routes.LOGIN) { inclusive = true } // Xóa lịch sử Login để không bấm Back về được
                     }
                 },
-                onNavigateToRegister = {
-                    navController.navigate(Routes.REGISTER)
-                },
-                onNavigateToForgotPassword = {
-                    navController.navigate(Routes.FORGOT_PASSWORD)
-                }
+                onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
+                onNavigateToForgotPassword = { navController.navigate(Routes.FORGOT_PASSWORD) }
             )
         }
 
-        // ===== HOME SCREEN =====
-        composable(Routes.HOME) {
-            HomeScreen(onNavigate = { /* ... giữ nguyên code của ông ... */ })
+        // ===== MAIN TABS SCREEN (Gồm Home, Itinerary, Profile...) =====
+        // 3. XÓA composable(Routes.HOME) cũ và thay bằng composable(Routes.MAIN)
+        composable(Routes.MAIN) {
+            MainScreen()
         }
-
         // ===== REGISTER SCREEN =====
         composable(Routes.REGISTER) {
             RegisterScreen(
