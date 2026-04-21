@@ -26,6 +26,7 @@ public class User {
     @Column(name = "name", length = Integer.MAX_VALUE)
     private String name;
 
+    @ColumnDefault("NULL")
     @Column(name = "avatar_url", length = Integer.MAX_VALUE)
     private String avatarUrl;
 

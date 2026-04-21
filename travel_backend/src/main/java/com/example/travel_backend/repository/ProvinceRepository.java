@@ -1,6 +1,6 @@
 package com.example.travel_backend.repository;
 
-import com.example.travel_backend.entity.UserSetting;
+import com.example.travel_backend.entity.Province;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -8,6 +8,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface UserSettingsRepository extends JpaRepository<UserSetting, UUID> {
-    Optional<UserSetting> findByUserId(UUID userId);
+public interface ProvinceRepository extends JpaRepository<Province, UUID> {
+    Optional<Province> findByCode(String code);
 }

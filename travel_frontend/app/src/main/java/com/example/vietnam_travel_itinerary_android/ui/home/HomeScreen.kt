@@ -37,12 +37,6 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
-        bottomBar = {
-            BottomNavBar(
-                currentRoute = "home",
-                onItemClick = { route -> onNavigate(route) }
-            )
-        },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         if (uiState.isLoading) {
