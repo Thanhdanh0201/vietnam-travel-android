@@ -4,29 +4,49 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
+import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
+import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ItineraryScreen(itineraries: List<Itinerary>) {
+fun ItineraryScreen(
+    itineraries: List<Itinerary>,
+    onSearchClick: () -> Unit = {},
+    onNotificationClick: () -> Unit = {}
+) {
     Scaffold(
-        containerColor = Color(0xFFF5F5F5), // Màu nền xám nhạt
-        // Nút Tạo lịch trình mới nổi lên
+        containerColor = Color(0xFFF8F6F6),
+        // ── AppTopBar gắn trực tiếp vào topBar slot của Scaffold
+        topBar = {
+            Column {
+                AppTopBar(
+                    onSearchClick = onSearchClick,
+                    onNotificationClick = onNotificationClick
+                )
+                HorizontalDivider(color = Color(0xFFF1F5F9))
+            }
+        },
+        // ── Nút Tạo lịch trình mới
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { /* Xử lý sự kiện tạo mới */ },
-                containerColor = Color(0xFFC21833), // Màu đỏ chủ đạo
+                onClick = { /* TODO: Navigate to create itinerary */ },
+                containerColor = VNRed,
                 contentColor = Color.White,
                 shape = RoundedCornerShape(24.dp)
             ) {
@@ -43,30 +63,36 @@ fun ItineraryScreen(itineraries: List<Itinerary>) {
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Tiêu đề
-            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            // ── Tiêu đề — đồng bộ style với CommunityScreen
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Box(
                     modifier = Modifier
-                        .width(4.dp)
-                        .height(20.dp)
-                        .background(Color(0xFFC21833), RoundedCornerShape(2.dp))
+                        .width(6.dp)
+                        .height(24.dp)
+                        .clip(CircleShape)
+                        .background(VNRed)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Lịch trình của tôi",
+                    fontWeight = FontWeight.ExtraBold,
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    letterSpacing = (-0.5).sp,
+                    color = SlateGray900
                 )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Danh sách lịch trình
+            // ── Danh sách lịch trình
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp) // Tránh bị che bởi Bottom Nav và FAB
+                contentPadding = PaddingValues(bottom = 80.dp),
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 items(itineraries) { itinerary ->
                     ItineraryCard(itinerary = itinerary)
