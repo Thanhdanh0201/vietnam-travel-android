@@ -8,12 +8,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,147 +24,351 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.Comment
+import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
+import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.ItineraryCompactCard
+import com.example.vietnam_travel_itinerary_android.ui.components.post.*
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 
 // ============================================================
-// COMMENT BOTTOM SHEET
-// Hiển thị khi user bấm nút bình luận trên bài đăng
+// POST DETAIL SCREEN — kiểu Threads/Facebook
+// Post hiển thị ở trên, comments cuộn bên dưới inline
+// Input bar cố định ở đáy
 // ============================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommentBottomSheet(
-    postId: String,
-    comments: List<Comment>,
-    commentCount: Int,
-    onDismiss: () -> Unit
+fun PostDetailScreen(
+    post: CommunityPost,
+    onBack: () -> Unit = {},
+    onItineraryClick: (String) -> Unit = {}
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    var allComments by remember { mutableStateOf(post.comments) }
     var inputText by remember { mutableStateOf("") }
-    var allComments by remember { mutableStateOf(comments) }
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
+    var isLiked by remember { mutableStateOf(post.isLiked) }
+    var likeCount by remember { mutableIntStateOf(post.likeCount) }
     val keyboard = LocalSoftwareKeyboardController.current
+    val listState = rememberLazyListState()
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.White,
-        dragHandle = {
-            // Drag handle + tiêu đề
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
+    Scaffold(
+        containerColor = Color(0xFFF8F6F6),
+        topBar = {
+            // ── TopBar: back + "Bài đăng" title
+            Column {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color(0xFFF8F6F6),
+                    shadowElevation = 0.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(56.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .clickable(onClick = onBack),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowBack, "Quay lại",
+                                tint = SlateGray900, modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Text(
+                            "Bài đăng",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp,
+                            color = SlateGray900
+                        )
+                    }
+                }
+                HorizontalDivider(color = SlateGray100)
+            }
+        },
+        // ── Fixed input bar at bottom
+        bottomBar = {
+            CommentInputBar(
+                text = inputText,
+                replyingTo = replyingTo,
+                onTextChange = { inputText = it },
+                onCancelReply = { replyingTo = null },
+                onSend = {
+                    val parent = replyingTo
+                    if (parent != null) {
+                        val newReply = Comment(
+                            id = "r_${System.currentTimeMillis()}",
+                            postId = post.id, parentCommentId = parent.id,
+                            authorName = "Bạn", authorAvatarInitials = "BN",
+                            authorAvatarColor = 0xFFC6102E,
+                            timeAgo = "vừa xong", content = inputText, reactionCount = 0
+                        )
+                        allComments = allComments.map { c ->
+                            if (c.id == parent.id)
+                                c.copy(replies = c.replies + newReply, replyCount = c.replyCount + 1)
+                            else c
+                        }
+                        replyingTo = null
+                    } else {
+                        val newComment = Comment(
+                            id = "c_${System.currentTimeMillis()}",
+                            postId = post.id, authorName = "Bạn",
+                            authorAvatarInitials = "BN", authorAvatarColor = 0xFFC6102E,
+                            timeAgo = "vừa xong", content = inputText, reactionCount = 0
+                        )
+                        allComments = listOf(newComment) + allComments
+                    }
+                    inputText = ""
+                    keyboard?.hide()
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            // ──────────────────────────────────────────────
+            // 1. ORIGINAL POST (full — không card shadow)
+            // ──────────────────────────────────────────────
+            item {
+                Column(
                     modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
-                        .clip(CircleShape)
-                        .background(SlateGray200)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Author row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        AuthorAvatar(
+                            post.authorAvatarInitials,
+                            Color(post.authorAvatarColor), 42
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                post.authorName,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = SlateGray900
+                            )
+                            Text(
+                                post.timeAgo,
+                                fontSize = 11.sp,
+                                color = SlateGray400
+                            )
+                        }
+                        Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400)
+                    }
+
+                    // Content
+                    if (post.content.isNotBlank()) {
+                        Text(
+                            post.content,
+                            fontSize = 15.sp,
+                            lineHeight = 23.sp,
+                            color = SlateGray900
+                        )
+                    }
+
+                    // Media
+                    if (post.postType == "original" && post.media.isNotEmpty()) {
+                        PostImageGrid(
+                            post.media,
+                            modifier = Modifier.padding(horizontal = 0.dp)
+                        )
+                    }
+
+                    // Embedded post
+                    post.embeddedPost?.let { EmbeddedPostCard(it) }
+
+                    // Linked itinerary
+                    post.linkedItinerary?.let {
+                        ItineraryCompactCard(it, onViewClick = { onItineraryClick(it.id) })
+                    }
+
+                    // ── Post stats row
+                    HorizontalDivider(color = SlateGray100)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (likeCount > 0) {
+                            Text(
+                                "$likeCount lượt thích",
+                                fontSize = 13.sp,
+                                color = SlateGray500
+                            )
+                        }
+                        if (allComments.isNotEmpty()) {
+                            if (likeCount > 0) Text("·", color = SlateGray300, fontSize = 13.sp)
+                            Text(
+                                "${allComments.size} bình luận",
+                                fontSize = 13.sp,
+                                color = SlateGray500
+                            )
+                        }
+                    }
+
+                    // ── Action buttons row (Threads-style)
+                    HorizontalDivider(color = SlateGray100)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        // Like
+                        ActionButton(
+                            icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            label = "Thích",
+                            tint = if (isLiked) VNRed else SlateGray500,
+                            onClick = {
+                                isLiked = !isLiked
+                                likeCount = if (isLiked) likeCount + 1 else likeCount - 1
+                            }
+                        )
+                        // Comment — scroll to first comment
+                        ActionButton(
+                            icon = Icons.Outlined.ChatBubbleOutline,
+                            label = "Bình luận",
+                            tint = SlateGray500,
+                            onClick = {}
+                        )
+                        // Share
+                        ActionButton(
+                            icon = Icons.Outlined.Share,
+                            label = "Chia sẻ",
+                            tint = SlateGray500,
+                            onClick = {}
+                        )
+                        // Save
+                        ActionButton(
+                            icon = Icons.Outlined.BookmarkBorder,
+                            label = "Lưu",
+                            tint = SlateGray500,
+                            onClick = {}
+                        )
+                    }
+                    HorizontalDivider(color = SlateGray100)
+                }
+            }
+
+            // ──────────────────────────────────────────────
+            // 2. COMMENT SORT BAR (Threads-style)
+            // ──────────────────────────────────────────────
+            item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .background(Color.White)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .width(4.dp)
-                            .height(18.dp)
-                            .clip(CircleShape)
-                            .background(VNRed)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Bình luận",
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp,
-                        color = SlateGray900
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "($commentCount)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = SlateGray400
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = SlateGray100)
-            }
-        }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-        ) {
-            // ── Danh sách comments
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .heightIn(max = 480.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (allComments.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text("💬", fontSize = 32.sp)
-                                Text(
-                                    text = "Hãy là người đầu tiên bình luận!",
-                                    color = SlateGray400,
-                                    fontSize = 14.sp
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    items(allComments, key = { it.id }) { comment ->
-                        CommentItem(
-                            comment = comment,
-                            onReply = { replyingTo = comment },
-                            onLike = { /* toggle like */ }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {}
+                    ) {
+                        Text(
+                            "Hàng đầu",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = SlateGray700
                         )
-                        // ── Nested replies
-                        if (comment.replies.isNotEmpty()) {
-                            comment.replies.forEach { reply ->
-                                CommentItem(
-                                    comment = reply,
-                                    isReply = true,
-                                    onReply = { replyingTo = comment },
-                                    onLike = {}
-                                )
-                            }
-                        }
+                        Icon(
+                            Icons.Outlined.KeyboardArrowDown, null,
+                            tint = SlateGray500, modifier = Modifier.size(16.dp)
+                        )
                     }
+                    Text(
+                        "Xem hoạt động >",
+                        fontSize = 12.sp,
+                        color = SlateGray400,
+                        modifier = Modifier.clickable {}
+                    )
                 }
             }
 
-            // ── Reply banner
-            AnimatedVisibility(
-                visible = replyingTo != null,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
+            // ──────────────────────────────────────────────
+            // 3. COMMENTS LIST — inline, no modal
+            // ──────────────────────────────────────────────
+            if (allComments.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("💬", fontSize = 36.sp)
+                            Text(
+                                "Hãy là người đầu tiên bình luận!",
+                                color = SlateGray400, fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            } else {
+                items(allComments, key = { it.id }) { comment ->
+                    ThreadCommentItem(
+                        comment = comment,
+                        onReply = { replyingTo = comment },
+                        onLike = {}
+                    )
+                    // Nested replies (indented)
+                    comment.replies.forEach { reply ->
+                        ThreadCommentItem(
+                            comment = reply,
+                            isReply = true,
+                            onReply = { replyingTo = comment },
+                            onLike = {}
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ── Fixed bottom input bar
+@Composable
+private fun CommentInputBar(
+    text: String,
+    replyingTo: Comment?,
+    onTextChange: (String) -> Unit,
+    onCancelReply: () -> Unit,
+    onSend: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.White,
+        shadowElevation = 8.dp
+    ) {
+        Column {
+            // Reply banner
+            AnimatedVisibility(visible = replyingTo != null, enter = fadeIn(), exit = fadeOut()) {
                 replyingTo?.let { target ->
                     Row(
                         modifier = Modifier
@@ -172,42 +379,33 @@ fun CommentBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "↩ Đang trả lời ${target.authorName}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = VNRed
+                            "↩ Đang trả lời ${target.authorName}",
+                            fontSize = 12.sp, fontWeight = FontWeight.Medium, color = VNRed
                         )
                         Text(
-                            text = "✕",
-                            fontSize = 12.sp,
-                            color = SlateGray400,
-                            modifier = Modifier.clickable { replyingTo = null }
+                            "✕", fontSize = 14.sp, color = SlateGray400,
+                            modifier = Modifier.clickable(onClick = onCancelReply)
                         )
                     }
                 }
             }
-
-            // ── Input box
             HorizontalDivider(color = SlateGray100)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Avatar người dùng hiện tại
+                // Current user avatar
                 Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(VNRed),
+                    modifier = Modifier.size(34.dp).clip(CircleShape).background(VNRed),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("BN", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
-
-                // Text field
+                // Input field
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -215,76 +413,33 @@ fun CommentBottomSheet(
                         .background(SlateGray50)
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
-                    if (inputText.isEmpty()) {
+                    if (text.isEmpty()) {
                         Text(
-                            text = if (replyingTo != null) "Viết trả lời..." else "Thêm bình luận...",
-                            color = SlateGray400,
-                            fontSize = 14.sp
+                            if (replyingTo != null) "Viết trả lời..." else "Thêm bình luận...",
+                            color = SlateGray400, fontSize = 14.sp
                         )
                     }
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
+                    BasicTextField(
+                        value = text,
+                        onValueChange = onTextChange,
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            color = SlateGray700,
-                            fontSize = 14.sp
-                        )
+                        textStyle = TextStyle(color = SlateGray700, fontSize = 14.sp),
+                        maxLines = 4
                     )
                 }
-
                 // Send button
-                val canSend = inputText.isNotBlank()
+                val canSend = text.isNotBlank()
                 Box(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
                         .background(if (canSend) VNRed else SlateGray200)
-                        .clickable(enabled = canSend) {
-                            val parent = replyingTo
-                            if (parent != null) {
-                                // Thêm reply
-                                val newReply = Comment(
-                                    id = "r_${System.currentTimeMillis()}",
-                                    postId = postId,
-                                    parentCommentId = parent.id,
-                                    authorName = "Bạn",
-                                    authorAvatarInitials = "BN",
-                                    authorAvatarColor = 0xFFC6102E,
-                                    timeAgo = "vừa xong",
-                                    content = inputText,
-                                    reactionCount = 0
-                                )
-                                allComments = allComments.map { c ->
-                                    if (c.id == parent.id)
-                                        c.copy(replies = c.replies + newReply, replyCount = c.replyCount + 1)
-                                    else c
-                                }
-                                replyingTo = null
-                            } else {
-                                // Thêm top-level comment
-                                val newComment = Comment(
-                                    id = "c_${System.currentTimeMillis()}",
-                                    postId = postId,
-                                    authorName = "Bạn",
-                                    authorAvatarInitials = "BN",
-                                    authorAvatarColor = 0xFFC6102E,
-                                    timeAgo = "vừa xong",
-                                    content = inputText,
-                                    reactionCount = 0
-                                )
-                                allComments = listOf(newComment) + allComments
-                            }
-                            inputText = ""
-                            keyboard?.hide()
-                        },
+                        .clickable(enabled = canSend, onClick = onSend),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Send,
-                        contentDescription = "Gửi",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
+                        Icons.Outlined.Send, "Gửi",
+                        tint = Color.White, modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -292,9 +447,9 @@ fun CommentBottomSheet(
     }
 }
 
-// ── Single Comment Row
+// ── Thread-style comment item (no bubble — giống Threads)
 @Composable
-fun CommentItem(
+fun ThreadCommentItem(
     comment: Comment,
     isReply: Boolean = false,
     onReply: () -> Unit,
@@ -303,116 +458,157 @@ fun CommentItem(
     var liked by remember(comment.id) { mutableStateOf(comment.isLiked) }
     var likeCount by remember(comment.id) { mutableIntStateOf(comment.reactionCount) }
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (isReply) Modifier.padding(start = 48.dp) else Modifier),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.Top
+            .background(Color.White)
     ) {
-        // Avatar
-        Box(
+        Row(
             modifier = Modifier
-                .size(if (isReply) 28.dp else 34.dp)
-                .clip(CircleShape)
-                .background(Color(comment.authorAvatarColor)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(
+                    start = if (isReply) 56.dp else 16.dp,
+                    end = 16.dp,
+                    top = if (isReply) 8.dp else 12.dp,
+                    bottom = 4.dp
+                ),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = comment.authorAvatarInitials,
-                color = Color.White,
-                fontSize = if (isReply) 10.sp else 12.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            // Bubble
-            Box(
-                modifier = Modifier
-                    .clip(
-                        RoundedCornerShape(
-                            topStart = if (isReply) 12.dp else 4.dp,
-                            topEnd = 12.dp,
-                            bottomStart = 12.dp,
-                            bottomEnd = 12.dp
-                        )
-                    )
-                    .background(if (isReply) VNRed.copy(alpha = 0.04f) else SlateGray50)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            // Thread line + avatar stack
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(if (isReply) 28.dp else 34.dp)
+                        .clip(CircleShape)
+                        .background(Color(comment.authorAvatarColor)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = comment.authorName,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = SlateGray900
+                        comment.authorAvatarInitials, color = Color.White,
+                        fontSize = if (isReply) 10.sp else 12.sp, fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = comment.content,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp,
-                        color = SlateGray700
+                }
+                // Vertical thread line (only if has replies)
+                if (!isReply && comment.replies.isNotEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(16.dp)
+                            .background(SlateGray200)
                     )
                 }
             }
 
-            // Actions under bubble
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(
-                    text = comment.timeAgo,
-                    fontSize = 11.sp,
-                    color = SlateGray400
-                )
-                // Like
+                // Name + time + more
                 Row(
-                    modifier = Modifier.clickable {
-                        liked = !liked
-                        likeCount = if (liked) likeCount + 1 else likeCount - 1
-                        onLike()
-                    },
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = null,
-                        tint = if (liked) VNRed else SlateGray400,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    if (likeCount > 0) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = likeCount.toString(),
-                            fontSize = 11.sp,
-                            color = if (liked) VNRed else SlateGray400,
-                            fontWeight = FontWeight.Bold
+                            comment.authorName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = SlateGray900
                         )
+                        Text(comment.timeAgo, fontSize = 11.sp, color = SlateGray400)
                     }
-                }
-                // Reply (chỉ hiện ở comment top-level)
-                if (!isReply) {
-                    Text(
-                        text = "Trả lời",
-                        fontSize = 11.sp,
-                        color = SlateGray400,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.clickable { onReply() }
+                    Icon(
+                        Icons.Default.MoreHoriz, null,
+                        tint = SlateGray400, modifier = Modifier.size(16.dp)
                     )
-                    if (comment.replyCount > 0) {
-                        Text(
-                            text = "• ${comment.replyCount} trả lời",
-                            fontSize = 11.sp,
-                            color = SlateGray400
+                }
+
+                // Content (no bubble — Threads style)
+                Text(
+                    comment.content,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    color = SlateGray800,
+                    maxLines = 10,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // Actions row
+                Row(
+                    modifier = Modifier.padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Like
+                    Row(
+                        modifier = Modifier.clickable {
+                            liked = !liked
+                            likeCount = if (liked) likeCount + 1 else likeCount - 1
+                            onLike()
+                        },
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            null,
+                            tint = if (liked) VNRed else SlateGray400,
+                            modifier = Modifier.size(14.dp)
                         )
+                        if (likeCount > 0) {
+                            Text(
+                                likeCount.toString(), fontSize = 12.sp,
+                                color = if (liked) VNRed else SlateGray400
+                            )
+                        }
+                    }
+                    // Reply (chỉ top-level)
+                    if (!isReply) {
+                        Text(
+                            "Trả lời",
+                            fontSize = 12.sp, color = SlateGray400, fontWeight = FontWeight.Medium,
+                            modifier = Modifier.clickable(onClick = onReply)
+                        )
+                        if (comment.replyCount > 0) {
+                            Text(
+                                "${comment.replyCount} trả lời",
+                                fontSize = 12.sp, color = SlateGray400
+                            )
+                        }
                     }
                 }
             }
         }
+
+        if (!isReply) HorizontalDivider(
+            modifier = Modifier.padding(start = 60.dp),
+            color = SlateGray100
+        )
+    }
+}
+
+// ── Action button (Thích / Bình luận / Chia sẻ / Lưu)
+@Composable
+private fun ActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, label, tint = tint, modifier = Modifier.size(18.dp))
+        Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Medium)
     }
 }

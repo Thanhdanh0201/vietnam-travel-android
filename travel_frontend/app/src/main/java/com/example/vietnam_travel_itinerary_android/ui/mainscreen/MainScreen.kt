@@ -18,6 +18,7 @@ import com.example.vietnam_travel_itinerary_android.ui.community.CommunityScreen
 import com.example.vietnam_travel_itinerary_android.ui.components.BottomNavBar
 import com.example.vietnam_travel_itinerary_android.ui.home.HomeScreen
 import com.example.vietnam_travel_itinerary_android.ui.home.ItineraryScreen
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 
 @Composable
 fun MainScreen() {
@@ -123,7 +124,10 @@ fun MainScreen() {
 
             // TAB 4: Cá nhân
             composable("profile") {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Cá nhân") }
+                ProfileScreen(
+                    onBack = { bottomNavController.popBackStack() },
+                    onNavigate = { route -> bottomNavController.navigate(route) }
+                )
             }
         }
     }

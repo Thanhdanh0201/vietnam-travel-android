@@ -41,8 +41,21 @@ data class CommunityPost(
     val comments: List<Comment> = emptyList()   // Mock comments (thực tế load lazy)
 )
 
+// ── Tương ứng bảng: itineraries (fields dùng cho hiển thị)
+// - Compact mode: nhúng trong bài viết (PostCard → LinkedItineraryCard)
+// - Full mode: hiển thị trong Profile tab "Lịch trình" & ItineraryScreen
 data class LinkedItinerary(
     val id: String,
     val title: String,
-    val stopCount: Int
+    val stopCount: Int,
+    // ── Extended fields cho Profile tab
+    val location: String = "",              // Địa điểm chính (tỉnh/thành)
+    val durationDays: Int = 0,             // Số ngày
+    val isPublic: Boolean = true,          // Có công khai không
+    val likeCount: Int = 0,
+    val coverImageKey: String = "",        // key ảnh bìa (dùng với ImagePlaceholderBox)
+    val authorName: String = "",
+    val authorAvatarInitials: String = "",
+    val authorAvatarColor: Long = 0xFF64748B,
+    val timeAgo: String = ""
 )
