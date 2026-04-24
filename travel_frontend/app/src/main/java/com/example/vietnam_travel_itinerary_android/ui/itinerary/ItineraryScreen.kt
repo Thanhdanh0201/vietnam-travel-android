@@ -27,7 +27,7 @@ fun ItineraryScreen(viewModel: ItineraryViewModel = viewModel()) {
 
     val itineraries = viewModel.itineraries
 
-    // ✅ NEW: dialog state
+    // NEW: dialog state
     var showDialog by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
