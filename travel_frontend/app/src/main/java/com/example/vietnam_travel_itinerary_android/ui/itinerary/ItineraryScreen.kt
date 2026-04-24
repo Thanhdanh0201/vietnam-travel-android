@@ -15,14 +15,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
+import com.example.vietnam_travel_itinerary_android.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ItineraryScreen(itineraries: List<Itinerary>) {
+fun ItineraryScreen(viewModel: ItineraryViewModel = viewModel()) {
 
-    //FILTER STATE
+    val itineraries = viewModel.itineraries
+
+    // ✅ NEW: dialog state
+    var showDialog by remember { mutableStateOf(false) }
+    var title by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+
+    // FILTER STATE
     var filter by remember { mutableStateOf("all") }
 
     Scaffold(
@@ -30,7 +40,8 @@ fun ItineraryScreen(itineraries: List<Itinerary>) {
 
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { /* Create new itinerary */ },
+                // CHANGED: open dialog instead of creating instantly
+                onClick = { showDialog = true },
                 containerColor = Color(0xFFC21833),
                 contentColor = Color.White,
                 shape = RoundedCornerShape(24.dp)
@@ -52,7 +63,7 @@ fun ItineraryScreen(itineraries: List<Itinerary>) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            //TITLE
+            // TITLE
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -70,39 +81,33 @@ fun ItineraryScreen(itineraries: List<Itinerary>) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            //FILTER BUTTONS
+            // FILTER BUTTONS
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = { filter = "all" }
-                ) {
+                Button(onClick = { filter = "all" }) {
                     Text("All")
                 }
 
-                Button(
-                    onClick = { filter = "upcoming" }
-                ) {
+                Button(onClick = { filter = "upcoming" }) {
                     Text("Upcoming")
                 }
 
-                Button(
-                    onClick = { filter = "past" }
-                ) {
+                Button(onClick = { filter = "past" }) {
                     Text("Past")
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            //APPLY FILTER LOGIC
+            // APPLY FILTER LOGIC
             val filteredList = when (filter) {
                 "upcoming" -> itineraries.filter { it.isUpcoming }
                 "past" -> itineraries.filter { !it.isUpcoming }
                 else -> itineraries
             }
 
-            //LIST
+            // LIST
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 80.dp)
@@ -112,5 +117,64 @@ fun ItineraryScreen(itineraries: List<Itinerary>) {
                 }
             }
         }
+    }
+
+    // NEW: Dialog (PUT THIS OUTSIDE Scaffold but inside function)
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+
+            confirmButton = {
+                Button(onClick = {
+
+                    val newItinerary = Itinerary(
+                        id = System.currentTimeMillis().toString(),
+                        title = title,
+                        location = location,
+                        dateRange = "Custom",
+                        isUpcoming = true,
+                        imageResId = R.drawable.ic_launcher_background,
+                        statusText = "Sắp diễn ra",
+                        statusSubText = null,
+                        participantImages = emptyList()
+                    )
+
+                    viewModel.createItinerary(newItinerary)
+
+                    // reset + close
+                    title = ""
+                    location = ""
+                    showDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+
+            dismissButton = {
+                Button(onClick = { showDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+
+            title = { Text("Tạo lịch trình") },
+
+            text = {
+                Column {
+                    TextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Title") }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextField(
+                        value = location,
+                        onValueChange = { location = it },
+                        label = { Text("Location") }
+                    )
+                }
+            }
+        )
     }
 }
