@@ -114,7 +114,12 @@ fun ItineraryScreen(viewModel: ItineraryViewModel = viewModel()) {
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
                 items(filteredList) { itinerary ->
-                    ItineraryCard(itinerary = itinerary)
+                    ItineraryCard(
+                        itinerary = itinerary,
+                        onClick = {
+                            // on click dialog
+                        }
+                    )
                 }
             }
         }

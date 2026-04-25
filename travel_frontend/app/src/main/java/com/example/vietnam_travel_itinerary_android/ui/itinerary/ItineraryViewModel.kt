@@ -84,4 +84,12 @@ class ItineraryViewModel : ViewModel() {
     fun createItinerary(itinerary: Itinerary) {
         itineraries.add(itinerary)
     }
+
+    fun updateItinerary(updated: Itinerary) {
+        val index = itineraries.indexOfFirst { it.id == updated.id }
+
+        if (index != -1) {
+            itineraries[index] = updated
+        }
+    }
 }
