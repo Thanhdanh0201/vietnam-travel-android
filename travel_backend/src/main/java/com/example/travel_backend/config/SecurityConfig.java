@@ -2,6 +2,7 @@ package com.example.travel_backend.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -19,7 +20,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable()) // Quan trọng nhất để nhận POST từ Android
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/sync").permitAll() // Mở cửa hoàn toàn cho link này
+                        .requestMatchers("/api/auth/sync").permitAll()// Mở cửa hoàn toàn cho link này
+                        .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/posts/user").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/follows/followers").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/follows/following").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 // Chỉ bật JWT cho các chức năng khác, không áp dụng cho /sync
