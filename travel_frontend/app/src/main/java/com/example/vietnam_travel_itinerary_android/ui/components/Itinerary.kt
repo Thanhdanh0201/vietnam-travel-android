@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -25,7 +26,9 @@ import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 @Composable
 fun ItineraryCard(
     itinerary: Itinerary,
-    onClick: () -> Unit //a tool that will help us later for update
+    onClick: () -> Unit, //a tool that will help us later
+    onDelete: () -> Unit //a tool that will help us later
+    //It’s a function that describes UI, and it receives other functions to handle user actions
 ) {
     Card(
         modifier = Modifier
@@ -45,6 +48,16 @@ fun ItineraryCard(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+                IconButton(
+                    onClick = { onDelete() },
+                    modifier = Modifier.align(Alignment.TopStart)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.White
+                    )
+                }
 
                 // Tag trạng thái (Sắp diễn ra, Đã kết thúc...)
                 Box(

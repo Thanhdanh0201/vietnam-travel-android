@@ -92,4 +92,7 @@ class ItineraryViewModel : ViewModel() {
             itineraries[index] = updated
         }
     }
+    fun deleteItinerary(itinerary: Itinerary) {
+        itineraries.remove(itinerary)
+    }
 }

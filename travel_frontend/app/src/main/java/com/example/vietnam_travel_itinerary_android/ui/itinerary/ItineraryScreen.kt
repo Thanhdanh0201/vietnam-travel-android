@@ -117,8 +117,10 @@ fun ItineraryScreen(viewModel: ItineraryViewModel = viewModel()) {
                     ItineraryCard(
                         itinerary = itinerary,
                         onClick = {
-                            // on click dialog
-                        }
+                            //dialog for update
+                        },
+                        onDelete = {
+                            viewModel.deleteItinerary(itinerary)
                     )
                 }
             }
