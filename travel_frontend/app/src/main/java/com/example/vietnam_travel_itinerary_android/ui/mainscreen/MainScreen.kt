@@ -14,9 +14,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.vietnam_travel_itinerary_android.ui.community.CommunityScreen
 import com.example.vietnam_travel_itinerary_android.ui.components.BottomNavBar
 import com.example.vietnam_travel_itinerary_android.ui.home.HomeScreen
 import com.example.vietnam_travel_itinerary_android.ui.home.ItineraryScreen
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 
 @Composable
 fun MainScreen() {
@@ -63,9 +65,13 @@ fun MainScreen() {
                 )
             }
 
-            // TAB 2: Cộng đồng (Tạm thời để trống)
+            // TAB 2: Cộng đồng
             composable("community") {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Cộng đồng") }
+                CommunityScreen(
+                    onNavigate = { route ->
+                        bottomNavController.navigate(route)
+                    }
+                )
             }
 
             // NÚT GIỮA: Khám phá
@@ -113,12 +119,15 @@ fun MainScreen() {
                 )
 
                 // Truyền dữ liệu vào màn hình
-                ItineraryScreen(itineraries = mockItineraries)
+                ItineraryScreen()
             }
 
             // TAB 4: Cá nhân
             composable("profile") {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Cá nhân") }
+                ProfileScreen(
+                    onBack = { bottomNavController.popBackStack() },
+                    onNavigate = { route -> bottomNavController.navigate(route) }
+                )
             }
         }
     }
