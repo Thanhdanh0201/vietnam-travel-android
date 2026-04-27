@@ -1,6 +1,5 @@
 package com.example.travel_backend.controller;
 
-import com.example.travel_backend.dto.request.FollowRequestDto;
 import com.example.travel_backend.dto.response.FollowerResponseDto;
 import com.example.travel_backend.dto.response.FollowingResponseDto;
 import com.example.travel_backend.service.FollowService;
@@ -24,53 +23,46 @@ public class FollowController {
     @PostMapping
     public ResponseEntity<?> follow(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody FollowRequestDto request) {
+            @PathVariable UUID followingId){
 
         UUID currentUserId = UUID.fromString(jwt.getSubject());
 
-        // Bảo mật: Nếu ID gửi lên không phải là mình, từ chối luôn
-        if (!currentUserId.equals(request.getFollowerId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("Security Violation: You cannot follow on behalf of another user.");
-        }
-
-        followService.followUser(request.getFollowerId(), request.getFollowingId());
+        followService.followUser(currentUserId, followingId);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping
     public ResponseEntity<?> unfollow(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam("follower_id") UUID followerId,
-            @RequestParam("following_id") UUID followingId) {
+            @PathVariable UUID followingId) {
 
         UUID currentUserId = UUID.fromString(jwt.getSubject());
 
-        if (!currentUserId.equals(followerId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
-        }
-
-        followService.unfollowUser(followerId, followingId);
+        followService.unfollowUser(currentUserId, followingId);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/check")
+    @GetMapping("/check/{userId}")
     public ResponseEntity<Boolean> checkFollow(
-            @RequestParam("follower_id") UUID followerId,
-            @RequestParam("following_id") UUID followingId) {
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("userId") UUID targetUserId) {
 
-        return ResponseEntity.ok(followService.checkIsFollowing(followerId, followingId));
+        UUID myId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(followService.checkIsFollowing(myId, targetUserId));
     }
 
-    @GetMapping("/followers")
+    @GetMapping("/{userId}/followers")
     public ResponseEntity<List<FollowerResponseDto>> getFollowers(
-            @RequestParam("following_id") UUID followingId) {
-        return ResponseEntity.ok(followService.getFollowers(followingId));
+            @PathVariable("userId") UUID userId) {
+
+        return ResponseEntity.ok(followService.getFollowers(userId));
     }
 
-    @GetMapping("/following")
+
+    @GetMapping("/{userId}/following")
     public ResponseEntity<List<FollowingResponseDto>> getFollowing(
-            @RequestParam("follower_id") UUID followerId) {
-        return ResponseEntity.ok(followService.getFollowing(followerId));
+            @PathVariable("userId") UUID userId) {
+
+        return ResponseEntity.ok(followService.getFollowing(userId));
     }
 }

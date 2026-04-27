@@ -18,23 +18,22 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable()) // Quan trọng nhất để nhận POST từ Android
+                .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/sync").permitAll()// Mở cửa hoàn toàn cho link này
                         .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/user").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/follows/followers").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/follows/following").permitAll()
+
+                        .requestMatchers(HttpMethod.GET, "/api/follows/*/followers").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/follows/*/following").permitAll()
 
                         .anyRequest().authenticated()
                 )
-                // Chỉ bật JWT cho các chức năng khác, không áp dụng cho /sync
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
 
         return http.build();
     }
 
-    // Tách hẳn ra để Spring quét được cấu hình này
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
