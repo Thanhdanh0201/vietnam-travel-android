@@ -34,7 +34,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:src="@drawable/sample_image" />
+                android:src="@drawable/ic_launcher_background" />
 
             <LinearLayout
                 android:layout_width="130dp"
@@ -123,7 +123,7 @@
             android:layout_marginTop="16dp">
 
             <Button
-                android:id="@+id/btn_make_plans"
+                android:id="@+id/btn_close_top"
                 android:layout_width="350dp"
                 android:layout_height="wrap_content"
                 android:textColor="@android:color/white"

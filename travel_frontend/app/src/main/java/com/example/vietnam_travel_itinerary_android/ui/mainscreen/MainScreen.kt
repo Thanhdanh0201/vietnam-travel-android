@@ -81,44 +81,7 @@ fun MainScreen() {
 
             // TAB 3: Lịch trình
             composable("itinerary") {
-                // Khởi tạo danh sách dữ liệu mẫu (Mock Data)
-                val mockItineraries = listOf(
-                    Itinerary(
-                        id = "1",
-                        title = "Kỳ nghỉ Vịnh Hạ Long",
-                        location = "Quảng Ninh, Việt Nam",
-                        dateRange = "15/10 - 18/10/2024",
-                        statusText = "SẮP DIỄN RA",
-                        statusSubText = "🕒 Còn 5 ngày nữa",
-                        isUpcoming = true,
-                        imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_halong của bạn
-                        participantImages = listOf(android.R.drawable.ic_menu_report_image) // TODO: Thay bằng ảnh avatar
-                    ),
-                    Itinerary(
-                        id = "2",
-                        title = "Khám phá Hội An",
-                        location = "Quảng Nam, Việt Nam",
-                        dateRange = "01/09 - 04/09/2024",
-                        statusText = "ĐÃ KẾT THÚC",
-                        statusSubText = null,
-                        isUpcoming = false,
-                        imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_hoian
-                        participantImages = listOf(android.R.drawable.ic_menu_report_image)
-                    ),
-                    Itinerary(
-                        id = "3",
-                        title = "Hành trình Sapa",
-                        location = "Lào Cai, Việt Nam",
-                        dateRange = "10/11 - 14/11/2024",
-                        statusText = "SẮP DIỄN RA",
-                        statusSubText = "🕒 Còn 24 ngày",
-                        isUpcoming = true,
-                        imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_sapa
-                        participantImages = listOf(android.R.drawable.ic_menu_report_image)
-                    )
-                )
-
-                // Truyền dữ liệu vào màn hình
+                // ĐÃ FIX: Không cần tạo mock data ở đây nữa vì ItineraryViewModel đã lo việc đó!
                 ItineraryScreen()
             }
 

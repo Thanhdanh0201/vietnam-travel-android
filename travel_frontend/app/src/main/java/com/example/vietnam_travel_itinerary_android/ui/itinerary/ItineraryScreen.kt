@@ -36,17 +36,16 @@ fun ItineraryScreen(
 ) {
     val itineraries = viewModel.itineraries
 
-    // Dialog state
+    // State cho Dialog tạo mới
     var showDialog by remember { mutableStateOf(false) }
     var title by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
 
-    // Filter state
+    // State cho việc lọc danh sách
     var filter by remember { mutableStateOf("all") }
 
     Scaffold(
-        containerColor = Color(0xFFF5F5F5),
-
+        containerColor = Color(0xFFF8F6F6),
         topBar = {
             Column {
                 AppTopBar(
@@ -56,7 +55,6 @@ fun ItineraryScreen(
                 HorizontalDivider(color = Color(0xFFF1F5F9))
             }
         },
-
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showDialog = true },
@@ -69,7 +67,6 @@ fun ItineraryScreen(
                 Text("Tạo lịch trình mới", fontWeight = FontWeight.Bold)
             }
         },
-
         floatingActionButtonPosition = FabPosition.Center
     ) { paddingValues ->
 
@@ -81,8 +78,11 @@ fun ItineraryScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Title
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Tiêu đề
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Box(
                     modifier = Modifier
                         .width(6.dp)
@@ -90,7 +90,6 @@ fun ItineraryScreen(
                         .clip(CircleShape)
                         .background(VNRed)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Lịch trình của tôi",
                     fontWeight = FontWeight.ExtraBold,
@@ -102,109 +101,104 @@ fun ItineraryScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Filter buttons
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { filter = "all" }) {
-                    Text("All")
-                }
-                Button(onClick = { filter = "upcoming" }) {
-                    Text("Upcoming")
-                }
-                Button(onClick = { filter = "past" }) {
-                    Text("Past")
-                }
+            // Thanh Filter (đã làm đẹp lại so với bản cũ)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                FilterChip(
+                    selected = filter == "all",
+                    onClick = { filter = "all" },
+                    label = { Text("Tất cả") }
+                )
+                FilterChip(
+                    selected = filter == "upcoming",
+                    onClick = { filter = "upcoming" },
+                    label = { Text("Sắp diễn ra") }
+                )
+                FilterChip(
+                    selected = filter == "past",
+                    onClick = { filter = "past" },
+                    label = { Text("Đã đi") }
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Filter logic
+            // Logic lọc danh sách
             val filteredList = when (filter) {
                 "upcoming" -> itineraries.filter { it.isUpcoming }
                 "past" -> itineraries.filter { !it.isUpcoming }
                 else -> itineraries
             }
 
-            // List
+            // Danh sách lịch trình
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 80.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(bottom = 88.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredList) { itinerary ->
                     ItineraryCard(
                         itinerary = itinerary,
-                        onClick = {
-                            // TODO: update dialog
-                        },
-                        onDelete = {
-                            viewModel.deleteItinerary(itinerary)
-                        }
+                        onClick = { /* TODO: Navigate to detail */ },
+                        onDelete = { viewModel.deleteItinerary(itinerary) }
                     )
                 }
             }
         }
     }
 
-    // Dialog
+    // Dialog tạo lịch trình
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-
             confirmButton = {
-                Button(onClick = {
-                    val newItinerary = Itinerary(
-                        id = System.currentTimeMillis().toString(),
-                        title = title,
-                        location = location,
-                        dateRange = "Custom",
-                        isUpcoming = true,
-                        imageResId = R.drawable.ic_launcher_background,
-                        statusText = "Sắp diễn ra",
-                        statusSubText = null,
-                        participantImages = emptyList()
-                    )
-
-                    viewModel.createItinerary(newItinerary)
-
-                    title = ""
-                    location = ""
-                    showDialog = false
-                }) {
-                    Text("Save")
+                Button(
+                    onClick = {
+                        val newItinerary = Itinerary(
+                            id = System.currentTimeMillis().toString(),
+                            title = title,
+                            location = location,
+                            dateRange = "Chưa xác định",
+                            isUpcoming = true,
+                            imageResId = R.drawable.ic_launcher_background,
+                            statusText = "Sắp diễn ra",
+                            statusSubText = null,
+                            participantImages = emptyList()
+                        )
+                        viewModel.createItinerary(newItinerary)
+                        title = ""
+                        location = ""
+                        showDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                ) {
+                    Text("Lưu", color = Color.White)
                 }
             },
-
             dismissButton = {
-                Button(onClick = { showDialog = false }) {
-                    Text("Cancel")
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Hủy")
                 }
             },
-
-            title = { Text("Tạo lịch trình") },
-
+            title = { Text("Tạo lịch trình mới") },
             text = {
-                Column {
-                    TextField(
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        label = { Text("Title") }
+                        label = { Text("Tên lịch trình") },
+                        modifier = Modifier.fillMaxWidth()
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    TextField(
+                    OutlinedTextField(
                         value = location,
                         onValueChange = { location = it },
-                        label = { Text("Location") }
+                        label = { Text("Địa điểm") },
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun ItineraryScreenPreview() {
-    ItineraryScreen()
 }
