@@ -49,7 +49,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
-                    android:src="@drawable/sample_image" />
+                    android:src="@drawable/ic_launcher_background" />
             </FrameLayout>
             <!-- Name -->
             <TextView
@@ -97,13 +97,7 @@
                     android:layout_marginTop="10dp"/>
 
             </ScrollView>
-            <TextView
-                android:id="@+id/area_description"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Vịnh Hạ Long, nằm tại tỉnh Quảng Ninh, là di sản thiên nhiên thế giới nổi tiếng với cảnh quan kỳ vĩ gồm hàng nghìn đảo đá vôi và hang động độc đáo trên mặt biển xanh ngọc. Được UNESCO công nhận và là một trong 7 kỳ quan thiên nhiên mới của thế giới, đây là điểm đến không thể bỏ qua tại Việt Nam, đặc biệt từ tháng 3 đến tháng 8"
-                android:textSize="14sp"
-                android:layout_marginTop="10dp"/>
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
