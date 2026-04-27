@@ -2,11 +2,13 @@ package com.example.vietnam_travel_itinerary_android.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -22,11 +24,17 @@ import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 
 @Composable
-fun ItineraryCard(itinerary: Itinerary) {
+fun ItineraryCard(
+    itinerary: Itinerary,
+    onClick: () -> Unit, //a tool that will help us later
+    onDelete: () -> Unit //a tool that will help us later
+    //It’s a function that describes UI, and it receives other functions to handle user actions
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -40,6 +48,16 @@ fun ItineraryCard(itinerary: Itinerary) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+                IconButton(
+                    onClick = { onDelete() },
+                    modifier = Modifier.align(Alignment.TopStart)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.White
+                    )
+                }
 
                 // Tag trạng thái (Sắp diễn ra, Đã kết thúc...)
                 Box(
