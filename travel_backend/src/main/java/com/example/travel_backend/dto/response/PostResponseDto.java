@@ -20,4 +20,13 @@ public class PostResponseDto {
 
     private UserCompactDto author;
     private List<PostMediaDto> media;
+    private ItineraryCompactDto itinerary;
+
+    @Data
+    public static class ItineraryCompactDto {
+        private UUID id;
+        private String title;
+        private Boolean isPublic;
+        private String description;
+    }
 }
