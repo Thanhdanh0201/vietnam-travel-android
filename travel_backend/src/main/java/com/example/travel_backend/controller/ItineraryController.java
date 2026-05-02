@@ -1,5 +1,6 @@
 package com.example.travel_backend.controller;
 
+import com.example.travel_backend.dto.request.UpdateItineraryDto;
 import com.example.travel_backend.dto.response.ItineraryResponseDto;
 import com.example.travel_backend.service.impl.ItineraryServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,13 +33,15 @@ public class ItineraryController {
 
     // PATCH /api/itineraries?id={itinerary_id}
     @PatchMapping
-    public ResponseEntity<Void> togglePublicStatus(
+    public ResponseEntity<Void> updateItinerary(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam("id") UUID itineraryId,
-            @RequestBody Map<String, Object> body) {
+            @RequestBody UpdateItineraryDto request) {
 
         UUID requesterId = UUID.fromString(jwt.getSubject());
-        itineraryService.updateItineraryStatus(itineraryId, requesterId, body);
+
+        itineraryService.updateItineraryStatus(itineraryId, requesterId, request);
+
         return ResponseEntity.ok().build();
     }
 }

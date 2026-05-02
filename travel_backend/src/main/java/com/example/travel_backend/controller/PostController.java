@@ -77,4 +77,14 @@ public class PostController {
 
         return ResponseEntity.ok(likedPostIds);
     }
+
+    @DeleteMapping
+    public ResponseEntity<Void> deletePost(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam("id") UUID postId) {
+
+        UUID myId = UUID.fromString(jwt.getSubject());
+        postService.deletePost(myId, postId);
+        return ResponseEntity.ok().build();
+    }
 }

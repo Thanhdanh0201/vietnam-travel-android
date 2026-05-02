@@ -128,6 +128,22 @@ public class PostServiceImpl implements PostService {
         return dto;
     }
 
+    @Override
+    @Transactional
+    public void deletePost(UUID userId, UUID postId) {
+        System.out.println("Deleting post: " + postId);
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
+
+        if (!post.getUser().getId().equals(userId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to delete this post");
+        }
+
+        postRepository.delete(post);
+    }
+
 
     private PostResponseDto mapToPostDto(Post post) {
         PostResponseDto dto = new PostResponseDto();

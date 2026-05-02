@@ -1,5 +1,6 @@
 package com.example.travel_backend.service.impl;
 
+import com.example.travel_backend.dto.request.UpdateItineraryDto;
 import com.example.travel_backend.dto.response.ItineraryResponseDto;
 import com.example.travel_backend.entity.Itinerary;
 import com.example.travel_backend.repository.ItineraryRepository;
@@ -29,20 +30,36 @@ public class ItineraryServiceImpl {
                 .collect(Collectors.toList());
     }
 
-    public void updateItineraryStatus(UUID itineraryId, UUID requesterId, Map<String, Object> updates) {
+    public void updateItineraryStatus(UUID itineraryId, UUID requesterId, UpdateItineraryDto updates) {
         Itinerary itinerary = itineraryRepository.findById(itineraryId)
                 .orElseThrow(() -> new RuntimeException("Itinerary not found"));
 
-        // Chi owner moi duoc phep thay doi trang thai
+
         if (!itinerary.getUser().getId().equals(requesterId)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to update this itinerary");
         }
 
-        if (updates.containsKey("is_public")) {
-            itinerary.setIsPublic((Boolean) updates.get("is_public"));
+        boolean isModified = false;
+
+        if (updates.getTitle() != null) {
+            itinerary.setTitle(updates.getTitle());
+            isModified = true;
+        }
+
+        if (updates.getDescription() != null) {
+            itinerary.setDescription(updates.getDescription());
+            isModified = true;
+        }
+
+        if (updates.getIsPublic() != null) {
+            itinerary.setIsPublic(updates.getIsPublic());
+            isModified = true;
+        }
+
+        if (isModified) {
             itineraryRepository.save(itinerary);
-            System.out.println("Updated itinerary " + itineraryId + " isPublic to: " + updates.get("is_public"));
+            System.out.println("Updated itinerary " + itineraryId + " successfully.");
         }
     }
 

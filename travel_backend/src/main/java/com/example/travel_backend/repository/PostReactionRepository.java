@@ -11,4 +11,6 @@ import java.util.UUID;
 public interface PostReactionRepository extends JpaRepository<PostReaction, UUID> {
     @Query("SELECT pr.post.id FROM PostReaction pr WHERE pr.user.id = :userId AND pr.post.id IN :postIds AND pr.reactionType = 'like'")
     List<UUID> findLikedPostIdsByUser(@Param("userId") UUID userId, @Param("postIds") List<UUID> postIds);
+
+    void deleteByUserIdAndPostId(UUID userId, UUID postId);
 }
