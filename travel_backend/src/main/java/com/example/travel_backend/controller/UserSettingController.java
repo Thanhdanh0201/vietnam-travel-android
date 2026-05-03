@@ -45,7 +45,7 @@ public class UserSettingController {
         return ResponseEntity.ok(dto);
     }
 
-    @PutMapping("/me")
+    @PatchMapping("/me")
     public ResponseEntity<?> updateSettings(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody UserSetting updatedData) {
@@ -70,6 +70,8 @@ public class UserSettingController {
         if (updatedData.getLanguage() != null) existing.setLanguage(updatedData.getLanguage());
         if (updatedData.getTheme() != null) existing.setTheme(updatedData.getTheme());
 
-        return ResponseEntity.ok(userSettingsRepository.save(existing));
+        userSettingsRepository.save(existing);
+
+        return ResponseEntity.ok().build();
     }
 }

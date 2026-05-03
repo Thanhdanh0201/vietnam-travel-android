@@ -38,7 +38,7 @@ public class AuthController {
         newUser.setEmail(request.getEmail());
         newUser.setName(request.getName());
         newUser.setCreatedAt(OffsetDateTime.now());
-
+        newUser.setIsVerified(true);
         userRepository.save(newUser);
 
 
