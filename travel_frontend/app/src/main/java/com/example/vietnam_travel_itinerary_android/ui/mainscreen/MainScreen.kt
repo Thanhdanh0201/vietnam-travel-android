@@ -8,16 +8,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.vietnam_travel_itinerary_android.ui.community.CommunityScreen
 import com.example.vietnam_travel_itinerary_android.ui.components.BottomNavBar
 import com.example.vietnam_travel_itinerary_android.ui.home.HomeScreen
 import com.example.vietnam_travel_itinerary_android.ui.home.ItineraryScreen
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.CreateItineraryScreen
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.EditItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 
 @Composable
@@ -28,6 +34,45 @@ fun MainScreen() {
     // 2. Theo dõi route hiện tại để thanh Nav biết đang ở tab nào (để bôi đỏ icon)
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
+
+    // Khởi tạo danh sách dữ liệu mẫu (Mock Data)
+    val mockItineraries = remember {
+        mutableStateListOf(
+            Itinerary(
+                id = "1",
+                title = "Kỳ nghỉ Vịnh Hạ Long",
+                location = "Quảng Ninh, Việt Nam",
+                dateRange = "15/10 - 18/10/2024",
+                statusText = "SẮP DIỄN RA",
+                statusSubText = "🕒 Còn 5 ngày nữa",
+                isUpcoming = true,
+                imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_halong của bạn
+                participantImages = listOf(android.R.drawable.ic_menu_report_image) // TODO: Thay bằng ảnh avatar
+            ),
+            Itinerary(
+                id = "2",
+                title = "Khám phá Hội An",
+                location = "Quảng Nam, Việt Nam",
+                dateRange = "01/09 - 04/09/2024",
+                statusText = "ĐÃ KẾT THÚC",
+                statusSubText = null,
+                isUpcoming = false,
+                imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_hoian
+                participantImages = listOf(android.R.drawable.ic_menu_report_image)
+            ),
+            Itinerary(
+                id = "3",
+                title = "Hành trình Sapa",
+                location = "Lào Cai, Việt Nam",
+                dateRange = "10/11 - 14/11/2024",
+                statusText = "SẮP DIỄN RA",
+                statusSubText = "🕒 Còn 24 ngày",
+                isUpcoming = true,
+                imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_sapa
+                participantImages = listOf(android.R.drawable.ic_menu_report_image)
+            )
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -81,45 +126,34 @@ fun MainScreen() {
 
             // TAB 3: Lịch trình
             composable("itinerary") {
-                // Khởi tạo danh sách dữ liệu mẫu (Mock Data)
-                val mockItineraries = listOf(
-                    Itinerary(
-                        id = "1",
-                        title = "Kỳ nghỉ Vịnh Hạ Long",
-                        location = "Quảng Ninh, Việt Nam",
-                        dateRange = "15/10 - 18/10/2024",
-                        statusText = "SẮP DIỄN RA",
-                        statusSubText = "🕒 Còn 5 ngày nữa",
-                        isUpcoming = true,
-                        imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_halong của bạn
-                        participantImages = listOf(android.R.drawable.ic_menu_report_image) // TODO: Thay bằng ảnh avatar
-                    ),
-                    Itinerary(
-                        id = "2",
-                        title = "Khám phá Hội An",
-                        location = "Quảng Nam, Việt Nam",
-                        dateRange = "01/09 - 04/09/2024",
-                        statusText = "ĐÃ KẾT THÚC",
-                        statusSubText = null,
-                        isUpcoming = false,
-                        imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_hoian
-                        participantImages = listOf(android.R.drawable.ic_menu_report_image)
-                    ),
-                    Itinerary(
-                        id = "3",
-                        title = "Hành trình Sapa",
-                        location = "Lào Cai, Việt Nam",
-                        dateRange = "10/11 - 14/11/2024",
-                        statusText = "SẮP DIỄN RA",
-                        statusSubText = "🕒 Còn 24 ngày",
-                        isUpcoming = true,
-                        imageResId = android.R.drawable.ic_menu_gallery, // TODO: Thay bằng R.drawable.ten_anh_sapa
-                        participantImages = listOf(android.R.drawable.ic_menu_report_image)
-                    )
-                )
-
                 // Truyền dữ liệu vào màn hình
-                ItineraryScreen(itineraries = mockItineraries)
+                ItineraryScreen(
+                    itineraries = mockItineraries,
+                    onCreateClick = { bottomNavController.navigate("create_itinerary") },
+                    onEditClick = { id -> bottomNavController.navigate("edit_itinerary/$id") }
+                )
+            }
+
+            composable("create_itinerary") {
+                CreateItineraryScreen(
+                    onBackClick = { bottomNavController.popBackStack() },
+                    onCreate = { itinerary ->
+                        mockItineraries.add(0, itinerary) // Add to top
+                    }
+                )
+            }
+
+            composable(
+                route = "edit_itinerary/{itineraryId}",
+                arguments = listOf(navArgument("itineraryId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val itineraryId = backStackEntry.arguments?.getString("itineraryId")
+                val itinerary = mockItineraries.find { it.id == itineraryId }
+                
+                EditItineraryScreen(
+                    itinerary = itinerary,
+                    onBackClick = { bottomNavController.popBackStack() }
+                )
             }
 
             // TAB 4: Cá nhân

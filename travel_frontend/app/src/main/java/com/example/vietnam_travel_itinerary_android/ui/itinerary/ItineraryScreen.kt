@@ -28,7 +28,9 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 fun ItineraryScreen(
     itineraries: List<Itinerary>,
     onSearchClick: () -> Unit = {},
-    onNotificationClick: () -> Unit = {}
+    onNotificationClick: () -> Unit = {},
+    onCreateClick: () -> Unit = {},
+    onEditClick: (String) -> Unit = {}
 ) {
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
@@ -45,7 +47,7 @@ fun ItineraryScreen(
         // ── Nút Tạo lịch trình mới
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { /* TODO: Navigate to create itinerary */ },
+                onClick = onCreateClick,
                 containerColor = VNRed,
                 contentColor = Color.White,
                 shape = RoundedCornerShape(24.dp)
@@ -95,7 +97,10 @@ fun ItineraryScreen(
                 verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
                 items(itineraries) { itinerary ->
-                    ItineraryCard(itinerary = itinerary)
+                    ItineraryCard(
+                        itinerary = itinerary,
+                        onClick = onEditClick
+                    )
                 }
             }
         }
