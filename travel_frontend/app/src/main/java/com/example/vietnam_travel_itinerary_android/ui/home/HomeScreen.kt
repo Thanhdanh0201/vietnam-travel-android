@@ -1,5 +1,9 @@
 package com.example.vietnam_travel_itinerary_android.ui.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,19 +12,32 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Event
 import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.location.fetchBestLocation
+import com.example.vietnam_travel_itinerary_android.location.reverseGeocodeLocality
 import com.example.vietnam_travel_itinerary_android.ui.components.*
+import com.example.vietnam_travel_itinerary_android.ui.components.introduction.FestivalIntroductionOverlay
+import com.example.vietnam_travel_itinerary_android.ui.components.introduction.PlaceIntroductionOverlay
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
+import com.google.android.gms.location.LocationServices
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,29 +46,112 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val fused = remember {
+        LocationServices.getFusedLocationProviderClient(context.applicationContext)
+    }
+    var gpsWeatherPassDone by remember { mutableStateOf(false) }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
-        if (uiState.isLoading) {
-            LoadingContent(paddingValues)
-        } else if (uiState.error != null && uiState.recommendedPlaces.isEmpty()) {
-            ErrorContent(
-                error = uiState.error!!,
-                onRetry = { viewModel.refresh() },
-                paddingValues = paddingValues
-            )
+    fun hasLocationPermission(): Boolean {
+        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        return fine || coarse
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        gpsWeatherPassDone = true
+        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (ok) {
+            scope.launch {
+                val loc = fused.fetchBestLocation() ?: return@launch
+                val label = reverseGeocodeLocality(context, loc.latitude, loc.longitude)
+                viewModel.applyGpsWeather(loc.latitude, loc.longitude, label)
+            }
+        }
+    }
+
+    val firstRealPlaceId = uiState.recommendedPlaces.firstOrNull { !it.id.startsWith("placeholder") }?.id
+    LaunchedEffect(uiState.isUsingPlaceholder, firstRealPlaceId) {
+        if (uiState.isUsingPlaceholder) {
+            gpsWeatherPassDone = false
+            return@LaunchedEffect
+        }
+        if (gpsWeatherPassDone) return@LaunchedEffect
+        if (firstRealPlaceId == null) return@LaunchedEffect
+
+        if (hasLocationPermission()) {
+            scope.launch {
+                try {
+                    val loc = fused.fetchBestLocation()
+                    if (loc != null) {
+                        val label = reverseGeocodeLocality(context, loc.latitude, loc.longitude)
+                        viewModel.applyGpsWeather(loc.latitude, loc.longitude, label)
+                    }
+                } finally {
+                    gpsWeatherPassDone = true
+                }
+            }
         } else {
-            HomeContent(
-                uiState = uiState,
-                paddingValues = paddingValues,
-                onPlaceClick = { place ->
-                    onNavigate("place_detail/${place.id}")
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    var selectedPlace by remember { mutableStateOf<Place?>(null) }
+    var selectedEvent by remember { mutableStateOf<Event?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background
+        ) { paddingValues ->
+            if (uiState.isLoading) {
+                LoadingContent(paddingValues)
+            } else if (uiState.error != null && uiState.recommendedPlaces.isEmpty()) {
+                ErrorContent(
+                    error = uiState.error!!,
+                    onRetry = { viewModel.refresh() },
+                    paddingValues = paddingValues
+                )
+            } else {
+                HomeContent(
+                    uiState = uiState,
+                    paddingValues = paddingValues,
+                    onPlaceClick = { selectedPlace = it },
+                    onEventClick = { selectedEvent = it },
+                    onSearchClick = { onNavigate("search") },
+                    onNotificationClick = { onNavigate("notifications") },
+                    onSeeAllPlaces = { onNavigate("places") }
+                )
+            }
+        }
+        selectedPlace?.let { place ->
+            PlaceIntroductionOverlay(
+                place = place,
+                onDismiss = { selectedPlace = null },
+                onExplore = {
+                    selectedPlace = null
+                    onNavigate("explore")
                 },
-                onEventClick = { /* Future: navigate to event detail */ },
-                onSearchClick = { onNavigate("search") },
-                onNotificationClick = { onNavigate("notifications") },
-                onSeeAllPlaces = { onNavigate("places") }
+            )
+        }
+        selectedEvent?.let { event ->
+            FestivalIntroductionOverlay(
+                event = event,
+                onDismiss = { selectedEvent = null },
+                onSchedule = {
+                    selectedEvent = null
+                    onNavigate("itinerary")
+                },
             )
         }
     }
@@ -85,7 +185,7 @@ private fun HomeContent(
         item {
             WeatherWidget(
                 weather = uiState.weather,
-                locationName = uiState.currentLocationName,
+                locationName = uiState.currentLocationName.ifBlank { "Đang cập nhật" },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
         }
@@ -115,7 +215,7 @@ private fun HomeContent(
                     onPlaceClick = onPlaceClick
                 )
             } else {
-                PlacesRowPlaceholder()
+                PlacesRowPlaceholder(onPlaceClick = onPlaceClick)
             }
         }
 
@@ -124,6 +224,7 @@ private fun HomeContent(
             Spacer(modifier = Modifier.height(16.dp))
             FestivalsSection(
                 events = uiState.activeEvents,
+                eventsFetched = uiState.eventsFetched,
                 onEventClick = onEventClick
             )
         }
@@ -150,7 +251,7 @@ private fun PlacesRow(
 }
 
 @Composable
-private fun PlacesRowPlaceholder() {
+private fun PlacesRowPlaceholder(onPlaceClick: (Place) -> Unit) {
     // Show placeholder cards when data is not yet loaded
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -173,7 +274,8 @@ private fun PlacesRowPlaceholder() {
                             else -> "Lào Cai"
                         }
                     )
-                )
+                ),
+                onPlaceClick = onPlaceClick,
             )
         }
     }
@@ -182,32 +284,9 @@ private fun PlacesRowPlaceholder() {
 @Composable
 private fun FestivalsSection(
     events: List<Event>,
+    eventsFetched: Boolean,
     onEventClick: (Event) -> Unit
 ) {
-    val displayEvents = events.ifEmpty {
-        // Placeholder events when API hasn't loaded yet
-        listOf(
-            Event(
-                id = "placeholder_1",
-                name = "Lễ hội Áo Dài 2024",
-                startDate = "2024-10-15",
-                endDate = "2024-10-20",
-                places = com.example.vietnam_travel_itinerary_android.data.model.PlaceSummary(
-                    name = "TP. Hồ Chí Minh"
-                )
-            ),
-            Event(
-                id = "placeholder_2",
-                name = "Festival Hoa Đà Lạt",
-                startDate = "2024-10-20",
-                endDate = "2024-10-25",
-                places = com.example.vietnam_travel_itinerary_android.data.model.PlaceSummary(
-                    name = "Lâm Đồng"
-                )
-            )
-        )
-    }
-
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = VNRed.copy(alpha = 0.05f),
@@ -217,14 +296,47 @@ private fun FestivalsSection(
             modifier = Modifier.padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            SectionHeader(title = "Lễ hội đang diễn ra")
+            SectionHeader(title = "Lễ hội sắp tới")
 
-            displayEvents.forEach { event ->
-                FestivalCard(
-                    event = event,
-                    onLearnMoreClick = onEventClick,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+            when {
+                !eventsFetched && events.isEmpty() -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = VNRed,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "Đang tải lễ hội…",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                eventsFetched && events.isEmpty() -> {
+                    Text(
+                        text = "Chưa có lễ hội trong 3 tháng tới hoặc chưa tải được dữ liệu từ máy chủ.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+                }
+                else -> {
+                    events.forEach { event ->
+                        FestivalCard(
+                            event = event,
+                            onLearnMoreClick = onEventClick,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                }
             }
         }
     }
