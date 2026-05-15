@@ -1,11 +1,31 @@
 package com.example.vietnam_travel_itinerary_android.data.api
 
 import com.example.vietnam_travel_itinerary_android.data.model.*
+import retrofit2.Response
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface VietnamTravelApi {
+
+    @POST("api/auth/sync")
+    suspend fun syncUser(
+        @Header("Authorization") token: String,
+        @Body request: UserSyncRequest // THÊM DÒNG NÀY VÀO ĐÂY
+    ): Response<Unit>
+
+    @GET("api/user-settings/me")
+    suspend fun getUserSettings(@Header("Authorization") token: String): Response<UserSettingResponseDto>
+
+    @PUT("api/user-settings/me")
+    suspend fun updateUserSettings(
+        @Header("Authorization") token: String,
+        @Body settings: UserSettingRequest
+    ): Response<UserSettingResponseDto>
 
     // ---- Places ----
     @GET("api/places")
@@ -66,3 +86,4 @@ interface VietnamTravelApi {
         @Query("days") days: Int = 7
     ): List<WeatherData>
 }
+

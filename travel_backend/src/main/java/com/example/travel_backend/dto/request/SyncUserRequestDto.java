@@ -8,5 +8,4 @@ public class SyncUserRequestDto {
     private UUID id;
     private String email;
     private String name;
-    private String avatarUrl;
 }
