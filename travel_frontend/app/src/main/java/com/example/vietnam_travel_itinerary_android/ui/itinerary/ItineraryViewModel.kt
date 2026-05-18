@@ -11,13 +11,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+enum class ParticipantRole {
+    EDIT, VIEW_ONLY
+}
+
+data class Participant(
+    val name: String,
+    val email: String,
+    val initials: String,
+    val avatarColor: Long, // Màu nền của avatar (dạng Hex Long)
+    val role: ParticipantRole
+)
+
 class ItineraryViewModel(
     private val placeRepo: PlaceRepository = PlaceRepository()
 ) : ViewModel() {
 
     data class ItineraryUiState(
         val itineraries: List<Itinerary> = emptyList(),
-        val timelineMap: Map<String, List<TimelineItemData>> = emptyMap(),
+        val timelineMap: Map<String, List<TimelineItemData>> = emptyMap(), // Key: "itineraryId-day"
+        val participantsMap: Map<String, List<Participant>> = emptyMap(), // Key: "itineraryId"
         val allPlaces: List<Place> = emptyList(),
         val isLoadingPlaces: Boolean = false,
         val placesError: String? = null
@@ -69,24 +82,60 @@ class ItineraryViewModel(
         )
 
         val initialTimelineMap = mapOf(
-            "1" to listOf(
+            // Hạ Long - Ngày 12
+            "1-12" to listOf(
                 TimelineItemData("08:00 AM", "Vịnh Hạ Long", "Hạ Long, Quảng Ninh", "Du thuyền", "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b"),
                 TimelineItemData("12:00 PM", "Đảo Ti Tốp", "Hạ Long, Quảng Ninh", "Tắm biển", "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b")
             ),
-            "2" to listOf(
+            // Hạ Long - Ngày 13
+            "1-13" to listOf(
+                TimelineItemData("09:00 AM", "Hang Sửng Sốt", "Hạ Long, Quảng Ninh", "Thám hiểm", "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b"),
+                TimelineItemData("03:00 PM", "Bãi Cháy", "Hạ Long, Quảng Ninh", "Vui chơi", "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b")
+            ),
+            
+            // Hội An - Ngày 12
+            "2-12" to listOf(
                 TimelineItemData("08:00 AM", "Phố cổ Hội An", "Hội An, Quảng Nam", "Tham quan", "https://images.unsplash.com/photo-1555921015-5532091f6026"),
                 TimelineItemData("07:00 PM", "Chợ đêm Hội An", "Hội An, Quảng Nam", "Ẩm thực", "https://images.unsplash.com/photo-1555921015-5532091f6026")
             ),
-            "3" to listOf(
+            // Hội An - Ngày 13
+            "2-13" to listOf(
+                TimelineItemData("09:00 AM", "Thánh địa Mỹ Sơn", "Duy Xuyên, Quảng Nam", "Di sản", "https://images.unsplash.com/photo-1555921015-5532091f6026")
+            ),
+            
+            // Sapa - Ngày 12
+            "3-12" to listOf(
                 TimelineItemData("09:00 AM", "Bản Cát Cát", "Sa Pa, Lào Cai", "Dã ngoại", "https://images.unsplash.com/photo-1583417657208-cb86acb8b209"),
                 TimelineItemData("02:00 PM", "Đỉnh Fansipan", "Sa Pa, Lào Cai", "Cáp treo", "https://images.unsplash.com/photo-1583417657208-cb86acb8b209")
+            ),
+            // Sapa - Ngày 13
+            "3-13" to listOf(
+                TimelineItemData("10:00 AM", "Thung lũng Mường Hoa", "Sa Pa, Lào Cai", "Ngắm cảnh", "https://images.unsplash.com/photo-1583417657208-cb86acb8b209")
+            )
+        )
+
+        // Seed danh sách người tham gia ban đầu
+        val initialParticipantsMap = mapOf(
+            "1" to listOf(
+                Participant("Lâm", "lam@gmail.com", "L", 0xFF10B981, ParticipantRole.EDIT),
+                Participant("Mai", "mai@gmail.com", "M", 0xFF3B82F6, ParticipantRole.VIEW_ONLY),
+                Participant("Hải", "hai@gmail.com", "H", 0xFFF59E0B, ParticipantRole.VIEW_ONLY)
+            ),
+            "2" to listOf(
+                Participant("Cường", "cuong@gmail.com", "C", 0xFF10B981, ParticipantRole.EDIT),
+                Participant("Vy", "vy@gmail.com", "V", 0xFF3B82F6, ParticipantRole.EDIT)
+            ),
+            "3" to listOf(
+                Participant("Nam", "nam@gmail.com", "N", 0xFF10B981, ParticipantRole.EDIT),
+                Participant("Hoa", "hoa@gmail.com", "H", 0xFFF59E0B, ParticipantRole.VIEW_ONLY)
             )
         )
 
         _uiState.update {
             it.copy(
                 itineraries = initialItineraries,
-                timelineMap = initialTimelineMap
+                timelineMap = initialTimelineMap,
+                participantsMap = initialParticipantsMap
             )
         }
     }
@@ -130,9 +179,10 @@ class ItineraryViewModel(
         }
     }
 
-    fun addPlaceToItinerary(itineraryId: String, time: String, place: Place, tag: String) {
+    fun addPlaceToItinerary(itineraryId: String, day: String, time: String, place: Place, tag: String) {
         _uiState.update { state ->
-            val currentTimeline = state.timelineMap[itineraryId] ?: emptyList()
+            val key = "$itineraryId-$day"
+            val currentTimeline = state.timelineMap[key] ?: emptyList()
             val newLocation = "${place.cities?.name ?: ""}, ${place.provinces?.name ?: ""}"
             val newItem = TimelineItemData(
                 time = time.ifBlank { "08:00 AM" },
@@ -142,22 +192,68 @@ class ItineraryViewModel(
                 imageUrl = place.imageUrl ?: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b"
             )
             
-            // Sắp xếp các điểm theo thời gian (giản đơn)
             val updatedTimeline = (currentTimeline + newItem).sortedBy { it.time }
             val newMap = state.timelineMap.toMutableMap()
-            newMap[itineraryId] = updatedTimeline
+            newMap[key] = updatedTimeline
             
             state.copy(timelineMap = newMap)
         }
     }
 
-    fun removePlaceFromItinerary(itineraryId: String, item: TimelineItemData) {
+    fun removePlaceFromItinerary(itineraryId: String, day: String, item: TimelineItemData) {
         _uiState.update { state ->
-            val currentTimeline = state.timelineMap[itineraryId] ?: emptyList()
+            val key = "$itineraryId-$day"
+            val currentTimeline = state.timelineMap[key] ?: emptyList()
             val updatedTimeline = currentTimeline - item
             val newMap = state.timelineMap.toMutableMap()
-            newMap[itineraryId] = updatedTimeline
+            newMap[key] = updatedTimeline
             state.copy(timelineMap = newMap)
+        }
+    }
+
+    // ---- Các chức năng quản lý Người Tham Gia & Phân Quyền ----
+    fun addParticipant(itineraryId: String, name: String, email: String, role: ParticipantRole) {
+        _uiState.update { state ->
+            val currentList = state.participantsMap[itineraryId] ?: emptyList()
+            if (currentList.any { it.email.equals(email, ignoreCase = true) }) return
+            
+            val colors = listOf(0xFF10B981, 0xFF3B82F6, 0xFFF59E0B, 0xFFEF4444, 0xFF8B5CF6, 0xFFEC4899)
+            val randomColor = colors.random()
+            val initials = name.trim().take(1).uppercase()
+            
+            val newParticipant = Participant(
+                name = name.ifBlank { "Thành viên" },
+                email = email.ifBlank { "member@gmail.com" },
+                initials = initials.ifBlank { "M" },
+                avatarColor = randomColor,
+                role = role
+            )
+            
+            val newMap = state.participantsMap.toMutableMap()
+            newMap[itineraryId] = currentList + newParticipant
+            state.copy(participantsMap = newMap)
+        }
+    }
+
+    fun updateParticipantRole(itineraryId: String, email: String, newRole: ParticipantRole) {
+        _uiState.update { state ->
+            val currentList = state.participantsMap[itineraryId] ?: emptyList()
+            val updatedList = currentList.map {
+                if (it.email.equals(email, ignoreCase = true)) it.copy(role = newRole) else it
+            }
+            val newMap = state.participantsMap.toMutableMap()
+            newMap[itineraryId] = updatedList
+            state.copy(participantsMap = newMap)
+        }
+    }
+
+    fun removeParticipant(itineraryId: String, email: String) {
+        _uiState.update { state ->
+            val currentList = state.participantsMap[itineraryId] ?: emptyList()
+            val updatedList = currentList.filterNot { it.email.equals(email, ignoreCase = true) }
+            val newMap = state.participantsMap.toMutableMap()
+            newMap[itineraryId] = updatedList
+            state.copy(participantsMap = newMap)
         }
     }
 
