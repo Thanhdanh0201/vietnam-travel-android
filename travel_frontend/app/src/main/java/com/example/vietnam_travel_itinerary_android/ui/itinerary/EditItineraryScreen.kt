@@ -46,8 +46,12 @@ fun EditItineraryScreen(
     onBackClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val timelineItems = uiState.timelineMap[itinerary?.id] ?: emptyList()
+    var selectedDay by remember { mutableStateOf("12") } // Mặc định ngày 12
+    val timelineItems = uiState.timelineMap["${itinerary?.id}-$selectedDay"] ?: emptyList()
+    val participants = uiState.participantsMap[itinerary?.id] ?: emptyList()
+    
     var showAddDialog by remember { mutableStateOf(false) }
+    var showParticipantsDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
@@ -89,7 +93,7 @@ fun EditItineraryScreen(
                 .padding(paddingValues),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
-            // Tháng & Lịch
+            // Tháng & Lịch chọn ngày nằm ngang
             item {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(
@@ -129,7 +133,7 @@ fun EditItineraryScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(days) { (day, date) ->
-                            val isSelected = day == "TH 2" && date == "12"
+                            val isSelected = date == selectedDay
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
@@ -142,7 +146,7 @@ fun EditItineraryScreen(
                                         color = if (isSelected) Color.Transparent else SlateGray200,
                                         shape = CircleShape
                                     )
-                                    .clickable { }
+                                    .clickable { selectedDay = date }
                             ) {
                                 Text(
                                     text = day,
@@ -192,9 +196,11 @@ fun EditItineraryScreen(
                                 color = SlateGray900
                             )
                         }
+                        
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = VNRed.copy(alpha = 0.1f)
+                            color = VNRed.copy(alpha = 0.1f),
+                            modifier = Modifier.clickable { showParticipantsDialog = true }
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -202,7 +208,7 @@ fun EditItineraryScreen(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(12.dp), tint = VNRed)
-                                Text("QUYỀN CHỈNH SỬA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VNRed)
+                                Text("QUẢN LÝ THÀNH VIÊN", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VNRed)
                             }
                         }
                     }
@@ -213,58 +219,80 @@ fun EditItineraryScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Avatars Overlapping
+                        // Hiển thị danh sách Avatar lợp chồng
                         Row {
-                            val colors = listOf(Color(0xFF10B981), Color(0xFF3B82F6), Color(0xFFF59E0B))
-                            val initials = listOf("L", "M", "H")
-                            for (i in 0..2) {
+                            participants.take(4).forEachIndexed { index, participant ->
                                 Box(
                                     modifier = Modifier
-                                        .offset(x = (-8 * i).dp)
+                                        .offset(x = (-8 * index).dp)
                                         .size(40.dp)
                                         .clip(CircleShape)
                                         .border(2.dp, Color(0xFFF8F6F6), CircleShape)
                                 ) {
-                                    AuthorAvatar(initials = initials[i], color = colors[i], size = 40)
+                                    AuthorAvatar(
+                                        initials = participant.initials,
+                                        color = Color(participant.avatarColor),
+                                        size = 40
+                                    )
                                 }
                             }
                             
-                            // Nút Thêm
+                            // Nút Thêm người tham gia nhanh
                             Box(
                                 modifier = Modifier
-                                    .offset(x = (-24).dp)
+                                    .offset(x = if (participants.isNotEmpty()) (-8 * participants.take(4).size).dp else 0.dp)
                                     .size(40.dp)
                                     .clip(CircleShape)
                                     .background(Color.White)
                                     .border(1.dp, VNRed.copy(alpha = 0.5f), CircleShape)
-                                    .clickable { },
+                                    .clickable { showParticipantsDialog = true },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(Icons.Filled.Add, contentDescription = "Thêm người", tint = VNRed, modifier = Modifier.size(20.dp))
                             }
                         }
                         
-                        Column(modifier = Modifier.offset(x = (-16).dp)) {
-                            Text("+3 người khác", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlateGray900)
-                            Text("CÓ THỂ CÙNG SỬA", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = SlateGray500)
+                        val remainingCount = participants.size - 4
+                        val offsetDp = if (participants.isNotEmpty()) (-8 * participants.take(4).size - 8).dp else 8.dp
+                        
+                        Column(modifier = Modifier.offset(x = offsetDp)) {
+                            if (remainingCount > 0) {
+                                Text("+$remainingCount người khác", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlateGray900)
+                            } else {
+                                Text("${participants.size} thành viên", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlateGray900)
+                            }
+                            Text("CÙNG THAM GIA", fontWeight = FontWeight.Bold, fontSize = 10.sp, color = SlateGray500)
                         }
                     }
                 }
             }
             
-            // Timeline Lịch trình
+            // Timeline Lịch trình cụ thể cho ngày đang chọn
             item {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    timelineItems.forEachIndexed { index, item ->
-                        TimelineItem(
-                            data = item,
-                            isLast = index == timelineItems.size - 1,
-                            onDeleteClick = {
-                                itinerary?.let { it ->
-                                    viewModel.removePlaceFromItinerary(it.id, item)
+                    if (timelineItems.isEmpty()) {
+                        // Trạng thái trống cho ngày này
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("Chưa có địa điểm nào cho ngày $selectedDay", fontSize = 14.sp, color = SlateGray500)
+                            Text("Hãy bấm nút bên dưới để thêm địa điểm đầu tiên!", fontSize = 12.sp, color = SlateGray400)
+                        }
+                    } else {
+                        timelineItems.forEachIndexed { index, item ->
+                            TimelineItem(
+                                data = item,
+                                isLast = index == timelineItems.size - 1,
+                                onDeleteClick = {
+                                    itinerary?.let { it ->
+                                        viewModel.removePlaceFromItinerary(it.id, selectedDay, item)
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                     
                     // Nút Thêm Địa Điểm ở cuối
@@ -309,7 +337,7 @@ fun EditItineraryScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(Icons.Filled.Add, contentDescription = null, tint = VNRed)
-                                Text("THÊM ĐỊA ĐIỂM", color = VNRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text("THÊM ĐỊA ĐIỂM NGÀY $selectedDay", color = VNRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                         }
                     }
@@ -318,7 +346,7 @@ fun EditItineraryScreen(
         }
     }
 
-    // Modal / Dialog Thêm địa điểm du lịch (Lọc theo Tỉnh và Quận Huyện)
+    // Modal / Dialog Thêm địa điểm du lịch
     if (showAddDialog) {
         val parsed = itinerary?.location?.split(",") ?: emptyList()
         val district = parsed.getOrNull(0)?.trim() ?: ""
@@ -340,7 +368,7 @@ fun EditItineraryScreen(
             title = {
                 Column {
                     Text(
-                        text = "Thêm địa điểm du lịch",
+                        text = "Thêm địa điểm Ngày $selectedDay",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = SlateGray900
@@ -361,7 +389,6 @@ fun EditItineraryScreen(
                         .heightIn(max = 400.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    // Nhập thời gian
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Thời gian", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
                         OutlinedTextField(
@@ -374,7 +401,6 @@ fun EditItineraryScreen(
                         )
                     }
 
-                    // Nhập hoạt động
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Hoạt động / Tag", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
                         OutlinedTextField(
@@ -387,7 +413,6 @@ fun EditItineraryScreen(
                         )
                     }
 
-                    // Danh sách địa điểm (Chỉ của Tỉnh / Huyện đó)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Chọn địa điểm thuộc vùng này", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
                         if (filteredPlaces.isEmpty()) {
@@ -432,6 +457,7 @@ fun EditItineraryScreen(
                             itinerary?.let { it ->
                                 viewModel.addPlaceToItinerary(
                                     itineraryId = it.id,
+                                    day = selectedDay,
                                     time = timeInput,
                                     place = place,
                                     tag = tagInput
@@ -449,6 +475,225 @@ fun EditItineraryScreen(
             dismissButton = {
                 TextButton(onClick = { showAddDialog = false }) {
                     Text("Hủy", color = SlateGray500)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Modal / Dialog Quản lý Người Tham Gia & Phân Quyền
+    if (showParticipantsDialog) {
+        var newMemberName by remember { mutableStateOf("") }
+        var newMemberEmail by remember { mutableStateOf("") }
+        var newMemberRole by remember { mutableStateOf(ParticipantRole.VIEW_ONLY) }
+
+        AlertDialog(
+            onDismissRequest = { showParticipantsDialog = false },
+            title = {
+                Text(
+                    text = "Quản lý thành viên",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = SlateGray900
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 450.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Form thêm thành viên mới
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = SlateGray50),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Thêm thành viên mới",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = SlateGray700
+                            )
+                            
+                            OutlinedTextField(
+                                value = newMemberName,
+                                onValueChange = { newMemberName = it },
+                                placeholder = { Text("Tên người tham gia") },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            
+                            OutlinedTextField(
+                                value = newMemberEmail,
+                                onValueChange = { newMemberEmail = it },
+                                placeholder = { Text("Email thành viên") },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            
+                            // Phân Quyền
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Quyền:", fontSize = 12.sp, color = SlateGray600)
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(
+                                            selected = newMemberRole == ParticipantRole.EDIT,
+                                            onClick = { newMemberRole = ParticipantRole.EDIT },
+                                            colors = RadioButtonDefaults.colors(selectedColor = VNRed)
+                                        )
+                                        Text("Chỉnh sửa", fontSize = 12.sp, color = SlateGray700)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(
+                                            selected = newMemberRole == ParticipantRole.VIEW_ONLY,
+                                            onClick = { newMemberRole = ParticipantRole.VIEW_ONLY },
+                                            colors = RadioButtonDefaults.colors(selectedColor = VNRed)
+                                        )
+                                        Text("Chỉ xem", fontSize = 12.sp, color = SlateGray700)
+                                    }
+                                }
+                            }
+                            
+                            Button(
+                                onClick = {
+                                    if (newMemberName.isNotBlank() && newMemberEmail.isNotBlank()) {
+                                        itinerary?.let { it ->
+                                            viewModel.addParticipant(
+                                                itineraryId = it.id,
+                                                name = newMemberName,
+                                                email = newMemberEmail,
+                                                role = newMemberRole
+                                            )
+                                        }
+                                        newMemberName = ""
+                                        newMemberEmail = ""
+                                    }
+                                },
+                                enabled = newMemberName.isNotBlank() && newMemberEmail.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(containerColor = VNRed),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("THÊM THÀNH VIÊN", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                    
+                    HorizontalDivider(color = SlateGray200)
+
+                    // Danh sách thành viên hiện tại
+                    Text(
+                        text = "Danh sách thành viên (${participants.size})",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = SlateGray700
+                    )
+                    
+                    if (participants.isEmpty()) {
+                        Text("Chưa có thành viên nào tham gia.", fontSize = 12.sp, color = SlateGray500)
+                    } else {
+                        participants.forEach { participant ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .border(1.dp, SlateGray200.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    AuthorAvatar(
+                                        initials = participant.initials,
+                                        color = Color(participant.avatarColor),
+                                        size = 36
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = participant.name,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = SlateGray900
+                                        )
+                                        Text(
+                                            text = participant.email,
+                                            fontSize = 10.sp,
+                                            color = SlateGray500
+                                        )
+                                    }
+                                }
+                                
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val isEdit = participant.role == ParticipantRole.EDIT
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = if (isEdit) Color(0xFFE8F5E9) else Color(0xFFECEFF1),
+                                        modifier = Modifier.clickable {
+                                            itinerary?.let { it ->
+                                                viewModel.updateParticipantRole(
+                                                    itineraryId = it.id,
+                                                    email = participant.email,
+                                                    newRole = if (isEdit) ParticipantRole.VIEW_ONLY else ParticipantRole.EDIT
+                                                )
+                                            }
+                                        }
+                                    ) {
+                                        Text(
+                                            text = if (isEdit) "CHỈNH SỬA" else "CHỈ XEM",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isEdit) Color(0xFF2E7D32) else Color(0xFF455A64),
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    
+                                    IconButton(
+                                        onClick = {
+                                            itinerary?.let { it ->
+                                                viewModel.removeParticipant(it.id, participant.email)
+                                            }
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Delete,
+                                            contentDescription = "Xóa thành viên",
+                                            tint = Color.Red,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showParticipantsDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                ) {
+                    Text("Hoàn tất", color = Color.White)
                 }
             },
             containerColor = Color.White,
