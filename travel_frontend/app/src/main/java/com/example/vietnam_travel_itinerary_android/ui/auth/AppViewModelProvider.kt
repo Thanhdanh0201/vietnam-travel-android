@@ -6,6 +6,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
 import com.example.vietnam_travel_itinerary_android.SupabaseObject
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
+import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
@@ -41,5 +43,10 @@ object AppViewModelProvider {
             )
         }
 
+        initializer {
+            ItineraryViewModel(
+                placeRepo = PlaceRepository()
+            )
+        }
     }
 }
