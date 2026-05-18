@@ -1,4 +1,4 @@
-package com.example.vietnam_travel_itinerary_android.ui.home
+package com.example.vietnam_travel_itinerary_android.ui.itinerary
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
