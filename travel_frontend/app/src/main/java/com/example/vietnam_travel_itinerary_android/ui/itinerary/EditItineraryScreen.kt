@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 
@@ -39,8 +42,13 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 @Composable
 fun EditItineraryScreen(
     itinerary: Itinerary? = null,
+    viewModel: ItineraryViewModel,
     onBackClick: () -> Unit = {}
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val timelineItems = uiState.timelineMap[itinerary?.id] ?: emptyList()
+    var showAddDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
         topBar = {
@@ -64,7 +72,7 @@ fun EditItineraryScreen(
                             Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = VNRed)
                         }
                         Text(
-                            text = itinerary?.title ?: "Kỳ nghỉ abc",
+                            text = itinerary?.title ?: "Kỳ nghỉ của tôi",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = VNRed
@@ -247,17 +255,15 @@ fun EditItineraryScreen(
             // Timeline Lịch trình
             item {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    val timelineItems = listOf(
-                        TimelineItemData("08:00 AM", "Bà Nà Hills", "Hòa Vang, Đà Nẵng", "Cáp treo", "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b"),
-                        TimelineItemData("12:30 PM", "Đại Nội Huế", "TP. Huế, Thừa Thiên Huế", "Di sản", "https://images.unsplash.com/photo-1583417657208-cb86acb8b209"),
-                        TimelineItemData("02:30 PM", "Đại Nội Huế", "TP. Huế, Thừa Thiên Huế", "Di sản", "https://images.unsplash.com/photo-1583417657208-cb86acb8b209"),
-                        TimelineItemData("07:00 PM", "Chợ đêm Hội An", "Phố cổ Hội An, Quảng Nam", "Ẩm thực", "https://images.unsplash.com/photo-1555921015-5532091f6026")
-                    )
-                    
                     timelineItems.forEachIndexed { index, item ->
                         TimelineItem(
                             data = item,
-                            isLast = index == timelineItems.size - 1
+                            isLast = index == timelineItems.size - 1,
+                            onDeleteClick = {
+                                itinerary?.let { it ->
+                                    viewModel.removePlaceFromItinerary(it.id, item)
+                                }
+                            }
                         )
                     }
                     
@@ -295,7 +301,7 @@ fun EditItineraryScreen(
                                 }
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(VNRed.copy(alpha = 0.05f))
-                                .clickable { },
+                                .clickable { showAddDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Row(
@@ -311,6 +317,144 @@ fun EditItineraryScreen(
             }
         }
     }
+
+    // Modal / Dialog Thêm địa điểm du lịch (Lọc theo Tỉnh và Quận Huyện)
+    if (showAddDialog) {
+        val parsed = itinerary?.location?.split(",") ?: emptyList()
+        val district = parsed.getOrNull(0)?.trim() ?: ""
+        val province = parsed.getOrNull(1)?.trim() ?: ""
+
+        val filteredPlaces = uiState.allPlaces.filter { place ->
+            place.provinces?.name?.trim()?.contains(province, ignoreCase = true) == true &&
+            place.cities?.name?.trim()?.contains(district, ignoreCase = true) == true
+        }.ifEmpty {
+            viewModel.getFallbackPlacesFor(province, district)
+        }
+
+        var selectedPlace by remember { mutableStateOf<Place?>(filteredPlaces.firstOrNull()) }
+        var timeInput by remember { mutableStateOf("08:00 AM") }
+        var tagInput by remember { mutableStateOf("Tham quan") }
+
+        AlertDialog(
+            onDismissRequest = { showAddDialog = false },
+            title = {
+                Column {
+                    Text(
+                        text = "Thêm địa điểm du lịch",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = SlateGray900
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Khu vực: $district, $province",
+                        fontSize = 12.sp,
+                        color = SlateGray500
+                    )
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Nhập thời gian
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Thời gian", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
+                        OutlinedTextField(
+                            value = timeInput,
+                            onValueChange = { timeInput = it },
+                            placeholder = { Text("Ví dụ: 08:30 AM") },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
+                    // Nhập hoạt động
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Hoạt động / Tag", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
+                        OutlinedTextField(
+                            value = tagInput,
+                            onValueChange = { tagInput = it },
+                            placeholder = { Text("Ví dụ: Cáp treo, Ẩm thực, Di sản") },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                    }
+
+                    // Danh sách địa điểm (Chỉ của Tỉnh / Huyện đó)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Chọn địa điểm thuộc vùng này", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
+                        if (filteredPlaces.isEmpty()) {
+                            Text("Không có địa điểm nào khả dụng cho khu vực này.", color = VNRed, fontSize = 12.sp)
+                        } else {
+                            filteredPlaces.forEach { place ->
+                                val isSelected = selectedPlace?.id == place.id
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) VNRed.copy(alpha = 0.08f) else Color.Transparent)
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isSelected) VNRed else SlateGray200,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { selectedPlace = place }
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = { selectedPlace = place },
+                                        colors = RadioButtonDefaults.colors(selectedColor = VNRed)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(place.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SlateGray900)
+                                        Text(place.type ?: "Địa điểm du lịch", fontSize = 11.sp, color = SlateGray500)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedPlace?.let { place ->
+                            itinerary?.let { it ->
+                                viewModel.addPlaceToItinerary(
+                                    itineraryId = it.id,
+                                    time = timeInput,
+                                    place = place,
+                                    tag = tagInput
+                                )
+                            }
+                        }
+                        showAddDialog = false
+                    },
+                    enabled = selectedPlace != null,
+                    colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                ) {
+                    Text("Thêm", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddDialog = false }) {
+                    Text("Hủy", color = SlateGray500)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 }
 
 data class TimelineItemData(
@@ -322,7 +466,7 @@ data class TimelineItemData(
 )
 
 @Composable
-fun TimelineItem(data: TimelineItemData, isLast: Boolean) {
+fun TimelineItem(data: TimelineItemData, isLast: Boolean, onDeleteClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -377,7 +521,7 @@ fun TimelineItem(data: TimelineItemData, isLast: Boolean) {
         Card(
             modifier = Modifier
                 .weight(1f)
-                .padding(bottom = 24.dp), // Khoảng cách giữa các card
+                .padding(bottom = 24.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -426,7 +570,14 @@ fun TimelineItem(data: TimelineItemData, isLast: Boolean) {
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = SlateGray400)
-                            Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = SlateGray400)
+                            Icon(
+                                Icons.Outlined.Delete,
+                                contentDescription = "Xóa",
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { onDeleteClick() },
+                                tint = SlateGray400
+                            )
                             Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = VNRed)
                         }
                     }

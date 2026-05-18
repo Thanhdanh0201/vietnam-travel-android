@@ -6,12 +6,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -19,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.ui.community.CommunityScreen
 import com.example.vietnam_travel_itinerary_android.ui.components.BottomNavBar
 import com.example.vietnam_travel_itinerary_android.ui.components.bottomNavItems
@@ -26,6 +26,7 @@ import com.example.vietnam_travel_itinerary_android.ui.home.HomeScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.CreateItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.EditItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryScreen
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 
 private val mainTabRoutes: Set<String> by lazy {
@@ -33,7 +34,9 @@ private val mainTabRoutes: Set<String> by lazy {
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    itineraryViewModel: ItineraryViewModel = viewModel(factory = AppViewModelProvider.Factory)
+) {
     val bottomNavController = rememberNavController()
 
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -45,45 +48,8 @@ fun MainScreen() {
             ?: currentDestination?.route?.takeIf { it in mainTabRoutes }
             ?: ""
 
-    var itinerariesState by remember {
-        mutableStateOf(
-            listOf(
-                Itinerary(
-                    id = "1",
-                    title = "Kỳ nghỉ Vịnh Hạ Long",
-                    location = "Quảng Ninh, Việt Nam",
-                    dateRange = "15/10 - 18/10/2024",
-                    statusText = "SẮP DIỄN RA",
-                    statusSubText = "🕒 Còn 5 ngày nữa",
-                    isUpcoming = true,
-                    imageResId = android.R.drawable.ic_menu_gallery,
-                    participantImages = listOf(android.R.drawable.ic_menu_report_image)
-                ),
-                Itinerary(
-                    id = "2",
-                    title = "Khám phá Hội An",
-                    location = "Quảng Nam, Việt Nam",
-                    dateRange = "01/09 - 04/09/2024",
-                    statusText = "ĐÃ KẾT THÚC",
-                    statusSubText = null,
-                    isUpcoming = false,
-                    imageResId = android.R.drawable.ic_menu_gallery,
-                    participantImages = listOf(android.R.drawable.ic_menu_report_image)
-                ),
-                Itinerary(
-                    id = "3",
-                    title = "Hành trình Sapa",
-                    location = "Lào Cai, Việt Nam",
-                    dateRange = "10/11 - 14/11/2024",
-                    statusText = "SẮP DIỄN RA",
-                    statusSubText = "🕒 Còn 24 ngày",
-                    isUpcoming = true,
-                    imageResId = android.R.drawable.ic_menu_gallery,
-                    participantImages = listOf(android.R.drawable.ic_menu_report_image)
-                )
-            )
-        )
-    }
+    val uiState by itineraryViewModel.uiState.collectAsState()
+    val itinerariesState = uiState.itineraries
 
     fun navigateToMainTab(route: String) {
         if (route !in mainTabRoutes) return
@@ -147,7 +113,7 @@ fun MainScreen() {
                 CreateItineraryScreen(
                     onBackClick = { bottomNavController.popBackStack() },
                     onCreate = { newItinerary ->
-                        itinerariesState = itinerariesState + newItinerary
+                        itineraryViewModel.addItinerary(newItinerary)
                     }
                 )
             }
@@ -162,6 +128,7 @@ fun MainScreen() {
                 val itinerary = itinerariesState.find { it.id == itineraryId }
                 EditItineraryScreen(
                     itinerary = itinerary,
+                    viewModel = itineraryViewModel,
                     onBackClick = { bottomNavController.popBackStack() }
                 )
             }
