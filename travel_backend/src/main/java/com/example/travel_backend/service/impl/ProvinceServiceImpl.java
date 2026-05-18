@@ -1,13 +1,16 @@
 package com.example.travel_backend.service.impl;
 
-import com.example.travel_backend.entity.Event;
+import com.example.travel_backend.dto.response.EventDto;
 import com.example.travel_backend.entity.Province;
+import com.example.travel_backend.mapper.EventMapper;
 import com.example.travel_backend.repository.EventRepository;
 import com.example.travel_backend.repository.ProvinceRepository;
 import com.example.travel_backend.service.ProvinceService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ProvinceServiceImpl implements ProvinceService {
@@ -33,8 +36,11 @@ public class ProvinceServiceImpl implements ProvinceService {
     }
 
     @Override
-    public List<Event> getEventsByProvinceCode(String code) {
+    @Transactional(readOnly = true)
+    public List<EventDto> getEventsByProvinceCode(String code) {
         System.out.println("Get events by province code: " + code);
-        return eventRepository.findByProvince_Code(code);
+        return eventRepository.findByProvince_Code(code).stream()
+                .map(EventMapper::toDto)
+                .collect(Collectors.toList());
     }
 }

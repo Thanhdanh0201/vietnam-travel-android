@@ -1,11 +1,17 @@
 package com.example.vietnam_travel_itinerary_android.ui.home
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.vietnam_travel_itinerary_android.data.model.*
+import com.example.vietnam_travel_itinerary_android.data.model.Event
+import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.data.model.ProvinceSummary
+import com.example.vietnam_travel_itinerary_android.data.model.TrendingPlace
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
 import com.example.vietnam_travel_itinerary_android.data.repository.EventRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.WeatherRepository
+import com.example.vietnam_travel_itinerary_android.location.GeoUtils
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,8 +19,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.time.LocalDate
+import java.time.ZoneId
 
-class HomeViewModel : ViewModel() {
+class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     data class HomeUiState(
         val isLoading: Boolean = false,
@@ -22,8 +30,10 @@ class HomeViewModel : ViewModel() {
         val recommendedPlaces: List<Place> = emptyList(),
         val trendingPlaces: List<TrendingPlace> = emptyList(),
         val activeEvents: List<Event> = emptyList(),
+        /** Đã gọi API lễ hội sắp tới xong (kể cả lỗi/rỗng). */
+        val eventsFetched: Boolean = false,
         val error: String? = null,
-        val currentLocationName: String = "Đà Lạt",
+        val currentLocationName: String = "",
         val isUsingPlaceholder: Boolean = true
     )
 
@@ -55,7 +65,9 @@ class HomeViewModel : ViewModel() {
                     condition = "sunny"
                 ),
                 recommendedPlaces = placeholderPlaces(),
-                activeEvents = placeholderEvents()
+                activeEvents = emptyList(),
+                eventsFetched = false,
+                currentLocationName = "Đà Lạt"
             )
         }
     }
@@ -96,11 +108,11 @@ class HomeViewModel : ViewModel() {
 
                 // Load weather in background (non-blocking)
                 loadWeather()
-                // Load events in background
-                loadEvents()
+                // Lễ hội sắp tới (3 tháng, toàn quốc) — GET /api/events/upcoming
+                loadUpcomingEvents()
 
             } catch (_: Exception) {
-                // Silently keep placeholder data on failure
+                loadUpcomingEvents()
             }
         }
     }
@@ -108,11 +120,15 @@ class HomeViewModel : ViewModel() {
     private fun loadWeather() {
         viewModelScope.launch {
             try {
-                val placeId = _uiState.value.recommendedPlaces.firstOrNull()?.id
-                if (placeId != null && !placeId.startsWith("placeholder")) {
+                val place = _uiState.value.recommendedPlaces
+                    .firstOrNull { !it.id.startsWith("placeholder") }
+                if (place != null) {
+                    _uiState.update { it.copy(currentLocationName = place.name) }
                     withTimeoutOrNull(8_000L) {
-                        weatherRepo.getWeather(placeId).onSuccess { weather ->
-                            _uiState.update { it.copy(weather = weather) }
+                        weatherRepo.getWeather(place.id).onSuccess { weather ->
+                            _uiState.update {
+                                it.copy(weather = weather, currentLocationName = place.name)
+                            }
                         }
                     }
                 }
@@ -120,19 +136,46 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    private fun loadEvents() {
+    /**
+     * Thời tiết theo vị trí: backend GET /api/weather/{placeId} dùng lat/lng của place + Open-Meteo (cache 60 phút).
+     * Tên hiển thị ưu tiên reverse geocode; [placeId] là điểm trong danh sách gần GPS nhất (có tọa độ).
+     */
+    fun applyGpsWeather(userLat: Double, userLng: Double, localityLabel: String?) {
         viewModelScope.launch {
-            try {
-                withTimeoutOrNull(8_000L) {
-                    eventRepo.getEventsByProvince("79").onSuccess { events ->
-                        if (events.isNotEmpty()) {
-                            _uiState.update {
-                                it.copy(activeEvents = events, isUsingPlaceholder = false)
-                            }
-                        }
+            val nonPlaceholder = _uiState.value.recommendedPlaces
+                .filter { !it.id.startsWith("placeholder") }
+            if (nonPlaceholder.isEmpty()) return@launch
+
+            val nearest = GeoUtils.nearestPlace(nonPlaceholder, userLat, userLng)
+            val placeForWeather = nearest ?: nonPlaceholder.first()
+            val displayName = localityLabel?.takeIf { it.isNotBlank() }
+                ?: nearest?.name?.takeIf { it.isNotBlank() }
+                ?: placeForWeather.name
+
+            withTimeoutOrNull(8_000L) {
+                weatherRepo.getWeather(placeForWeather.id).onSuccess { w ->
+                    _uiState.update {
+                        it.copy(weather = w, currentLocationName = displayName.trim())
                     }
                 }
-            } catch (_: Exception) { /* Keep placeholder events */ }
+            }
+        }
+    }
+
+    private fun loadUpcomingEvents() {
+        viewModelScope.launch {
+            val filtered = try {
+                withTimeoutOrNull(8_000L) {
+                    val result = eventRepo.getUpcomingEvents(months = 3, limit = 40)
+                    val raw = result.getOrNull().orEmpty()
+                    filterEventsUpcomingWindow(raw, months = 3)
+                } ?: emptyList()
+            } catch (_: Exception) {
+                emptyList()
+            }
+            _uiState.update {
+                it.copy(activeEvents = filtered, eventsFetched = true)
+            }
         }
     }
 
@@ -180,20 +223,28 @@ class HomeViewModel : ViewModel() {
         ),
     )
 
-    private fun placeholderEvents(): List<Event> = listOf(
-        Event(
-            id = "placeholder_e1",
-            name = "Lễ hội Áo Dài 2024",
-            startDate = "2024-10-15",
-            endDate = "2024-10-20",
-            places = PlaceSummary(name = "TP. Hồ Chí Minh")
-        ),
-        Event(
-            id = "placeholder_e2",
-            name = "Festival Hoa Đà Lạt",
-            startDate = "2024-10-20",
-            endDate = "2024-10-25",
-            places = PlaceSummary(name = "Lâm Đồng")
-        ),
-    )
+    /**
+     * Lọc cục bộ (đồng bộ với backend): sự kiện giao với [hôm nay, hôm nay + months] theo start_date/end_date.
+     */
+    private fun filterEventsUpcomingWindow(events: List<Event>, months: Int): List<Event> {
+        if (events.isEmpty()) return emptyList()
+        val zone = ZoneId.of("Asia/Ho_Chi_Minh")
+        val today = LocalDate.now(zone)
+        val windowEnd = today.plusMonths(months.toLong())
+
+        fun parseIso(s: String): LocalDate? =
+            try {
+                LocalDate.parse(s.trim().take(10))
+            } catch (_: Exception) {
+                null
+            }
+
+        return events.mapNotNull { e ->
+            val start = parseIso(e.startDate) ?: return@mapNotNull null
+            val end = parseIso(e.endDate) ?: start
+            if (!end.isBefore(today) && !start.isAfter(windowEnd)) e else null
+        }
+            .sortedBy { parseIso(it.startDate) ?: LocalDate.MAX }
+            .take(30)
+    }
 }

@@ -1,6 +1,6 @@
 package com.example.travel_backend.controller;
 
-import com.example.travel_backend.entity.Event;
+import com.example.travel_backend.dto.response.EventDto;
 import com.example.travel_backend.entity.Province;
 import com.example.travel_backend.service.ProvinceService;
 import org.springframework.http.ResponseEntity;
@@ -33,7 +33,7 @@ public class ProvinceController {
     }
 
     @GetMapping("/{code}/events")
-    public ResponseEntity<List<Event>> getEventsByProvinceCode(@PathVariable String code) {
+    public ResponseEntity<List<EventDto>> getEventsByProvinceCode(@PathVariable String code) {
         return ResponseEntity.ok(provinceService.getEventsByProvinceCode(code));
     }
 }
