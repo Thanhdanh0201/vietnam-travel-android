@@ -16,4 +16,13 @@ class EventRepository {
                 Result.failure(e)
             }
         }
+
+    suspend fun getUpcomingEvents(months: Int = 3, limit: Int = 40): Result<List<Event>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Result.success(api.getUpcomingEvents(months, limit))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 }

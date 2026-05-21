@@ -10,5 +10,7 @@ data class WeatherData(
     @Json(name = "temp_max") val tempMax: Double = 0.0,
     @Json(name = "temp_min") val tempMin: Double = 0.0,
     @Json(name = "rain_mm") val rainMm: Double = 0.0,
-    val condition: String = "sunny" // "sunny", "partly_cloudy", "cloudy", "rainy", "stormy"
+    val humidity: Int? = null,
+    val condition: String = "sunny", // "sunny", "partly_cloudy", "cloudy", "rainy", "stormy"
+    @Json(name = "fetched_at") val fetchedAt: String? = null
 )

@@ -76,6 +76,10 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
+
+    // Location (GPS → thời tiết theo điểm gần nhất trong DB)
+    implementation(libs.play.services.location)
 
     // Testing
     testImplementation(libs.junit)

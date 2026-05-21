@@ -23,18 +23,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 
+import androidx.compose.foundation.clickable
+
+@Composable
 @Composable
 fun ItineraryCard(
     itinerary: Itinerary,
-    onClick: () -> Unit, //a tool that will help us later
-    onDelete: () -> Unit //a tool that will help us later
-    //It’s a function that describes UI, and it receives other functions to handle user actions
+    onClick: (String) -> Unit = {},
+    onDelete: () -> Unit
 ) {
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .clickable { onClick() },
+            .clickable { onClick(itinerary.id) },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)

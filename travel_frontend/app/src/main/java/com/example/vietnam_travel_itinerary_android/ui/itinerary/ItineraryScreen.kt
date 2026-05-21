@@ -1,4 +1,4 @@
-package com.example.vietnam_travel_itinerary_android.ui.home
+package com.example.vietnam_travel_itinerary_android.ui.itinerary
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -32,7 +32,9 @@ import com.example.vietnam_travel_itinerary_android.R
 fun ItineraryScreen(
     viewModel: ItineraryViewModel = viewModel(),
     onSearchClick: () -> Unit = {},
-    onNotificationClick: () -> Unit = {}
+    onNotificationClick: () -> Unit = {},
+    onCreateClick: () -> Unit = {},
+    onEditClick: (String) -> Unit = {}
 ) {
     val itineraries = viewModel.itineraries
 
@@ -57,7 +59,7 @@ fun ItineraryScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { showDialog = true },
+                onClick = onCreateClick,
                 containerColor = VNRed,
                 contentColor = Color.White,
                 shape = RoundedCornerShape(24.dp)
@@ -141,7 +143,7 @@ fun ItineraryScreen(
                 items(filteredList) { itinerary ->
                     ItineraryCard(
                         itinerary = itinerary,
-                        onClick = { /* TODO: Navigate to detail */ },
+                        onClick = onEditClick,
                         onDelete = { viewModel.deleteItinerary(itinerary) }
                     )
                 }

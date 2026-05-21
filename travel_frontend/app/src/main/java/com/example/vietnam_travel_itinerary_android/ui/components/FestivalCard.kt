@@ -12,6 +12,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.Event
+import com.example.vietnam_travel_itinerary_android.data.model.displayLocation
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 
 @Composable
@@ -83,7 +84,7 @@ fun FestivalCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = event.places?.name ?: "",
+                    text = event.displayLocation(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
