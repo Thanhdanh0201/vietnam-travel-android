@@ -1,9 +1,8 @@
 package com.example.vietnam_travel_itinerary_android.ui.itinerary
-
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -15,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -24,7 +22,6 @@ import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
 import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
-import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
 import com.example.vietnam_travel_itinerary_android.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,9 +31,9 @@ fun ItineraryScreen(
     onSearchClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
     onCreateClick: () -> Unit = {},
-    onEditClick: (String) -> Unit = {}
+    onEditClick: (String) -> Unit = {},
+    itineraries: List<Itinerary>
 ) {
-    val itineraries = viewModel.itineraries
 
     // State cho Dialog tạo mới
     var showDialog by remember { mutableStateOf(false) }
@@ -45,6 +42,8 @@ fun ItineraryScreen(
 
     // State cho việc lọc danh sách
     var filter by remember { mutableStateOf("all") }
+    val uiState by viewModel.uiState.collectAsState()
+    val itineraries = uiState.itineraries
 
     Scaffold(
         containerColor = Color(0xFFF8F6F6),

@@ -301,4 +301,18 @@ class ItineraryViewModel(
         }
         return fallbackList
     }
+    fun createItinerary(itinerary: Itinerary) {
+        _uiState.update { state ->
+            state.copy(
+                itineraries = state.itineraries + itinerary
+            )
+        }
+    }
+    fun deleteItinerary(itinerary: Itinerary) {
+        _uiState.update { state ->
+            state.copy(
+                itineraries = state.itineraries.filterNot { it.id == itinerary.id }
+            )
+        }
+    }
 }
