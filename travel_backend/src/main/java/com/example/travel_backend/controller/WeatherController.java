@@ -1,6 +1,7 @@
 package com.example.travel_backend.controller;
 
 import com.example.travel_backend.dto.response.WeatherDataResponse;
+import com.example.travel_backend.dto.response.WeatherNearbyResponse;
 import com.example.travel_backend.service.WeatherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +19,21 @@ import java.util.UUID;
 public class WeatherController {
 
     private final WeatherService weatherService;
+
+    /** 5 thành phố carousel — đọc weather_cache (một lần gọi). */
+    @GetMapping("/featured")
+    public List<WeatherNearbyResponse> getFeatured() {
+        return weatherService.getFeaturedCitiesWeather();
+    }
+
+    /** Thời tiết tại điểm trong DB gần GPS nhất — khai báo trước /{placeId}. */
+    @GetMapping("/nearby")
+    public WeatherNearbyResponse getNearby(
+            @RequestParam double lat,
+            @RequestParam double lng
+    ) {
+        return weatherService.getNearby(lat, lng);
+    }
 
     @GetMapping("/{placeId}")
     public WeatherDataResponse getToday(@PathVariable UUID placeId) {

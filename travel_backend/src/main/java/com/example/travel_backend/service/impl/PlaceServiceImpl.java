@@ -1,18 +1,30 @@
 package com.example.travel_backend.service.impl;
 
+import com.example.travel_backend.dto.request.CreatePlaceReviewRequest;
 import com.example.travel_backend.dto.response.*;
 import com.example.travel_backend.entity.Event;
 import com.example.travel_backend.entity.Place;
 import com.example.travel_backend.entity.PlacePhoto;
 import com.example.travel_backend.entity.PlaceTrending;
+import com.example.travel_backend.entity.User;
+import com.example.travel_backend.entity.UserRating;
+import com.example.travel_backend.mapper.EventMapper;
 import com.example.travel_backend.repository.EventRepository;
 import com.example.travel_backend.repository.PlacePhotoRepository;
 import com.example.travel_backend.repository.PlaceRepository;
 import com.example.travel_backend.repository.PlaceTrendingRepository;
+import com.example.travel_backend.repository.UserRatingRepository;
+import com.example.travel_backend.repository.UserRepository;
 import com.example.travel_backend.service.PlaceService;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,15 +37,21 @@ public class PlaceServiceImpl implements PlaceService {
     private final PlacePhotoRepository placePhotoRepository;
     private final EventRepository eventRepository;
     private final PlaceTrendingRepository placeTrendingRepository;
+    private final UserRatingRepository userRatingRepository;
+    private final UserRepository userRepository;
 
     public PlaceServiceImpl(PlaceRepository placeRepository,
                             PlacePhotoRepository placePhotoRepository,
                             EventRepository eventRepository,
-                            PlaceTrendingRepository placeTrendingRepository) {
+                            PlaceTrendingRepository placeTrendingRepository,
+                            UserRatingRepository userRatingRepository,
+                            UserRepository userRepository) {
         this.placeRepository = placeRepository;
         this.placePhotoRepository = placePhotoRepository;
         this.eventRepository = eventRepository;
         this.placeTrendingRepository = placeTrendingRepository;
+        this.userRatingRepository = userRatingRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -52,6 +70,7 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PlaceDetailResponse getPlaceDetail(UUID id) {
         System.out.println("Get place detail for id: " + id);
 
@@ -96,25 +115,94 @@ public class PlaceServiceImpl implements PlaceService {
         response.setPhotos(photoDtos);
 
         List<Event> events = eventRepository.findByPlace_Id(id);
-        List<EventDto> eventDtos = events.stream().map(e -> {
-            EventDto dto = new EventDto();
-            dto.setId(e.getId());
-            dto.setName(e.getName());
-            dto.setDescription(e.getDescription());
-            dto.setType(e.getType());
-            dto.setStart_date(e.getStartDate() != null ? e.getStartDate().toString() : null);
-            dto.setEnd_date(e.getEndDate() != null ? e.getEndDate().toString() : null);
-            if (e.getProvince() != null) {
-                dto.setProvince_name(e.getProvince().getName());
-            }
-            if (e.getPlace() != null) {
-                dto.setPlace_name(e.getPlace().getName());
-            }
-            return dto;
-        }).collect(Collectors.toList());
+        List<EventDto> eventDtos = events.stream()
+                .map(EventMapper::toDto)
+                .collect(Collectors.toList());
         response.setEvents(eventDtos);
 
+        List<PlaceReviewDto> reviewDtos = userRatingRepository
+                .findByPlace_IdOrderByCreatedAtDesc(id, PageRequest.of(0, 30))
+                .stream()
+                .map(this::mapToReviewDto)
+                .collect(Collectors.toList());
+        response.setReviews(reviewDtos);
+
         return response;
+    }
+
+    @Override
+    @Transactional
+    public PlaceReviewDto createReview(UUID placeId, UUID userId, CreatePlaceReviewRequest request) {
+        if (request == null || request.getRating() == null
+                || request.getRating() < 1 || request.getRating() > 5) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rating must be between 1 and 5");
+        }
+        Place place = placeRepository.findById(placeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Place not found"));
+        User user = ensureUserExists(userId);
+
+        UserRating rating = new UserRating();
+        rating.setPlace(place);
+        rating.setUser(user);
+        rating.setRating(request.getRating().shortValue());
+        rating.setReview(request.getReview() != null ? request.getReview().trim() : null);
+        rating.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        userRatingRepository.save(rating);
+
+        List<String> urls = request.getPhoto_urls() != null ? request.getPhoto_urls() : List.of();
+        int savedPhotos = 0;
+        for (String url : urls) {
+            if (url == null || url.isBlank() || savedPhotos >= 3) continue;
+            PlacePhoto photo = new PlacePhoto();
+            photo.setPlace(place);
+            photo.setUser(userRepository.getReferenceById(userId));
+            photo.setPhotoUrl(url.trim());
+            photo.setIsPrimary(false);
+            placePhotoRepository.save(photo);
+            savedPhotos++;
+        }
+
+        return mapToReviewDto(rating, placeId);
+    }
+
+    private User ensureUserExists(UUID userId) {
+        return userRepository.findById(userId).orElseGet(() -> {
+            User created = new User();
+            created.setId(userId);
+            created.setEmail(userId + "@traveler.local");
+            created.setName("Khách du lịch");
+            created.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+            created.setIsVerified(true);
+            return userRepository.save(created);
+        });
+    }
+
+    private PlaceReviewDto mapToReviewDto(UserRating rating) {
+        UUID placeId = rating.getPlace() != null ? rating.getPlace().getId() : null;
+        return mapToReviewDto(rating, placeId);
+    }
+
+    private PlaceReviewDto mapToReviewDto(UserRating rating, UUID placeId) {
+        PlaceReviewDto dto = new PlaceReviewDto();
+        if (rating.getUser() != null) {
+            dto.setUser_name(rating.getUser().getName());
+            dto.setUser_avatar_url(rating.getUser().getAvatarUrl());
+        }
+        dto.setReview(rating.getReview());
+        dto.setRating(rating.getRating());
+        dto.setCreatedAt(rating.getCreatedAt());
+        if (placeId != null && rating.getUser() != null) {
+            List<String> photos = placePhotoRepository
+                    .findByPlace_IdAndUser_IdOrderByUploadedAtDesc(placeId, rating.getUser().getId())
+                    .stream()
+                    .map(PlacePhoto::getPhotoUrl)
+                    .limit(3)
+                    .collect(Collectors.toList());
+            dto.setPhoto_urls(photos);
+        } else {
+            dto.setPhoto_urls(List.of());
+        }
+        return dto;
     }
 
     @Override
@@ -127,7 +215,17 @@ public class PlaceServiceImpl implements PlaceService {
         } else if (provinceCode != null) {
             places = placeRepository.findByProvince_Code(provinceCode, pageRequest);
         } else {
-            places = placeRepository.findAll(pageRequest).getContent();
+            // Gợi ý trang chủ: rating cao nhất trước (bảng places.rating)
+            PageRequest byRating = PageRequest.of(
+                    0,
+                    limit,
+                    Sort.by(
+                            Sort.Order.desc("rating"),
+                            Sort.Order.desc("reviewCount"),
+                            Sort.Order.asc("name")
+                    )
+            );
+            places = placeRepository.findAll(byRating).getContent();
         }
         return places.stream().map(this::mapToPlaceResponse).collect(Collectors.toList());
     }

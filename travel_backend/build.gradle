@@ -35,3 +35,12 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+// Tránh JVM đi qua SOCKS proxy (gây NoRouteToHostException khi nối Supabase)
+tasks.named('bootRun') {
+	jvmArgs = [
+		'-Djava.net.useSystemProxies=false',
+		'-DsocksProxyHost=',
+		'-DsocksProxyPort=',
+	]
+}

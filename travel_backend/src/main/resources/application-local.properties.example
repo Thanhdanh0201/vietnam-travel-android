@@ -1,0 +1,4 @@
+# Copy to application-local.properties (gitignored) để override
+# spring.datasource.url=jdbc:postgresql://aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require
+# spring.datasource.username=postgres.YOUR_PROJECT_REF
+# spring.datasource.password=YOUR_PASSWORD
