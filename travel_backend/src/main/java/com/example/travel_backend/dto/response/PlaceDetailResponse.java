@@ -23,4 +23,5 @@ public class PlaceDetailResponse {
     private CityDto cities;
     private List<PhotoDto> photos;
     private List<EventDto> events;
+    private List<PlaceReviewDto> reviews;
 }

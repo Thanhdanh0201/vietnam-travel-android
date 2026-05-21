@@ -14,6 +14,7 @@ public final class EventMapper {
         dto.setName(e.getName());
         dto.setDescription(e.getDescription());
         dto.setType(e.getType());
+        dto.setImage_url(e.getImageUrl());
         dto.setStart_date(e.getStartDate() != null ? e.getStartDate().toString() : null);
         dto.setEnd_date(e.getEndDate() != null ? e.getEndDate().toString() : null);
         if (e.getProvince() != null) {
