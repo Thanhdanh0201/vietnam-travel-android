@@ -247,20 +247,18 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         provinceId: String? = null,
         mediaUrls: List<String> = emptyList()
     ): CommunityPost = withContext(Dispatchers.IO) {
-        val postInsertDto = PostDto(
-            id = "",
-            user_id = userId,
-            content = content,
-            post_type = postType,
-            visibility = visibility,
-            itinerary_id = itineraryId,
-            place_id = placeId,
-            province_id = provinceId,
-            created_at = ""
+        val postInsert = mapOf(
+            "user_id" to userId,
+            "content" to content,
+            "post_type" to postType,
+            "visibility" to visibility,
+            "itinerary_id" to itineraryId,
+            "place_id" to placeId,
+            "province_id" to provinceId
         )
 
         // Insert post
-        val createdPost = supabase.postgrest["posts"].insert(postInsertDto) {
+        val createdPost = supabase.postgrest["posts"].insert(postInsert) {
             select()
         }.decodeSingle<PostDto>()
 
@@ -297,24 +295,22 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     // --- 4.3 Repost / Quote ---
     suspend fun repostPost(userId: String, postId: String, quoteText: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
-            val repostInsert = RepostDto(
-                user_id = userId,
-                post_id = postId,
-                quote_text = quoteText
+            val repostInsert = mapOf(
+                "user_id" to userId,
+                "post_id" to postId,
+                "quote_text" to quoteText
             )
             supabase.postgrest["reposts"].insert(repostInsert)
             
             // Note: Section 4.3 also mentions a quote is a quote text repost. 
             // In case we want to create a post of type "repost"/"quote" so it shows up in posts table:
             val postType = if (quoteText != null) "quote" else "repost"
-            val postInsert = PostDto(
-                id = "",
-                user_id = userId,
-                content = quoteText,
-                post_type = postType,
-                visibility = "public",
-                created_at = "",
-                original_post_id = postId
+            val postInsert = mapOf(
+                "user_id" to userId,
+                "content" to quoteText,
+                "post_type" to postType,
+                "visibility" to "public",
+                "original_post_id" to postId
             )
             supabase.postgrest["posts"].insert(postInsert)
             true
@@ -349,10 +345,10 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     // --- 4.4 Like / Unlike bài đăng ---
     suspend fun likePost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val reaction = PostReactionDto(
-                post_id = postId,
-                user_id = userId,
-                reaction_type = "like"
+            val reaction = mapOf(
+                "post_id" to postId,
+                "user_id" to userId,
+                "reaction_type" to "like"
             )
             supabase.postgrest["post_reactions"].insert(reaction)
             true
@@ -449,13 +445,11 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         content: String,
         parentCommentId: String? = null
     ): Comment = withContext(Dispatchers.IO) {
-        val commentInsert = CommentDto(
-            id = "",
-            post_id = postId,
-            user_id = userId,
-            parent_comment_id = parentCommentId,
-            content = content,
-            created_at = ""
+        val commentInsert = mapOf(
+            "post_id" to postId,
+            "user_id" to userId,
+            "parent_comment_id" to parentCommentId,
+            "content" to content
         )
 
         val inserted = supabase.postgrest["comments"].insert(commentInsert) {
@@ -480,10 +474,10 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     // --- 4.8 Like / Unlike bình luận ---
     suspend fun likeComment(commentId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val reaction = CommentReactionDto(
-                comment_id = commentId,
-                user_id = userId,
-                reaction_type = "like"
+            val reaction = mapOf(
+                "comment_id" to commentId,
+                "user_id" to userId,
+                "reaction_type" to "like"
             )
             supabase.postgrest["comment_reactions"].insert(reaction)
             true
