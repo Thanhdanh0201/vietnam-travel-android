@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
 
 enum class ParticipantRole {
     EDIT, VIEW_ONLY
@@ -24,7 +25,8 @@ data class Participant(
 )
 
 class ItineraryViewModel(
-    private val placeRepo: PlaceRepository = PlaceRepository()
+    private val placeRepo: PlaceRepository = PlaceRepository(),
+    private val itineraryRepo: ItineraryRepository = ItineraryRepository()
 ) : ViewModel() {
 
     data class ItineraryUiState(
@@ -40,7 +42,8 @@ class ItineraryViewModel(
     val uiState: StateFlow<ItineraryUiState> = _uiState.asStateFlow()
 
     init {
-        loadInitialData()
+        loadInitialData() // fallback/mock first
+        fetchItineraries() // overwrite with API if success
         fetchAllPlaces()
     }
 
@@ -80,6 +83,7 @@ class ItineraryViewModel(
                 participantImages = listOf(android.R.drawable.ic_menu_report_image)
             )
         )
+
 
         val initialTimelineMap = mapOf(
             // Hạ Long - Ngày 12
@@ -137,6 +141,21 @@ class ItineraryViewModel(
                 timelineMap = initialTimelineMap,
                 participantsMap = initialParticipantsMap
             )
+        }
+    }
+
+    private fun fetchItineraries() {
+        viewModelScope.launch {
+            itineraryRepo.getItineraries()
+                .onSuccess { itineraries ->
+                    _uiState.update {
+                        it.copy(itineraries = itineraries)
+                    }
+                }
+                .onFailure {
+                    // fallback to mock data already loaded
+                    println(it.message)
+                }
         }
     }
 
@@ -302,17 +321,35 @@ class ItineraryViewModel(
         return fallbackList
     }
     fun createItinerary(itinerary: Itinerary) {
-        _uiState.update { state ->
-            state.copy(
-                itineraries = state.itineraries + itinerary
-            )
+        viewModelScope.launch {
+            itineraryRepo.createItinerary(itinerary)
+                .onSuccess {
+                    fetchItineraries()
+                }
+                .onFailure {
+                    _uiState.update { state ->
+                        state.copy(
+                            itineraries = state.itineraries + itinerary
+                        )
+                    }
+                }
         }
     }
     fun deleteItinerary(itinerary: Itinerary) {
-        _uiState.update { state ->
-            state.copy(
-                itineraries = state.itineraries.filterNot { it.id == itinerary.id }
-            )
+        viewModelScope.launch {
+            itineraryRepo.deleteItinerary(itinerary.id)
+                .onSuccess {
+                    fetchItineraries()
+                }
+                .onFailure {
+                    _uiState.update { state ->
+                        state.copy(
+                            itineraries = state.itineraries.filterNot {
+                                it.id == itinerary.id
+                            }
+                        )
+                    }
+                }
         }
     }
 }

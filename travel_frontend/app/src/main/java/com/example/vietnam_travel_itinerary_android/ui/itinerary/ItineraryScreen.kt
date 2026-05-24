@@ -32,7 +32,6 @@ fun ItineraryScreen(
     onNotificationClick: () -> Unit = {},
     onCreateClick: () -> Unit = {},
     onEditClick: (String) -> Unit = {},
-    itineraries: List<Itinerary>
 ) {
 
     // State cho Dialog tạo mới

@@ -1,14 +1,24 @@
 package com.example.vietnam_travel_itinerary_android.data.api
 
-import com.example.vietnam_travel_itinerary_android.data.model.*
+import com.example.vietnam_travel_itinerary_android.data.model.Event
+import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.data.model.Province
+import com.example.vietnam_travel_itinerary_android.data.model.TrendingPlace
+import com.example.vietnam_travel_itinerary_android.data.model.UserSettingRequest
+import com.example.vietnam_travel_itinerary_android.data.model.UserSettingResponseDto
+import com.example.vietnam_travel_itinerary_android.data.model.UserSyncRequest
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+
 
 interface VietnamTravelApi {
 
@@ -85,5 +95,20 @@ interface VietnamTravelApi {
         @Path("placeId") placeId: String,
         @Query("days") days: Int = 7
     ): List<WeatherData>
+
+    // ---- Itineraries ----
+
+    @GET("api/itineraries")
+    suspend fun getItineraries(): List<Itinerary>
+
+    @POST("api/itineraries")
+    suspend fun createItinerary(
+        @Body itinerary: Itinerary
+    ): Response<Unit>
+
+    @DELETE("api/itineraries/{id}")
+    suspend fun deleteItinerary(
+        @Path("id") id: String
+    ): Response<Unit>
 }
 
