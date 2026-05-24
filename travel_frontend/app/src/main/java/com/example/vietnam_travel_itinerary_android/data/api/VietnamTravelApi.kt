@@ -1,6 +1,7 @@
 package com.example.vietnam_travel_itinerary_android.data.api
 
 import com.example.vietnam_travel_itinerary_android.data.model.Event
+import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.data.model.PlaceDetail
 import com.example.vietnam_travel_itinerary_android.data.model.PlaceReview
@@ -14,6 +15,7 @@ import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
 import com.example.vietnam_travel_itinerary_android.data.model.WeatherNearby
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -117,5 +119,20 @@ interface VietnamTravelApi {
         @Path("placeId") placeId: String,
         @Query("days") days: Int = 7
     ): List<WeatherData>
+
+    // ---- Itineraries ----
+
+    @GET("api/itineraries")
+    suspend fun getItineraries(): List<Itinerary>
+
+    @POST("api/itineraries")
+    suspend fun createItinerary(
+        @Body itinerary: Itinerary
+    ): Response<Unit>
+
+    @DELETE("api/itineraries/{id}")
+    suspend fun deleteItinerary(
+        @Path("id") id: String
+    ): Response<Unit>
 }
 
