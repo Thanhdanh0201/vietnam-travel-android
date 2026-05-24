@@ -26,7 +26,6 @@ import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import androidx.compose.foundation.clickable
 
 @Composable
-@Composable
 fun ItineraryCard(
     itinerary: Itinerary,
     onClick: (String) -> Unit = {},
