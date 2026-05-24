@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -94,6 +95,10 @@ dependencies {
 
     // Thư viện Auth (Thay thế cho gotrue-kt)
     implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation(libs.kotlinx.serialization.json)
 
     // Bắt buộc phải có Ktor Client để Supabase chạy được mạng
     implementation("io.ktor:ktor-client-android:3.0.1")

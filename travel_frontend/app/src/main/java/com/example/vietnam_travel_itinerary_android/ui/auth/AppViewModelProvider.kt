@@ -8,6 +8,8 @@ import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
 import com.example.vietnam_travel_itinerary_android.SupabaseObject
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
+import com.example.vietnam_travel_itinerary_android.ui.community.CommunityViewModel
+import com.example.vietnam_travel_itinerary_android.data.repository.CommunityRepository
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
@@ -46,6 +48,13 @@ object AppViewModelProvider {
         initializer {
             ItineraryViewModel(
                 placeRepo = PlaceRepository()
+            )
+        }
+
+        initializer {
+            CommunityViewModel(
+                repository = CommunityRepository(SupabaseObject.client),
+                supabase = SupabaseObject.client
             )
         }
     }

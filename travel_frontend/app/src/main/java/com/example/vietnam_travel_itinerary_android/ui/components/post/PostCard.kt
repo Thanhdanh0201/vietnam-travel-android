@@ -29,6 +29,8 @@ import com.example.vietnam_travel_itinerary_android.data.model.LinkedItinerary
 import com.example.vietnam_travel_itinerary_android.data.model.PostMedia
 import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.ItineraryCompactCard
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 // ============================================================
 // SHARED POST COMPONENTS
@@ -287,22 +289,38 @@ fun AuthorAvatar(initials: String, color: Color, size: Int, modifier: Modifier =
 // ── Image Placeholder Box (dùng đến khi có Coil AsyncImage)
 @Composable
 fun ImagePlaceholderBox(label: String, modifier: Modifier = Modifier, gradient: Boolean = false) {
-    val color = when {
-        label.contains("halong", true) -> Color(0xFF0E7490)
-        label.contains("hoian", true)  -> Color(0xFFD97706)
-        label.contains("sapa", true)   -> Color(0xFF166534)
-        label.contains("hanoi", true)  -> Color(0xFF7C3AED)
-        else -> Color(0xFF374151)
-    }
-    Box(modifier.background(color), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Icon(Icons.Default.Image, null, tint = Color.White.copy(0.7f), modifier = Modifier.size(28.dp))
-            Text(label.replace("_", " ").uppercase(), fontSize = 9.sp, color = Color.White.copy(0.7f), fontWeight = FontWeight.Medium)
-        }
-        if (gradient) Box(
-            Modifier.fillMaxSize().background(
-                androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.4f)))
+    if (label.startsWith("http://") || label.startsWith("https://")) {
+        Box(modifier) {
+            AsyncImage(
+                model = label,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
-        )
+            if (gradient) Box(
+                Modifier.fillMaxSize().background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.4f)))
+                )
+            )
+        }
+    } else {
+        val color = when {
+            label.contains("halong", true) -> Color(0xFF0E7490)
+            label.contains("hoian", true)  -> Color(0xFFD97706)
+            label.contains("sapa", true)   -> Color(0xFF166534)
+            label.contains("hanoi", true)  -> Color(0xFF7C3AED)
+            else -> Color(0xFF374151)
+        }
+        Box(modifier.background(color), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Icon(Icons.Default.Image, null, tint = Color.White.copy(0.7f), modifier = Modifier.size(28.dp))
+                Text(label.replace("_", " ").uppercase(), fontSize = 9.sp, color = Color.White.copy(0.7f), fontWeight = FontWeight.Medium)
+            }
+            if (gradient) Box(
+                Modifier.fillMaxSize().background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.4f)))
+                )
+            )
+        }
     }
 }
