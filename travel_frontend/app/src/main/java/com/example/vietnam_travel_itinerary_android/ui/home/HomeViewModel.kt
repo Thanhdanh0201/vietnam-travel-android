@@ -5,14 +5,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vietnam_travel_itinerary_android.data.model.Event
 import com.example.vietnam_travel_itinerary_android.data.model.Place
-import com.example.vietnam_travel_itinerary_android.data.model.ProvinceSummary
+import com.example.vietnam_travel_itinerary_android.data.local.WeatherFavoritePreferences
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherCityPreset
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherCityPresets
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherCitySlide
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherNearby
 import com.example.vietnam_travel_itinerary_android.data.model.TrendingPlace
-import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
 import com.example.vietnam_travel_itinerary_android.data.repository.EventRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.WeatherRepository
-import com.example.vietnam_travel_itinerary_android.location.GeoUtils
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,202 +31,279 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     data class HomeUiState(
         val isLoading: Boolean = false,
-        val weather: WeatherData? = null,
+        val weatherSlides: List<WeatherCitySlide> = WeatherCityPresets.initialSlides(),
         val recommendedPlaces: List<Place> = emptyList(),
+        val placesFetched: Boolean = false,
+        val placesLoadFailed: Boolean = false,
         val trendingPlaces: List<TrendingPlace> = emptyList(),
         val activeEvents: List<Event> = emptyList(),
         /** Đã gọi API lễ hội sắp tới xong (kể cả lỗi/rỗng). */
         val eventsFetched: Boolean = false,
+        /** API lễ hội lỗi/timeout — khác với danh sách thật sự rỗng. */
+        val eventsLoadFailed: Boolean = false,
+        val isRefreshing: Boolean = false,
         val error: String? = null,
-        val currentLocationName: String = "",
-        val isUsingPlaceholder: Boolean = true
+        val isUsingPlaceholder: Boolean = true,
+        val favoriteWeatherCityId: String = WeatherCityPresets.DEFAULT_FAVORITE_CITY_ID,
+        /** Tăng khi user nhấn ♥ — carousel cuộn tới thành phố mặc định. */
+        val favoriteWeatherScrollTick: Long = 0L,
     )
 
+    private val weatherFavorites = WeatherFavoritePreferences(application)
     private val placeRepo = PlaceRepository()
     private val weatherRepo = WeatherRepository()
     private val eventRepo = EventRepository()
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var weatherSlidesJob: Job? = null
 
     init {
-        // Show placeholder data IMMEDIATELY so UI is never empty
-        showPlaceholderData()
-        // Then try to load real data in background
-        loadHomeData()
-    }
-
-    private fun showPlaceholderData() {
+        _uiState.update {
+            it.copy(favoriteWeatherCityId = weatherFavorites.getFavoriteCityId())
+        }
         _uiState.update {
             it.copy(
                 isLoading = false,
-                isUsingPlaceholder = true,
-                weather = WeatherData(
-                    placeId = "placeholder",
-                    forecastDate = "2024-10-15",
-                    tempMax = 26.0,
-                    tempMin = 18.0,
-                    rainMm = 0.0,
-                    condition = "sunny"
-                ),
-                recommendedPlaces = placeholderPlaces(),
-                activeEvents = emptyList(),
-                eventsFetched = false,
-                currentLocationName = "Đà Lạt"
+                weatherSlides = WeatherCityPresets.initialSlides(),
+                recommendedPlaces = emptyList(),
+                placesFetched = false,
+                placesLoadFailed = false,
+            )
+        }
+        loadRecommendedPlaces()
+        loadTrendingPlaces()
+        loadWeatherSlides()
+        loadUpcomingEvents()
+    }
+
+    fun loadHomeData() {
+        loadRecommendedPlaces()
+        loadTrendingPlaces()
+    }
+
+    private fun loadRecommendedPlaces() {
+        viewModelScope.launch {
+            if (!_uiState.value.isRefreshing) {
+                _uiState.update {
+                    it.copy(placesFetched = false, placesLoadFailed = false)
+                }
+            }
+            val (places, failed) = fetchRecommendedPlacesWithRetry()
+            _uiState.update {
+                it.copy(
+                    recommendedPlaces = places,
+                    placesFetched = true,
+                    placesLoadFailed = failed,
+                    isUsingPlaceholder = false,
+                    error = null,
+                )
+            }
+        }
+    }
+
+    private suspend fun fetchRecommendedPlacesWithRetry(): Pair<List<Place>, Boolean> {
+        var lastFailure = true
+        repeat(4) { attempt ->
+            val places = withTimeoutOrNull(12_000L) {
+                placeRepo.getRecommendedPlaces(limit = 10).getOrNull()
+            }
+            if (!places.isNullOrEmpty()) {
+                return places to false
+            }
+            if (places != null) lastFailure = false
+            if (attempt < 3) delay(1_500)
+        }
+        return emptyList<Place>() to lastFailure
+    }
+
+    private fun loadTrendingPlaces() {
+        viewModelScope.launch {
+            val trending = withTimeoutOrNull(8_000L) {
+                placeRepo.getTrendingPlaces(limit = 10).getOrNull()
+            }
+            if (!trending.isNullOrEmpty()) {
+                _uiState.update { it.copy(trendingPlaces = trending) }
+            }
+        }
+    }
+
+    fun setFavoriteWeatherCity(cityId: String) {
+        if (WeatherCityPresets.cities.none { it.id == cityId }) return
+        weatherFavorites.setFavoriteCityId(cityId)
+        _uiState.update {
+            it.copy(
+                favoriteWeatherCityId = cityId,
+                favoriteWeatherScrollTick = System.currentTimeMillis(),
             )
         }
     }
 
-    fun loadHomeData() {
-        viewModelScope.launch {
-            try {
-                // Timeout after 10s to prevent ANR
-                val result = withTimeoutOrNull(10_000L) {
-                    val placesDeferred = async { placeRepo.getPlaces(limit = 10) }
-                    val trendingDeferred = async { placeRepo.getTrendingPlaces(limit = 10) }
+    /** Đọc weather_cache từ backend (GET /api/weather/featured) — không gọi Open-Meteo từ app. */
+    fun loadWeatherSlides() {
+        weatherSlidesJob?.cancel()
+        weatherSlidesJob = viewModelScope.launch {
+            val presets = WeatherCityPresets.cities
+            markWeatherSlidesLoading(presets)
 
-                    val placesResult = placesDeferred.await()
-                    val trendingResult = trendingDeferred.await()
-
-                    Pair(placesResult, trendingResult)
+            val featuredByCity = fetchFeaturedWeatherWithRetry()
+            val weatherByCityId = featuredByCity.toMutableMap()
+            for (preset in presets) {
+                if (weatherByCityId.containsKey(preset.id)) continue
+                val nearby = withTimeoutOrNull(6_000L) {
+                    weatherRepo.getWeatherNearby(preset.lat, preset.lng).getOrNull()
                 }
-
-                if (result != null) {
-                    val (placesResult, trendingResult) = result
-                    val places = placesResult.getOrNull()
-                    val trending = trendingResult.getOrNull()
-
-                    if (!places.isNullOrEmpty() || !trending.isNullOrEmpty()) {
-                        _uiState.update { state ->
-                            state.copy(
-                                isLoading = false,
-                                isUsingPlaceholder = false,
-                                recommendedPlaces = places?.ifEmpty { placeholderPlaces() }
-                                    ?: placeholderPlaces(),
-                                trendingPlaces = trending ?: emptyList(),
-                                error = null
-                            )
-                        }
-                    }
+                if (nearby != null) {
+                    weatherByCityId[preset.id] = nearby
                 }
-                // If timeout or failure, placeholder data remains — no error shown
-
-                // Load weather in background (non-blocking)
-                loadWeather()
-                // Lễ hội sắp tới (3 tháng, toàn quốc) — GET /api/events/upcoming
-                loadUpcomingEvents()
-
-            } catch (_: Exception) {
-                loadUpcomingEvents()
             }
+
+            applyWeatherSlides(presets, weatherByCityId)
         }
     }
 
-    private fun loadWeather() {
-        viewModelScope.launch {
-            try {
-                val place = _uiState.value.recommendedPlaces
-                    .firstOrNull { !it.id.startsWith("placeholder") }
-                if (place != null) {
-                    _uiState.update { it.copy(currentLocationName = place.name) }
-                    withTimeoutOrNull(8_000L) {
-                        weatherRepo.getWeather(place.id).onSuccess { weather ->
-                            _uiState.update {
-                                it.copy(weather = weather, currentLocationName = place.name)
-                            }
-                        }
+    private fun markWeatherSlidesLoading(presets: List<WeatherCityPreset>) {
+        _uiState.update { state ->
+            val current = state.weatherSlides
+            state.copy(
+                weatherSlides = presets.map { preset ->
+                    val existing = current.find { it.id == preset.id }
+                    when {
+                        existing?.weather != null -> existing.copy(isLoading = false, loadFailed = false)
+                        else -> WeatherCitySlide(
+                            id = preset.id,
+                            displayName = preset.displayName,
+                            subtitle = preset.subtitle,
+                            lat = preset.lat,
+                            lng = preset.lng,
+                            isLoading = true,
+                            loadFailed = false,
+                        )
                     }
-                }
-            } catch (_: Exception) { /* Keep placeholder weather */ }
+                },
+            )
         }
     }
 
-    /**
-     * Thời tiết theo vị trí: backend GET /api/weather/{placeId} dùng lat/lng của place + Open-Meteo (cache 60 phút).
-     * Tên hiển thị ưu tiên reverse geocode; [placeId] là điểm trong danh sách gần GPS nhất (có tọa độ).
-     */
-    fun applyGpsWeather(userLat: Double, userLng: Double, localityLabel: String?) {
-        viewModelScope.launch {
-            val nonPlaceholder = _uiState.value.recommendedPlaces
-                .filter { !it.id.startsWith("placeholder") }
-            if (nonPlaceholder.isEmpty()) return@launch
-
-            val nearest = GeoUtils.nearestPlace(nonPlaceholder, userLat, userLng)
-            val placeForWeather = nearest ?: nonPlaceholder.first()
-            val displayName = localityLabel?.takeIf { it.isNotBlank() }
-                ?: nearest?.name?.takeIf { it.isNotBlank() }
-                ?: placeForWeather.name
-
-            withTimeoutOrNull(8_000L) {
-                weatherRepo.getWeather(placeForWeather.id).onSuccess { w ->
-                    _uiState.update {
-                        it.copy(weather = w, currentLocationName = displayName.trim())
-                    }
-                }
+    private suspend fun fetchFeaturedWeatherWithRetry(): Map<String, WeatherNearby> {
+        val list = (1..4).firstNotNullOfOrNull { attempt ->
+            val response = withTimeoutOrNull(10_000L) {
+                weatherRepo.getFeaturedWeather().getOrNull()
             }
+            if (!response.isNullOrEmpty()) return@firstNotNullOfOrNull response
+            if (attempt < 4) delay(1_500)
+            null
+        }.orEmpty()
+
+        return list.mapNotNull { item ->
+            val key = item.cityKey?.trim().orEmpty()
+            if (key.isNotEmpty()) key to item else null
+        }.toMap()
+    }
+
+    private fun applyWeatherSlides(
+        presets: List<WeatherCityPreset>,
+        weatherByCityId: Map<String, WeatherNearby>,
+    ) {
+        _uiState.update { state ->
+            state.copy(
+                weatherSlides = presets.map { preset ->
+                    val nearby = weatherByCityId[preset.id]
+                    WeatherCitySlide(
+                        id = preset.id,
+                        displayName = preset.displayName,
+                        subtitle = preset.subtitle,
+                        lat = preset.lat,
+                        lng = preset.lng,
+                        weather = nearby?.toWeatherData(),
+                        isLoading = false,
+                        loadFailed = nearby == null,
+                    )
+                },
+            )
         }
     }
 
     private fun loadUpcomingEvents() {
         viewModelScope.launch {
-            val filtered = try {
-                withTimeoutOrNull(8_000L) {
-                    val result = eventRepo.getUpcomingEvents(months = 3, limit = 40)
-                    val raw = result.getOrNull().orEmpty()
-                    filterEventsUpcomingWindow(raw, months = 3)
-                } ?: emptyList()
-            } catch (_: Exception) {
-                emptyList()
+            if (!_uiState.value.isRefreshing) {
+                _uiState.update {
+                    it.copy(eventsFetched = false, eventsLoadFailed = false)
+                }
             }
+            val (filtered, failed) = fetchUpcomingEventsWithRetry()
             _uiState.update {
-                it.copy(activeEvents = filtered, eventsFetched = true)
+                it.copy(
+                    activeEvents = filtered,
+                    eventsFetched = true,
+                    eventsLoadFailed = failed,
+                )
             }
         }
     }
 
-    fun refresh() {
-        showPlaceholderData()
-        loadHomeData()
+    private suspend fun fetchUpcomingEventsWithRetry(): Pair<List<Event>, Boolean> {
+        var lastFailure = true
+        repeat(4) { attempt ->
+            val result = withTimeoutOrNull(12_000L) {
+                eventRepo.getUpcomingEvents(months = 3, limit = 40)
+            }
+            when {
+                result?.isSuccess == true -> {
+                    val raw = result.getOrNull().orEmpty()
+                    return filterEventsUpcomingWindow(raw, months = 3) to false
+                }
+                result?.isFailure == true -> lastFailure = true
+            }
+            if (attempt < 3) delay(1_500)
+        }
+        return emptyList<Event>() to lastFailure
     }
 
-    // ============================================================
-    // Placeholder / Sample Data
-    // ============================================================
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, eventsLoadFailed = false) }
+            try {
+                coroutineScope {
+                    val placesJob = async { fetchPlacesAndTrending() }
+                    val eventsJob = async {
+                        val (events, failed) = fetchUpcomingEventsWithRetry()
+                        _uiState.update {
+                            it.copy(
+                                activeEvents = events,
+                                eventsFetched = true,
+                                eventsLoadFailed = failed,
+                            )
+                        }
+                    }
+                    loadWeatherSlides()
+                    placesJob.await()
+                    eventsJob.await()
+                    weatherSlidesJob?.join()
+                }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
+        }
+    }
 
-    private fun placeholderPlaces(): List<Place> = listOf(
-        Place(
-            id = "placeholder_1",
-            name = "Vịnh Hạ Long",
-            type = "thiên nhiên",
-            imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuBuYPhU7veBhvyka3NMHanAx-Y6N4yOw_4B95lEq0nJ-OzAHD7tl9ytpqQG0-CAx_Q6zykZG51Ici2sRDg1BOKlPdCkEEWbxqoii178ChGB4MSA57L9I1fyLRHRc2CO5ej5XVIquw65kGR8BTpMbFc90ND0tCjPbbO5_ze9udApBzZXI-PH0JOJve86j2OTgV8_FS_T7oV5j8u16EE_Cfhyzl_iyaFlF_GtL9_kgPmSIk3SNnItk09Ej8RhC4sydSfovuwW0CLlXg",
-            rating = 4.8,
-            provinces = ProvinceSummary(name = "Quảng Ninh", code = "22")
-        ),
-        Place(
-            id = "placeholder_2",
-            name = "Phố cổ Hội An",
-            type = "văn hóa",
-            imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuCqQIFXQo_FEd8pAnt_27xOwgp06ex_ELbEr4Y8QnoVzQAKBuUTAuJJOj9VjhJnj0jIbKGWzRDzE8ZyKgjz7dEEXgLyAsFpuMeCesn_MagOCqPa0ZEXLMUnvjZ08_vlXHYoM6UyFoA6xjUbpnR2u3NzuOKCnHZ9JUT0DmOD8ITJXOoXQ8YRrqdh9YcW3bbtpKYB50UZ9QKY3Jf2-KAbmHaJAqRQDJojZvhyk12WYij-LVtnrBheMpfTITSjqONlYRD05CDCDU0IdQ",
-            rating = 4.7,
-            provinces = ProvinceSummary(name = "Quảng Nam", code = "49")
-        ),
-        Place(
-            id = "placeholder_3",
-            name = "Sapa",
-            type = "thiên nhiên",
-            imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuDZZxPFedvoaOhbzXxMv9k6jB3FOdDdf2g4pShyyV30ssGdEZaG3xu3Lpt5bhxy8xfqHvfJOnAEL9RWMWib8LIzWxdgq0BLk6P692h69F3ykZyNs7cVNxmS737g0kARtNd0_Ds1opyN0SjZd5xMOKjP8Qks_LQvJ5PREcLnZgp5KwH_ZVOcLvpNSvyGAHRV4BETRZfFA6MSeJm017zpr2XEX5RBmjsxRQy0OJoe_SASaSESVVEGoBN37S7fO58usQlDmHON0lU5Gw",
-            rating = 4.6,
-            provinces = ProvinceSummary(name = "Lào Cai", code = "10")
-        ),
-        Place(
-            id = "placeholder_4",
-            name = "Đà Lạt",
-            type = "thiên nhiên",
-            imageUrl = null,
-            rating = 4.7,
-            provinces = ProvinceSummary(name = "Lâm Đồng", code = "68")
-        ),
-    )
+    private suspend fun fetchPlacesAndTrending() {
+        val (places, failed) = fetchRecommendedPlacesWithRetry()
+        _uiState.update {
+            it.copy(
+                recommendedPlaces = places,
+                placesFetched = true,
+                placesLoadFailed = failed,
+                isUsingPlaceholder = false,
+            )
+        }
+        val trending = withTimeoutOrNull(8_000L) {
+            placeRepo.getTrendingPlaces(limit = 10).getOrNull()
+        }
+        if (!trending.isNullOrEmpty()) {
+            _uiState.update { it.copy(trendingPlaces = trending) }
+        }
+    }
 
     /**
      * Lọc cục bộ (đồng bộ với backend): sự kiện giao với [hôm nay, hôm nay + months] theo start_date/end_date.

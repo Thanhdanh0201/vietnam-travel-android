@@ -45,16 +45,27 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 @Composable
 fun PostDetailScreen(
     post: CommunityPost,
+    viewModel: CommunityViewModel,
     onBack: () -> Unit = {},
     onItineraryClick: (String) -> Unit = {}
 ) {
-    var allComments by remember { mutableStateOf(post.comments) }
+    val allComments by viewModel.comments.collectAsState()
+    val currentUserProfile by viewModel.currentUserProfile.collectAsState()
+    val posts by viewModel.posts.collectAsState()
+    
+    // Find the latest post details from state to reflect realtime changes
+    val currentPost = posts.find { it.id == post.id } ?: post
+
     var inputText by remember { mutableStateOf("") }
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
-    var isLiked by remember { mutableStateOf(post.isLiked) }
-    var likeCount by remember { mutableIntStateOf(post.likeCount) }
+    
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
+
+    // Fetch comments from Supabase initially
+    LaunchedEffect(post.id) {
+        viewModel.loadComments(post.id)
+    }
 
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
@@ -102,32 +113,17 @@ fun PostDetailScreen(
             CommentInputBar(
                 text = inputText,
                 replyingTo = replyingTo,
+                currentUserAvatarColor = currentUserProfile?.avatarColor ?: 0xFFC6102E,
+                currentUserAvatarInitials = currentUserProfile?.avatarInitials ?: "BN",
                 onTextChange = { inputText = it },
                 onCancelReply = { replyingTo = null },
                 onSend = {
                     val parent = replyingTo
                     if (parent != null) {
-                        val newReply = Comment(
-                            id = "r_${System.currentTimeMillis()}",
-                            postId = post.id, parentCommentId = parent.id,
-                            authorName = "Bạn", authorAvatarInitials = "BN",
-                            authorAvatarColor = 0xFFC6102E,
-                            timeAgo = "vừa xong", content = inputText, reactionCount = 0
-                        )
-                        allComments = allComments.map { c ->
-                            if (c.id == parent.id)
-                                c.copy(replies = c.replies + newReply, replyCount = c.replyCount + 1)
-                            else c
-                        }
+                        viewModel.postComment(post.id, inputText, parent.id)
                         replyingTo = null
                     } else {
-                        val newComment = Comment(
-                            id = "c_${System.currentTimeMillis()}",
-                            postId = post.id, authorName = "Bạn",
-                            authorAvatarInitials = "BN", authorAvatarColor = 0xFFC6102E,
-                            timeAgo = "vừa xong", content = inputText, reactionCount = 0
-                        )
-                        allComments = listOf(newComment) + allComments
+                        viewModel.postComment(post.id, inputText)
                     }
                     inputText = ""
                     keyboard?.hide()
@@ -211,15 +207,15 @@ fun PostDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        if (likeCount > 0) {
+                        if (currentPost.likeCount > 0) {
                             Text(
-                                "$likeCount lượt thích",
+                                "${currentPost.likeCount} lượt thích",
                                 fontSize = 13.sp,
                                 color = SlateGray500
                             )
                         }
                         if (allComments.isNotEmpty()) {
-                            if (likeCount > 0) Text("·", color = SlateGray300, fontSize = 13.sp)
+                            if (currentPost.likeCount > 0) Text("·", color = SlateGray300, fontSize = 13.sp)
                             Text(
                                 "${allComments.size} bình luận",
                                 fontSize = 13.sp,
@@ -236,12 +232,11 @@ fun PostDetailScreen(
                     ) {
                         // Like
                         ActionButton(
-                            icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            icon = if (currentPost.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             label = "Thích",
-                            tint = if (isLiked) VNRed else SlateGray500,
+                            tint = if (currentPost.isLiked) VNRed else SlateGray500,
                             onClick = {
-                                isLiked = !isLiked
-                                likeCount = if (isLiked) likeCount + 1 else likeCount - 1
+                                if (currentPost.isLiked) viewModel.unlikePost(currentPost.id) else viewModel.likePost(currentPost.id)
                             }
                         )
                         // Comment — scroll to first comment
@@ -335,7 +330,10 @@ fun PostDetailScreen(
                     ThreadCommentItem(
                         comment = comment,
                         onReply = { replyingTo = comment },
-                        onLike = {}
+                        onLike = {
+                            if (comment.isLiked) viewModel.unlikeComment(comment.id)
+                            else viewModel.likeComment(comment.id)
+                        }
                     )
                     // Nested replies (indented)
                     comment.replies.forEach { reply ->
@@ -343,7 +341,10 @@ fun PostDetailScreen(
                             comment = reply,
                             isReply = true,
                             onReply = { replyingTo = comment },
-                            onLike = {}
+                            onLike = {
+                                if (reply.isLiked) viewModel.unlikeComment(reply.id)
+                                else viewModel.likeComment(reply.id)
+                            }
                         )
                     }
                 }
@@ -357,6 +358,8 @@ fun PostDetailScreen(
 private fun CommentInputBar(
     text: String,
     replyingTo: Comment?,
+    currentUserAvatarColor: Long,
+    currentUserAvatarInitials: String,
     onTextChange: (String) -> Unit,
     onCancelReply: () -> Unit,
     onSend: () -> Unit
@@ -400,10 +403,10 @@ private fun CommentInputBar(
             ) {
                 // Current user avatar
                 Box(
-                    modifier = Modifier.size(34.dp).clip(CircleShape).background(VNRed),
+                    modifier = Modifier.size(34.dp).clip(CircleShape).background(Color(currentUserAvatarColor)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("BN", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(currentUserAvatarInitials, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
                 // Input field
                 Box(

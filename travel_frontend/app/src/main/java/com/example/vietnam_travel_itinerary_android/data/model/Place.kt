@@ -12,6 +12,7 @@ data class Place(
     val lng: Double = 0.0,
     @Json(name = "image_url") val imageUrl: String? = null,
     val rating: Double? = null,
+    @Json(name = "review_count") val reviewCount: Int? = null,
     @Json(name = "search_count") val searchCount: Int? = null,
     val description: String? = null,
     val provinces: ProvinceSummary? = null,
@@ -28,3 +29,12 @@ data class ProvinceSummary(
 data class CitySummary(
     val name: String? = null
 )
+
+/** Tên hiển thị thời tiết: địa điểm + tỉnh/thành (nếu khác tên). */
+fun Place.locationParts(): Pair<String, String?> {
+    val title = name.trim()
+    val region = provinces?.name?.takeIf { it.isNotBlank() }
+        ?: cities?.name?.takeIf { it.isNotBlank() }
+    val subtitle = region?.takeIf { !it.equals(title, ignoreCase = true) }
+    return title to subtitle
+}

@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.post.CreatePostWidget
@@ -112,16 +114,28 @@ private val mockPosts = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommunityScreen(onNavigate: (String) -> Unit = {}) {
+fun CommunityScreen(
+    onNavigate: (String) -> Unit = {},
+    viewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory)
+) {
     var postText by remember { mutableStateOf("") }
-    var posts by remember { mutableStateOf(mockPosts) }
+    val posts by viewModel.posts.collectAsState()
+    val currentUserProfile by viewModel.currentUserProfile.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     // null = feed, non-null = PostDetailScreen
     var openedPost by remember { mutableStateOf<CommunityPost?>(null) }
 
     // ── PostDetail overlay (Threads-style full screen)
     openedPost?.let { post ->
+        DisposableEffect(post.id) {
+            viewModel.subscribeToPostDetails(post.id)
+            onDispose {
+                viewModel.unsubscribeFromPostDetails()
+            }
+        }
         PostDetailScreen(
             post = post,
+            viewModel = viewModel,
             onBack = { openedPost = null },
             onItineraryClick = { onNavigate("itinerary_detail/$it") }
         )
@@ -136,48 +150,45 @@ fun CommunityScreen(onNavigate: (String) -> Unit = {}) {
             )
             HorizontalDivider(color = Color(0xFFF1F5F9))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().background(Color(0xFFF8F6F6)),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                item { ScreenHeader(title = "Cộng Đồng") }
-                item {
-                    // CreatePostWidget nhận thông tin user hiện tại
-                    // TODO: Thay avatarInitials/avatarColor bằng dữ liệu user thật từ Auth
-                    CreatePostWidget(
-                        avatarInitials = "BN",
-                        avatarColor = 0xFFC6102E,
-                        text = postText,
-                        onTextChange = { postText = it },
-                        onPost = {
-                            if (postText.isNotBlank()) {
-                                posts = listOf(
-                                    CommunityPost(
-                                        id = System.currentTimeMillis().toString(),
-                                        authorName = "Bạn", authorAvatarInitials = "BN",
-                                        authorAvatarColor = 0xFFC6102E, timeAgo = "VỪA XONG",
-                                        content = postText
-                                    )
-                                ) + posts
-                                postText = ""
-                            }
-                        }
-                    )
+            if (isLoading && posts.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = VNRed)
                 }
-                item { ScreenHeader(title = "Bảng tin cộng đồng") }
-                items(posts, key = { it.id }) { post ->
-                    var liked by remember(post.id) { mutableStateOf(post.isLiked) }
-                    var likeCount by remember(post.id) { mutableIntStateOf(post.likeCount) }
-                    PostCard(
-                        post = post.copy(isLiked = liked, likeCount = likeCount),
-                        onLikeClick = {
-                            liked = !liked
-                            likeCount = if (liked) likeCount + 1 else likeCount - 1
-                        },
-                        onCommentClick = { openedPost = post },
-                        onItineraryClick = { onNavigate("itinerary_detail/$it") }
-                    )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().background(Color(0xFFF8F6F6)),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    item { ScreenHeader(title = "Cộng Đồng") }
+                    item {
+                        CreatePostWidget(
+                            avatarInitials = currentUserProfile?.avatarInitials ?: "BN",
+                            avatarColor = currentUserProfile?.avatarColor ?: 0xFFC6102E,
+                            text = postText,
+                            onTextChange = { postText = it },
+                            onPost = {
+                                if (postText.isNotBlank()) {
+                                    viewModel.createPost(postText)
+                                    postText = ""
+                                }
+                            }
+                        )
+                    }
+                    item { ScreenHeader(title = "Bảng tin cộng đồng") }
+                    items(posts, key = { it.id }) { post ->
+                        PostCard(
+                            post = post,
+                            onLikeClick = {
+                                if (post.isLiked) viewModel.unlikePost(post.id) else viewModel.likePost(post.id)
+                            },
+                            onCommentClick = { openedPost = post },
+                            onItineraryClick = { onNavigate("itinerary_detail/$it") }
+                        )
+                    }
                 }
             }
         }

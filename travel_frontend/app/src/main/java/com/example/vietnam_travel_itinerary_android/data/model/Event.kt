@@ -13,6 +13,7 @@ data class Event(
     @Json(name = "end_date") val endDate: String,
     @Json(name = "province_name") val provinceName: String? = null,
     @Json(name = "place_name") val placeName: String? = null,
+    @Json(name = "image_url") val imageUrl: String? = null,
     @Json(name = "province_id") val provinceId: String? = null,
     /** Legacy shape from older APIs; prefer [provinceName] / [placeName]. */
     val places: PlaceSummary? = null,

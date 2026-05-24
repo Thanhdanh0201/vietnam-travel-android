@@ -18,4 +18,12 @@ public class WeatherCrawlService {
         weatherService.refreshAllPlaces();
         log.info("Finished async weather crawl");
     }
+
+    /** Chạy khi server start — không chặn HTTP. */
+    @Async
+    public void warmFeaturedCitiesOnStartup() {
+        log.info("Weather featured cities warmup (startup)");
+        weatherService.warmFeaturedCitiesCache();
+        log.info("Weather featured cities warmup finished");
+    }
 }

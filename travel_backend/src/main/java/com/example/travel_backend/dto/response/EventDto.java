@@ -17,4 +17,5 @@ public class EventDto {
     private String end_date;
     private String province_name;
     private String place_name;
+    private String image_url;
 }

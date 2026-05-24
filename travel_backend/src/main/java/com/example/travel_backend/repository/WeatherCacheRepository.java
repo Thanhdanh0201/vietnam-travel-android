@@ -1,6 +1,7 @@
 package com.example.travel_backend.repository;
 
 import com.example.travel_backend.entity.WeatherCache;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,6 +12,7 @@ import java.util.UUID;
 
 @Repository
 public interface WeatherCacheRepository extends JpaRepository<WeatherCache, UUID> {
+    @EntityGraph(attributePaths = {"place", "place.province", "place.city"})
     Optional<WeatherCache> findByPlace_IdAndForecastDate(UUID placeId, LocalDate forecastDate);
 
     List<WeatherCache> findByPlace_IdAndForecastDateBetweenOrderByForecastDateAsc(
