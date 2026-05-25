@@ -79,13 +79,13 @@ public class CommentController {
 
     // --- 4.7 ĐĂNG BÌNH LUẬN ---
     @PostMapping("/comments")
-    public ResponseEntity<CommentResponseDto> createComment(
+    public ResponseEntity<Void> createComment(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody CommentRequestDto request) {
 
         UUID myId = UUID.fromString(jwt.getSubject());
-        Comment newComment = commentService.createComment(myId, request);
-        return ResponseEntity.ok(mapToDto(newComment));
+        commentService.createComment(myId, request);
+        return ResponseEntity.ok().build();
     }
 
     // --- 4.8 LIKE BÌNH LUẬN ---
@@ -126,10 +126,6 @@ public class CommentController {
         dto.setAuthorId(comment.getUser().getId());
         dto.setAuthorName(comment.getUser().getName());
         dto.setAuthorAvatarUrl(comment.getUser().getAvatarUrl());
-
-        // Map Counts
-        dto.setReplyCount(comment.getReplyCount() != null ? comment.getReplyCount() : 0);
-        dto.setLikeCount(comment.getReactionCount() != null ? comment.getReactionCount() : 0);
 
         return dto;
     }

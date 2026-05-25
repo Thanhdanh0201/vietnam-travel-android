@@ -106,8 +106,6 @@ public class PostServiceImpl implements PostService {
         post.setRepostCount(0);
         post.setIsEdited(false);
         post.setIsPinned(false);
-        post.setCreatedAt(java.time.OffsetDateTime.now());
-        post.setUpdatedAt(java.time.OffsetDateTime.now());
 
         Post savedPost = postRepository.save(post);
         List<PostMedia> savedMediaList = new ArrayList<>();
@@ -127,19 +125,6 @@ public class PostServiceImpl implements PostService {
 
         PostResponseDto dto = mapToPostDto(savedPost);
         dto.setMedia(savedMediaList.stream().map(this::mapToMediaDto).collect(Collectors.toList()));
-        return dto;
-    }
-
-    @Override
-    public PostResponseDto getPostById(UUID postId) {
-        System.out.println("Fetching post by ID: " + postId);
-        Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                        org.springframework.http.HttpStatus.NOT_FOUND, "Post not found"));
-
-        PostResponseDto dto = mapToPostDto(post);
-        List<PostMedia> postMediaList = postMediaRepository.findByPostIdInOrderByOrderIndexAsc(List.of(postId));
-        dto.setMedia(postMediaList.stream().map(this::mapToMediaDto).collect(Collectors.toList()));
         return dto;
     }
 
@@ -181,12 +166,6 @@ public class PostServiceImpl implements PostService {
             itDto.setIsPublic(post.getItinerary().getIsPublic());
             itDto.setDescription(post.getItinerary().getDescription());
             dto.setItinerary(itDto);
-        }
-        if (post.getOriginalPost() != null) {
-            PostResponseDto origDto = mapToPostDto(post.getOriginalPost());
-            List<PostMedia> origMediaList = postMediaRepository.findByPostIdInOrderByOrderIndexAsc(List.of(post.getOriginalPost().getId()));
-            origDto.setMedia(origMediaList.stream().map(this::mapToMediaDto).collect(Collectors.toList()));
-            dto.setOriginalPost(origDto);
         }
         return dto;
     }

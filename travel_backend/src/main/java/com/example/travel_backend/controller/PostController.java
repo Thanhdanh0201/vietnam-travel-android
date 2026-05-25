@@ -22,13 +22,6 @@ public class PostController {
     @Autowired
     private PostReactionRepository postReactionRepository;
 
-    @GetMapping("/{postId}")
-    public ResponseEntity<PostResponseDto> getPostById(
-            @PathVariable("postId") UUID postId) {
-        System.out.println("API Call: Get Post By Id: " + postId);
-        return ResponseEntity.ok(postService.getPostById(postId));
-    }
-
     @GetMapping("/public")
     public ResponseEntity<List<PostResponseDto>> getPublicFeed(
             @RequestParam(value = "limit", defaultValue = "20") int limit,

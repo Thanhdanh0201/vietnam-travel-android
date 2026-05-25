@@ -33,7 +33,7 @@ public class CommentServiceImpl implements CommentService {
     // --- 4.7: ĐĂNG BÌNH LUẬN ---
     @Override
     @Transactional
-    public Comment createComment(UUID userId, CommentRequestDto request) {
+    public void createComment(UUID userId, CommentRequestDto request) {
         System.out.println("Creating comment for post: " + request.getPostId());
 
         Comment comment = new Comment();
@@ -46,14 +46,7 @@ public class CommentServiceImpl implements CommentService {
             comment.setParentComment(commentRepository.getReferenceById(request.getParentCommentId()));
         }
 
-        // Set mặc định các chỉ số và thời gian để tránh null khi trả về DTO
-        comment.setReactionCount(0);
-        comment.setReplyCount(0);
-        comment.setIsEdited(false);
-        comment.setCreatedAt(java.time.OffsetDateTime.now());
-        comment.setUpdatedAt(java.time.OffsetDateTime.now());
-
-        return commentRepository.save(comment);
+        commentRepository.save(comment);
     }
 
     // --- 4.8: LIKE BÌNH LUẬN ---
