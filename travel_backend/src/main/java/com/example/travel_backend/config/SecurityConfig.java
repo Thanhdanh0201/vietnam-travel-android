@@ -1,6 +1,5 @@
 package com.example.travel_backend.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,9 +15,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired
-    private UserSyncFilter userSyncFilter;
-
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -33,16 +29,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/posts/public").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/posts/user/*").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/comments_with_author").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/posts/user").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/follows/*/followers").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/follows/*/following").permitAll()
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
-                .addFilterAfter(userSyncFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
 
         return http.build();
     }

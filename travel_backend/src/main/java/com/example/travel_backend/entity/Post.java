@@ -84,9 +84,5 @@ public class Post {
     @Column(name = "updated_at")
     private OffsetDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "original_post_id")
-    private Post originalPost;
-
 
 }

@@ -6,7 +6,7 @@ import com.example.travel_backend.dto.request.CommentRequestDto;
 import java.util.UUID;
 
 public interface CommentService {
-    com.example.travel_backend.entity.Comment createComment(UUID userId, CommentRequestDto request);
+    void createComment(UUID userId, CommentRequestDto request);
     void likeComment(UUID userId, CommentReactionRequestDto request);
     void unlikeComment(UUID userId, UUID commentId);
 }

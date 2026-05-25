@@ -21,7 +21,6 @@ public class PostResponseDto {
     private UserCompactDto author;
     private List<PostMediaDto> media;
     private ItineraryCompactDto itinerary;
-    private PostResponseDto originalPost;
 
     @Data
     public static class ItineraryCompactDto {
