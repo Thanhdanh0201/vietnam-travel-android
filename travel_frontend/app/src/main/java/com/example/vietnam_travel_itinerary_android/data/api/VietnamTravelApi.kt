@@ -1,21 +1,14 @@
 package com.example.vietnam_travel_itinerary_android.data.api
 
-import com.example.vietnam_travel_itinerary_android.data.model.Event
-import com.example.vietnam_travel_itinerary_android.data.model.Place
-import com.example.vietnam_travel_itinerary_android.data.model.PlaceDetail
-import com.example.vietnam_travel_itinerary_android.data.model.PlaceReview
-import com.example.vietnam_travel_itinerary_android.data.model.Province
-import com.example.vietnam_travel_itinerary_android.data.model.SubmitPlaceReviewRequest
-import com.example.vietnam_travel_itinerary_android.data.model.TrendingPlace
-import com.example.vietnam_travel_itinerary_android.data.model.UserSettingRequest
-import com.example.vietnam_travel_itinerary_android.data.model.UserSettingResponseDto
-import com.example.vietnam_travel_itinerary_android.data.model.UserSyncRequest
-import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
-import com.example.vietnam_travel_itinerary_android.data.model.WeatherNearby
+import com.example.vietnam_travel_itinerary_android.data.model.*
+import com.example.vietnam_travel_itinerary_android.data.dto.*
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -27,7 +20,7 @@ interface VietnamTravelApi {
     suspend fun syncUser(
         @Header("Authorization") token: String,
         @Body request: UserSyncRequest // THÊM DÒNG NÀY VÀO ĐÂY
-    ): Response<Unit>
+    ): Response<ResponseBody>
 
     @GET("api/user-settings/me")
     suspend fun getUserSettings(@Header("Authorization") token: String): Response<UserSettingResponseDto>
@@ -117,5 +110,138 @@ interface VietnamTravelApi {
         @Path("placeId") placeId: String,
         @Query("days") days: Int = 7
     ): List<WeatherData>
+
+    // ---- Users ----
+    @GET("api/users/{id}")
+    suspend fun getProfile(
+        @Path("id") id: String,
+        @Header("Authorization") token: String
+    ): UserProfileResponseDto
+
+    // ---- Posts ----
+    @GET("api/posts/public")
+    suspend fun getPublicFeed(
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+        @Header("Authorization") token: String
+    ): List<PostResponseBackendDto>
+
+    @GET("api/posts/following")
+    suspend fun getFollowingFeed(
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+        @Header("Authorization") token: String
+    ): List<PostResponseBackendDto>
+
+    @GET("api/posts/user/{userId}")
+    suspend fun getUserPosts(
+        @Path("userId") userId: String,
+        @Query("limit") limit: Int,
+        @Query("offset") offset: Int,
+        @Header("Authorization") token: String
+    ): List<PostResponseBackendDto>
+
+    @GET("api/posts/{postId}")
+    suspend fun getPostDetails(
+        @Path("postId") postId: String,
+        @Header("Authorization") token: String
+    ): PostResponseBackendDto
+
+    @POST("api/posts")
+    suspend fun createPost(
+        @Header("Authorization") token: String,
+        @Body request: CreatePostRequest
+    ): PostResponseBackendDto
+
+    @DELETE("api/posts")
+    suspend fun deletePost(
+        @Header("Authorization") token: String,
+        @Query("id") postId: String
+    ): Response<ResponseBody>
+
+    @GET("api/posts/reactions/check-likes")
+    suspend fun checkLikedPosts(
+        @Header("Authorization") token: String,
+        @Query("post_ids") postIds: List<String>
+    ): List<String>
+
+    @POST("api/post_reactions")
+    suspend fun likePost(
+        @Header("Authorization") token: String,
+        @Body request: ReactionRequest
+    ): Response<ResponseBody>
+
+    @DELETE("api/post_reactions")
+    suspend fun unlikePost(
+        @Header("Authorization") token: String,
+        @Query("post_id") postId: String
+    ): Response<ResponseBody>
+
+    // ---- Reposts ----
+    @POST("api/reposts")
+    suspend fun repostPost(
+        @Header("Authorization") token: String,
+        @Body request: RepostRequest
+    ): Response<ResponseBody>
+
+    @DELETE("api/reposts")
+    suspend fun undoRepost(
+        @Header("Authorization") token: String,
+        @Query("post_id") postId: String
+    ): Response<ResponseBody>
+
+    // ---- Comments ----
+    @GET("api/comments_with_author")
+    suspend fun getComments(
+        @Query("post_id") postId: String? = null,
+        @Query("parent_comment_id") parentCommentId: String? = null,
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0
+    ): List<CommentResponseBackendDto>
+
+    @GET("api/comment_reactions/check-likes")
+    suspend fun checkLikedComments(
+        @Header("Authorization") token: String,
+        @Query("comment_ids") commentIds: List<String>
+    ): List<String>
+
+    @POST("api/comments")
+    suspend fun postComment(
+        @Header("Authorization") token: String,
+        @Body request: CommentRequest
+    ): CommentResponseBackendDto
+
+    @POST("api/comment_reactions")
+    suspend fun likeComment(
+        @Header("Authorization") token: String,
+        @Body request: CommentReactionRequest
+    ): Response<ResponseBody>
+
+    @DELETE("api/comment_reactions")
+    suspend fun unlikeComment(
+        @Header("Authorization") token: String,
+        @Query("comment_id") commentId: String
+    ): Response<ResponseBody>
+
+    // ---- Notifications ----
+    @GET("api/notifications")
+    suspend fun getNotifications(
+        @Header("Authorization") token: String,
+        @Query("limit") limit: Int = 30,
+        @Query("offset") offset: Int = 0
+    ): List<NotificationResponseBackendDto>
+
+    @PATCH("api/notifications")
+    suspend fun markNotificationsAsRead(
+        @Header("Authorization") token: String,
+        @Body request: NotificationPatchDto
+    ): Response<ResponseBody>
+
+    // ---- Reports ----
+    @POST("api/reports")
+    suspend fun report(
+        @Header("Authorization") token: String,
+        @Body request: ReportRequest
+    ): Response<ResponseBody>
 }
 

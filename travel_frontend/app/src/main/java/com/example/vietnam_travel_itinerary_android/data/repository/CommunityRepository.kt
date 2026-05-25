@@ -1,12 +1,10 @@
 package com.example.vietnam_travel_itinerary_android.data.repository
 
+import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
 import com.example.vietnam_travel_itinerary_android.data.dto.*
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Order
-import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,6 +13,8 @@ import java.time.format.DateTimeFormatter
 import java.time.Duration
 
 class CommunityRepository(private val supabase: SupabaseClient) {
+
+    private val api = RetrofitInstance.api
 
     // Helper functions for avatars
     private fun getAvatarColor(name: String): Long {
@@ -41,7 +41,8 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         return (first + last).uppercase()
     }
 
-    private fun formatTimeAgo(isoString: String): String {
+    private fun formatTimeAgo(isoString: String?): String {
+        if (isoString.isNullOrBlank()) return "vừa xong"
         return try {
             val parsed = OffsetDateTime.parse(isoString)
             val now = OffsetDateTime.now(parsed.offset)
@@ -61,178 +62,164 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     }
 
     // Mapping DTOs to UI models
-    private fun PostDto.toCommunityPost(currentUserId: String? = null, likedPostIds: Set<String> = emptySet()): CommunityPost {
-        val authorNameVal = author_name ?: user?.name ?: "Người dùng"
+    private fun PostResponseBackendDto.toCommunityPost(currentUserId: String? = null, likedPostIds: Set<String> = emptySet()): CommunityPost {
+        val authorNameVal = author?.name ?: "Người dùng"
         val isLikedVal = likedPostIds.contains(id)
-        val postTypeVal = post_type
+        val postTypeVal = postType ?: "text"
         
-        val embeddedVal = if (original_post_id != null) {
+        val embeddedVal = originalPost?.let { orig ->
             EmbeddedPost(
-                originalPostId = original_post_id,
-                originalAuthorName = original_author_name ?: "Người dùng",
-                originalAuthorInitials = getInitials(original_author_name ?: "Người dùng"),
-                originalAuthorColor = getAvatarColor(original_author_name ?: "Người dùng"),
-                originalContent = original_content ?: "",
-                originalMedia = emptyList(),
-                originalTimeAgo = original_created_at?.let { formatTimeAgo(it) } ?: ""
-            )
-        } else null
-
-        val mediaList = post_media.map {
-            PostMedia(
-                id = it.id ?: "",
-                mediaUrl = it.media_url,
-                mediaType = it.media_type,
-                orderIndex = it.order_index
+                originalPostId = orig.id,
+                originalAuthorName = orig.author?.name ?: "Người dùng",
+                originalAuthorInitials = getInitials(orig.author?.name ?: "Người dùng"),
+                originalAuthorColor = getAvatarColor(orig.author?.name ?: "Người dùng"),
+                originalContent = orig.content ?: "",
+                originalMedia = orig.media?.map {
+                    PostMedia(
+                        id = it.id ?: "",
+                        mediaUrl = it.mediaUrl ?: "",
+                        mediaType = it.mediaType ?: "image",
+                        orderIndex = it.orderIndex ?: 0
+                    )
+                } ?: emptyList(),
+                originalTimeAgo = formatTimeAgo(orig.createdAt)
             )
         }
+
+        val mediaList = media?.map {
+            PostMedia(
+                id = it.id ?: "",
+                mediaUrl = it.mediaUrl ?: "",
+                mediaType = it.mediaType ?: "image",
+                orderIndex = it.orderIndex ?: 0
+            )
+        } ?: emptyList()
 
         val linkedItineraryVal = itinerary?.let {
             LinkedItinerary(
                 id = it.id,
-                title = it.title,
+                title = it.title ?: "",
                 stopCount = 0,
-                isPublic = it.is_public
+                isPublic = it.isPublic ?: true
             )
         }
 
         return CommunityPost(
             id = id,
-            userId = user_id ?: user?.id ?: "",
+            userId = author?.id ?: "",
             authorName = authorNameVal,
             authorAvatarInitials = getInitials(authorNameVal),
             authorAvatarColor = getAvatarColor(authorNameVal),
-            timeAgo = formatTimeAgo(created_at).uppercase(),
+            timeAgo = formatTimeAgo(createdAt).uppercase(),
             content = content ?: "",
             postType = if (postTypeVal == "text" || postTypeVal == "image") "original" else postTypeVal,
             media = mediaList,
-            likeCount = reaction_count,
-            commentCount = comment_count,
-            repostCount = repost_count,
+            likeCount = reactionCount ?: 0,
+            commentCount = commentCount ?: 0,
+            repostCount = repostCount ?: 0,
             isLiked = isLikedVal,
             linkedItinerary = linkedItineraryVal,
             embeddedPost = embeddedVal
         )
     }
 
-    private fun CommentDto.toComment(likedCommentIds: Set<String> = emptySet(), repliesList: List<Comment> = emptyList()): Comment {
-        val authorNameVal = author_name ?: user?.name ?: "Người dùng"
+    private fun CommentResponseBackendDto.toComment(likedCommentIds: Set<String> = emptySet(), repliesList: List<Comment> = emptyList()): Comment {
+        val authorNameVal = authorName ?: "Người dùng"
         return Comment(
             id = id,
-            postId = post_id,
-            userId = user_id,
-            parentCommentId = parent_comment_id,
+            postId = postId,
+            userId = authorId ?: "",
+            parentCommentId = parentCommentId,
             authorName = authorNameVal,
             authorAvatarInitials = getInitials(authorNameVal),
             authorAvatarColor = getAvatarColor(authorNameVal),
-            timeAgo = formatTimeAgo(created_at),
-            content = content,
-            reactionCount = reaction_count,
-            replyCount = reply_count,
+            timeAgo = formatTimeAgo(createdAt),
+            content = content ?: "",
+            reactionCount = likeCount ?: 0,
+            replyCount = replyCount ?: 0,
             isLiked = likedCommentIds.contains(id),
             replies = repliesList
         )
     }
 
+    private fun NotificationResponseBackendDto.toNotificationDto(): NotificationDto {
+        return NotificationDto(
+            id = id,
+            user_id = "",
+            actor_id = actorId,
+            notif_type = type?.lowercase() ?: "like",
+            post_id = postId,
+            comment_id = commentId,
+            is_read = isRead ?: false,
+            created_at = createdAt ?: "",
+            actor = actorName?.let { name ->
+                UserDto(
+                    id = actorId ?: "",
+                    name = name,
+                    avatar_url = actorAvatarUrl
+                )
+            }
+        )
+    }
+
     // --- 4.1 Lấy Community Feed ---
     suspend fun getPublicFeed(currentUserId: String? = null, limit: Int = 20, offset: Int = 0): List<CommunityPost> = withContext(Dispatchers.IO) {
-        val postsDto = supabase.postgrest["posts"].select(
-            columns = Columns.raw("""
-                *,
-                post_media(media_url, media_type, order_index, thumbnail_url),
-                user:users(id, name, avatar_url, is_verified, explorer_level),
-                itinerary:itineraries(id, title, is_public, description)
-            """.trimIndent())
-        ) {
-            filter {
-                eq("visibility", "public")
-            }
-            order("created_at", Order.DESCENDING)
-            range(offset.toLong()..(offset + limit - 1).toLong())
-        }.decodeList<PostDto>()
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: ""
+            val postsDto = api.getPublicFeed(limit, offset, token)
 
-        val likedPostIds = if (currentUserId != null && postsDto.isNotEmpty()) {
-            val ids = postsDto.map { it.id }
-            supabase.postgrest["post_reactions"].select(Columns.raw("post_id")) {
-                filter {
-                    eq("user_id", currentUserId)
-                    isIn("post_id", ids)
+            val likedPostIds = if (token.isNotBlank() && postsDto.isNotEmpty()) {
+                try {
+                    api.checkLikedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
                 }
-            }.decodeList<PostReactionDto>().map { it.post_id }.toSet()
-        } else emptySet()
+            } else emptySet()
 
-        return@withContext postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
     }
 
     suspend fun getFollowingFeed(currentUserId: String, limit: Int = 20, offset: Int = 0): List<CommunityPost> = withContext(Dispatchers.IO) {
-        // First get the list of user IDs being followed
-        val followingUsers = supabase.postgrest["follows"].select(Columns.raw("following_id")) {
-            filter {
-                eq("follower_id", currentUserId)
-            }
-        }.decodeList<UserSyncRequest>() // Use a simple container or map
-        
-        val followingIds = followingUsers.map { it.id } // wait, user profile sync has id
-        if (followingIds.isEmpty()) return@withContext emptyList()
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext emptyList()
+            val postsDto = api.getFollowingFeed(limit, offset, token)
 
-        val postsDto = supabase.postgrest["posts"].select(
-            columns = Columns.raw("""
-                *,
-                post_media(media_url, media_type, order_index, thumbnail_url),
-                user:users(id, name, avatar_url, is_verified, explorer_level),
-                itinerary:itineraries(id, title, is_public, description)
-            """.trimIndent())
-        ) {
-            filter {
-                isIn("user_id", followingIds)
-            }
-            order("created_at", Order.DESCENDING)
-            range(offset.toLong()..(offset + limit - 1).toLong())
-        }.decodeList<PostDto>()
-
-        val likedPostIds = if (postsDto.isNotEmpty()) {
-            val ids = postsDto.map { it.id }
-            supabase.postgrest["post_reactions"].select(Columns.raw("post_id")) {
-                filter {
-                    eq("user_id", currentUserId)
-                    isIn("post_id", ids)
+            val likedPostIds = if (postsDto.isNotEmpty()) {
+                try {
+                    api.checkLikedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
                 }
-            }.decodeList<PostReactionDto>().map { it.post_id }.toSet()
-        } else emptySet()
+            } else emptySet()
 
-        return@withContext postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
     }
 
     suspend fun getPostDetails(postId: String, currentUserId: String? = null): CommunityPost? = withContext(Dispatchers.IO) {
         try {
-            val postsDto = supabase.postgrest["posts"].select(
-                columns = Columns.raw("""
-                    *,
-                    post_media(media_url, media_type, order_index, thumbnail_url),
-                    user:users(id, name, avatar_url, is_verified, explorer_level),
-                    itinerary:itineraries(id, title, is_public, description)
-                """.trimIndent())
-            ) {
-                filter {
-                    eq("id", postId)
-                }
-            }.decodeList<PostDto>()
-            
-            if (postsDto.isEmpty()) return@withContext null
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: ""
+            val postDto = api.getPostDetails(postId, token)
 
-            val likedPostIds = if (currentUserId != null) {
-                supabase.postgrest["post_reactions"].select(Columns.raw("post_id")) {
-                    filter {
-                        eq("user_id", currentUserId)
-                        eq("post_id", postId)
-                    }
-                }.decodeList<PostReactionDto>().map { it.post_id }.toSet()
+            val likedPostIds = if (token.isNotBlank()) {
+                try {
+                    api.checkLikedPosts(token, listOf(postId)).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
             } else emptySet()
 
-            return@withContext postsDto.first().toCommunityPost(currentUserId, likedPostIds)
+            postDto.toCommunityPost(currentUserId, likedPostIds)
         } catch (e: Exception) {
             e.printStackTrace()
-            null
+            throw e
         }
     }
 
@@ -247,73 +234,36 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         provinceId: String? = null,
         mediaUrls: List<String> = emptyList()
     ): CommunityPost = withContext(Dispatchers.IO) {
-        val postInsert = mapOf(
-            "user_id" to userId,
-            "content" to content,
-            "post_type" to postType,
-            "visibility" to visibility,
-            "itinerary_id" to itineraryId,
-            "place_id" to placeId,
-            "province_id" to provinceId
-        )
+        val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: throw Exception("Not authenticated")
 
-        // Insert post
-        val createdPost = supabase.postgrest["posts"].insert(postInsert) {
-            select()
-        }.decodeSingle<PostDto>()
-
-        // Insert media if present
-        if (mediaUrls.isNotEmpty()) {
-            val mediaDtos = mediaUrls.mapIndexed { index, url ->
-                PostMediaDto(
-                    post_id = createdPost.id,
-                    media_url = url,
-                    media_type = "image",
-                    order_index = index
-                )
-            }
-            supabase.postgrest["post_media"].insert(mediaDtos)
+        val mediaDtos = mediaUrls.mapIndexed { index, url ->
+            PostMediaBackendDto(
+                mediaUrl = url,
+                mediaType = "image",
+                orderIndex = index
+            )
         }
 
-        // Fetch complete post with joined fields to return to caller
-        val posts = supabase.postgrest["posts"].select(
-            columns = Columns.raw("""
-                *,
-                post_media(media_url, media_type, order_index, thumbnail_url),
-                user:users(id, name, avatar_url, is_verified, explorer_level),
-                itinerary:itineraries(id, title, is_public, description)
-            """.trimIndent())
-        ) {
-            filter {
-                eq("id", createdPost.id)
-            }
-        }.decodeList<PostDto>()
+        val request = CreatePostRequest(
+            content = content,
+            postType = postType,
+            visibility = visibility,
+            itineraryId = itineraryId,
+            placeId = placeId,
+            media = mediaDtos
+        )
 
-        return@withContext posts.first().toCommunityPost(userId)
+        val createdPost = api.createPost(token, request)
+        createdPost.toCommunityPost(userId)
     }
 
     // --- 4.3 Repost / Quote ---
     suspend fun repostPost(userId: String, postId: String, quoteText: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
-            val repostInsert = mapOf(
-                "user_id" to userId,
-                "post_id" to postId,
-                "quote_text" to quoteText
-            )
-            supabase.postgrest["reposts"].insert(repostInsert)
-            
-            // Note: Section 4.3 also mentions a quote is a quote text repost. 
-            // In case we want to create a post of type "repost"/"quote" so it shows up in posts table:
-            val postType = if (quoteText != null) "quote" else "repost"
-            val postInsert = mapOf(
-                "user_id" to userId,
-                "content" to quoteText,
-                "post_type" to postType,
-                "visibility" to "public",
-                "original_post_id" to postId
-            )
-            supabase.postgrest["posts"].insert(postInsert)
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val request = RepostRequest(postId = postId, quoteText = quoteText)
+            val response = api.repostPost(token, request)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -322,20 +272,9 @@ class CommunityRepository(private val supabase: SupabaseClient) {
 
     suspend fun undoRepost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            supabase.postgrest["reposts"].delete {
-                filter {
-                    eq("user_id", userId)
-                    eq("post_id", postId)
-                }
-            }
-            // Delete matching quote/repost post in posts table
-            supabase.postgrest["posts"].delete {
-                filter {
-                    eq("user_id", userId)
-                    eq("original_post_id", postId)
-                }
-            }
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.undoRepost(token, postId)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -345,13 +284,10 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     // --- 4.4 Like / Unlike bài đăng ---
     suspend fun likePost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val reaction = mapOf(
-                "post_id" to postId,
-                "user_id" to userId,
-                "reaction_type" to "like"
-            )
-            supabase.postgrest["post_reactions"].insert(reaction)
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val request = ReactionRequest(postId = postId)
+            val response = api.likePost(token, request)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -360,13 +296,9 @@ class CommunityRepository(private val supabase: SupabaseClient) {
 
     suspend fun unlikePost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            supabase.postgrest["post_reactions"].delete {
-                filter {
-                    eq("post_id", postId)
-                    eq("user_id", userId)
-                }
-            }
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.unlikePost(token, postId)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -376,12 +308,9 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     // --- 4.5 Xoá bài đăng ---
     suspend fun deletePost(postId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            supabase.postgrest["posts"].delete {
-                filter {
-                    eq("id", postId)
-                }
-            }
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.deletePost(token, postId)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -390,51 +319,41 @@ class CommunityRepository(private val supabase: SupabaseClient) {
 
     // --- 4.6 Lấy bình luận ---
     suspend fun getComments(postId: String, currentUserId: String? = null): List<Comment> = withContext(Dispatchers.IO) {
-        // Fetch top-level comments
-        val commentDtos = supabase.postgrest["comments"].select(
-            columns = Columns.raw("""
-                *,
-                user:users(id, name, avatar_url)
-            """.trimIndent())
-        ) {
-            filter {
-                eq("post_id", postId)
-                exact("parent_comment_id", null)
-            }
-            order("created_at", Order.ASCENDING)
-        }.decodeList<CommentDto>()
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
+            val topLevelDtos = api.getComments(postId = postId, limit = 100)
+            val allReplies = mutableListOf<CommentResponseBackendDto>()
 
-        // Fetch all replies
-        val replyDtos = supabase.postgrest["comments"].select(
-            columns = Columns.raw("""
-                *,
-                user:users(id, name, avatar_url)
-            """.trimIndent())
-        ) {
-            filter {
-                eq("post_id", postId)
-                filterNot("parent_comment_id", FilterOperator.IS, null)
-            }
-            order("created_at", Order.ASCENDING)
-        }.decodeList<CommentDto>()
-
-        // Find which comments/replies the current user liked
-        val allCommentIds = (commentDtos.map { it.id } + replyDtos.map { it.id })
-        val likedCommentIds = if (currentUserId != null && allCommentIds.isNotEmpty()) {
-            supabase.postgrest["comment_reactions"].select(Columns.raw("comment_id")) {
-                filter {
-                    eq("user_id", currentUserId)
-                    isIn("comment_id", allCommentIds)
+            for (topComment in topLevelDtos) {
+                if ((topComment.replyCount ?: 0) > 0) {
+                    try {
+                        val replies = api.getComments(parentCommentId = topComment.id)
+                        allReplies.addAll(replies)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
-            }.decodeList<CommentReactionDto>().map { it.comment_id }.toSet()
-        } else emptySet()
+            }
 
-        val repliesMapped = replyDtos.map { it.toComment(likedCommentIds) }
-        val repliesByParent = repliesMapped.groupBy { it.parentCommentId }
+            val allCommentIds = (topLevelDtos.map { it.id } + allReplies.map { it.id })
+            val likedCommentIds = if (token != null && allCommentIds.isNotEmpty()) {
+                try {
+                    api.checkLikedComments(token, allCommentIds).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
 
-        return@withContext commentDtos.map { commentDto ->
-            val replies = repliesByParent[commentDto.id] ?: emptyList()
-            commentDto.toComment(likedCommentIds, replies)
+            val repliesMapped = allReplies.map { it.toComment(likedCommentIds) }
+            val repliesByParent = repliesMapped.groupBy { it.parentCommentId }
+
+            topLevelDtos.map { commentDto ->
+                val replies = repliesByParent[commentDto.id] ?: emptyList()
+                commentDto.toComment(likedCommentIds, replies)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
         }
     }
 
@@ -445,42 +364,19 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         content: String,
         parentCommentId: String? = null
     ): Comment = withContext(Dispatchers.IO) {
-        val commentInsert = mapOf(
-            "post_id" to postId,
-            "user_id" to userId,
-            "parent_comment_id" to parentCommentId,
-            "content" to content
-        )
-
-        val inserted = supabase.postgrest["comments"].insert(commentInsert) {
-            select()
-        }.decodeSingle<CommentDto>()
-
-        // Fetch with joined user details
-        val detailed = supabase.postgrest["comments"].select(
-            columns = Columns.raw("""
-                *,
-                user:users(id, name, avatar_url)
-            """.trimIndent())
-        ) {
-            filter {
-                eq("id", inserted.id)
-            }
-        }.decodeSingle<CommentDto>()
-
-        return@withContext detailed.toComment()
+        val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: throw Exception("Not authenticated")
+        val request = CommentRequest(postId = postId, parentCommentId = parentCommentId, content = content)
+        val createdDto = api.postComment(token, request)
+        createdDto.toComment()
     }
 
     // --- 4.8 Like / Unlike bình luận ---
     suspend fun likeComment(commentId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val reaction = mapOf(
-                "comment_id" to commentId,
-                "user_id" to userId,
-                "reaction_type" to "like"
-            )
-            supabase.postgrest["comment_reactions"].insert(reaction)
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val request = CommentReactionRequest(commentId = commentId)
+            val response = api.likeComment(token, request)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -489,13 +385,9 @@ class CommunityRepository(private val supabase: SupabaseClient) {
 
     suspend fun unlikeComment(commentId: String, userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            supabase.postgrest["comment_reactions"].delete {
-                filter {
-                    eq("comment_id", commentId)
-                    eq("user_id", userId)
-                }
-            }
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.unlikeComment(token, commentId)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -511,16 +403,15 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         description: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val reportMap = mutableMapOf<String, Any?>(
-                "reporter_id" to userId,
-                "reason" to reason,
-                "description" to description
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val request = ReportRequest(
+                reason = reason,
+                reportedPostId = reportedPostId,
+                reportedCommentId = reportedCommentId,
+                description = description
             )
-            if (reportedPostId != null) reportMap["reported_post_id"] = reportedPostId
-            if (reportedCommentId != null) reportMap["reported_comment_id"] = reportedCommentId
-            
-            supabase.postgrest["reports"].insert(reportMap)
-            true
+            val response = api.report(token, request)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -530,34 +421,21 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     // --- 4.10 Lấy Notifications ---
     suspend fun getNotifications(userId: String, limit: Int = 30, offset: Int = 0): List<NotificationDto> = withContext(Dispatchers.IO) {
         try {
-            return@withContext supabase.postgrest["notifications"].select(
-                columns = Columns.raw("""
-                    *,
-                    actor:users(id, name, avatar_url)
-                """.trimIndent())
-            ) {
-                filter {
-                    eq("user_id", userId)
-                }
-                order("created_at", Order.DESCENDING)
-                range(offset.toLong()..(offset + limit - 1).toLong())
-            }.decodeList<NotificationDto>()
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext emptyList()
+            val backendNotifs = api.getNotifications(token, limit, offset)
+            backendNotifs.map { it.toNotificationDto() }
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            throw e
         }
     }
 
     suspend fun markNotificationsAsRead(userId: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            val updateData = mapOf("is_read" to true)
-            supabase.postgrest["notifications"].update(updateData) {
-                filter {
-                    eq("user_id", userId)
-                    eq("is_read", false)
-                }
-            }
-            true
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val request = NotificationPatchDto(isRead = true)
+            val response = api.markNotificationsAsRead(token, request)
+            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false
