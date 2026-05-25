@@ -1,7 +1,9 @@
 package com.example.travel_backend.service;
 
+import com.example.travel_backend.dto.request.CreatePlaceReviewRequest;
 import com.example.travel_backend.dto.response.PlaceDetailResponse;
 import com.example.travel_backend.dto.response.PlaceResponse;
+import com.example.travel_backend.dto.response.PlaceReviewDto;
 import com.example.travel_backend.entity.PlacePhoto;
 import com.example.travel_backend.entity.PlaceTrending;
 
@@ -16,4 +18,6 @@ public interface PlaceService {
     List<PlaceTrending> getTrendingPlaces(int limit);
     List<PlacePhoto> getPlacePhotos(UUID id);
     Map<String, String> logPlaceAction(UUID id, String actionType, UUID userId);
+
+    PlaceReviewDto createReview(UUID placeId, UUID userId, CreatePlaceReviewRequest request);
 }

@@ -39,6 +39,11 @@ interface VietnamTravelApi {
         @Query("limit") limit: Int = 20
     ): List<Place>
 
+    @GET("api/places/recommended")
+    suspend fun getRecommendedPlaces(
+        @Query("limit") limit: Int = 10,
+    ): List<Place>
+
     @GET("api/places/trending")
     suspend fun getTrendingPlaces(
         @Query("province_code") provinceCode: String? = null,
@@ -46,9 +51,16 @@ interface VietnamTravelApi {
     ): List<TrendingPlace>
 
     @GET("api/places/{placeId}")
-    suspend fun getPlace(
-        @Path("placeId") placeId: String
-    ): Place
+    suspend fun getPlaceDetail(
+        @Path("placeId") placeId: String,
+    ): PlaceDetail
+
+    @POST("api/places/{placeId}/reviews")
+    suspend fun submitPlaceReview(
+        @Header("Authorization") token: String,
+        @Path("placeId") placeId: String,
+        @Body body: SubmitPlaceReviewRequest,
+    ): Response<Unit>
 
     // ---- Provinces ----
     @GET("api/provinces")
@@ -79,6 +91,15 @@ interface VietnamTravelApi {
     ): List<Place>
 
     // ---- Weather (Open-Meteo qua cache backend — mục 2.4) ----
+    @GET("api/weather/featured")
+    suspend fun getFeaturedWeather(): List<WeatherNearby>
+
+    @GET("api/weather/nearby")
+    suspend fun getWeatherNearby(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+    ): WeatherNearby
+
     @GET("api/weather/{placeId}")
     suspend fun getWeather(
         @Path("placeId") placeId: String

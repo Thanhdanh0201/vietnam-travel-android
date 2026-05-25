@@ -1,11 +1,16 @@
 package com.example.travel_backend.controller;
 
+import com.example.travel_backend.dto.request.CreatePlaceReviewRequest;
 import com.example.travel_backend.dto.response.PlaceDetailResponse;
 import com.example.travel_backend.dto.response.PlaceResponse;
+import com.example.travel_backend.dto.response.PlaceReviewDto;
 import com.example.travel_backend.entity.PlacePhoto;
 import com.example.travel_backend.entity.PlaceTrending;
 import com.example.travel_backend.service.PlaceService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,6 +44,13 @@ public class PlaceController {
         return ResponseEntity.ok(placeService.getPlaces(province_code, type, limit));
     }
 
+    /** Gợi ý trang chủ — top rating; path con của /api/places/** (permitAll). */
+    @GetMapping("/places/recommended")
+    public ResponseEntity<List<PlaceResponse>> getRecommendedPlaces(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(placeService.getPlaces(null, null, limit));
+    }
+
     @GetMapping("/places/trending")
     public ResponseEntity<List<PlaceTrending>> getTrendingPlaces(
             @RequestParam(defaultValue = "10") int limit) {
@@ -48,6 +60,16 @@ public class PlaceController {
     @GetMapping("/places/{id}")
     public ResponseEntity<PlaceDetailResponse> getPlaceDetail(@PathVariable UUID id) {
         return ResponseEntity.ok(placeService.getPlaceDetail(id));
+    }
+
+    @PostMapping("/places/{id}/reviews")
+    public ResponseEntity<PlaceReviewDto> createPlaceReview(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody CreatePlaceReviewRequest request) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(placeService.createReview(id, userId, request));
     }
 
     @GetMapping("/places/{id}/photos")

@@ -1,43 +1,33 @@
 package com.example.vietnam_travel_itinerary_android.ui.home
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Event
 import com.example.vietnam_travel_itinerary_android.data.model.Place
-import com.example.vietnam_travel_itinerary_android.location.fetchBestLocation
-import com.example.vietnam_travel_itinerary_android.location.reverseGeocodeLocality
 import com.example.vietnam_travel_itinerary_android.ui.components.*
 import com.example.vietnam_travel_itinerary_android.ui.components.introduction.FestivalIntroductionOverlay
 import com.example.vietnam_travel_itinerary_android.ui.components.introduction.PlaceIntroductionOverlay
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
-import com.google.android.gms.location.LocationServices
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,66 +36,6 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val fused = remember {
-        LocationServices.getFusedLocationProviderClient(context.applicationContext)
-    }
-    var gpsWeatherPassDone by remember { mutableStateOf(false) }
-
-    fun hasLocationPermission(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
-            PackageManager.PERMISSION_GRANTED
-        return fine || coarse
-    }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        gpsWeatherPassDone = true
-        val ok = grants[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-            grants[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (ok) {
-            scope.launch {
-                val loc = fused.fetchBestLocation() ?: return@launch
-                val label = reverseGeocodeLocality(context, loc.latitude, loc.longitude)
-                viewModel.applyGpsWeather(loc.latitude, loc.longitude, label)
-            }
-        }
-    }
-
-    val firstRealPlaceId = uiState.recommendedPlaces.firstOrNull { !it.id.startsWith("placeholder") }?.id
-    LaunchedEffect(uiState.isUsingPlaceholder, firstRealPlaceId) {
-        if (uiState.isUsingPlaceholder) {
-            gpsWeatherPassDone = false
-            return@LaunchedEffect
-        }
-        if (gpsWeatherPassDone) return@LaunchedEffect
-        if (firstRealPlaceId == null) return@LaunchedEffect
-
-        if (hasLocationPermission()) {
-            scope.launch {
-                try {
-                    val loc = fused.fetchBestLocation()
-                    if (loc != null) {
-                        val label = reverseGeocodeLocality(context, loc.latitude, loc.longitude)
-                        viewModel.applyGpsWeather(loc.latitude, loc.longitude, label)
-                    }
-                } finally {
-                    gpsWeatherPassDone = true
-                }
-            }
-        } else {
-            permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-        }
-    }
 
     var selectedPlace by remember { mutableStateOf<Place?>(null) }
     var selectedEvent by remember { mutableStateOf<Event?>(null) }
@@ -126,11 +56,16 @@ fun HomeScreen(
                 HomeContent(
                     uiState = uiState,
                     paddingValues = paddingValues,
+                    isRefreshing = uiState.isRefreshing,
+                    onRefresh = { viewModel.refresh() },
+                    onRetryPlaces = { viewModel.loadHomeData() },
                     onPlaceClick = { selectedPlace = it },
                     onEventClick = { selectedEvent = it },
                     onSearchClick = { onNavigate("search") },
                     onNotificationClick = { onNavigate("notifications") },
-                    onSeeAllPlaces = { onNavigate("places") }
+                    onSeeAllPlaces = { onNavigate("places") },
+                    onFavoriteWeatherCityChange = viewModel::setFavoriteWeatherCity,
+                    onExploreClick = { onNavigate("explore") },
                 )
             }
         }
@@ -157,22 +92,33 @@ fun HomeScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeContent(
     uiState: HomeViewModel.HomeUiState,
     paddingValues: PaddingValues,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
+    onRetryPlaces: () -> Unit,
     onPlaceClick: (Place) -> Unit,
     onEventClick: (Event) -> Unit,
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
-    onSeeAllPlaces: () -> Unit
+    onSeeAllPlaces: () -> Unit,
+    onFavoriteWeatherCityChange: (String) -> Unit,
+    onExploreClick: () -> Unit,
 ) {
-    LazyColumn(
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         modifier = Modifier
             .fillMaxSize()
             .padding(bottom = paddingValues.calculateBottomPadding()),
-        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
         // ===== HEADER =====
         item {
             AppTopBar(
@@ -181,20 +127,21 @@ private fun HomeContent(
             )
         }
 
-        // ===== WEATHER WIDGET =====
+        // ===== WEATHER WIDGET (vuốt ngang) =====
         item {
-            WeatherWidget(
-                weather = uiState.weather,
-                locationName = uiState.currentLocationName.ifBlank { "Đang cập nhật" },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            WeatherWidgetCarousel(
+                slides = uiState.weatherSlides,
+                favoriteCityId = uiState.favoriteWeatherCityId,
+                favoriteScrollTick = uiState.favoriteWeatherScrollTick,
+                onFavoriteCityChange = onFavoriteWeatherCityChange,
+                modifier = Modifier.padding(vertical = 6.dp),
             )
         }
 
-        // ===== FEATURED BANNER =====
+        // ===== FEATURED BANNER (auto vuốt ngang) =====
         item {
             FeaturedBanner(
-                modifier = Modifier.padding(16.dp),
-                onExploreClick = { /* Navigate to featured */ }
+                onExploreClick = { onExploreClick() },
             )
         }
 
@@ -209,13 +156,16 @@ private fun HomeContent(
         }
 
         item {
-            if (uiState.recommendedPlaces.isNotEmpty()) {
-                PlacesRow(
+            when {
+                !uiState.placesFetched -> PlacesRowLoading()
+                uiState.recommendedPlaces.isNotEmpty() -> PlacesRow(
                     places = uiState.recommendedPlaces,
-                    onPlaceClick = onPlaceClick
+                    onPlaceClick = onPlaceClick,
                 )
-            } else {
-                PlacesRowPlaceholder(onPlaceClick = onPlaceClick)
+                else -> PlacesRowError(
+                    failed = uiState.placesLoadFailed,
+                    onRetry = onRetryPlaces,
+                )
             }
         }
 
@@ -225,8 +175,10 @@ private fun HomeContent(
             FestivalsSection(
                 events = uiState.activeEvents,
                 eventsFetched = uiState.eventsFetched,
-                onEventClick = onEventClick
+                eventsLoadFailed = uiState.eventsLoadFailed,
+                onEventClick = onEventClick,
             )
+        }
         }
     }
 }
@@ -251,32 +203,55 @@ private fun PlacesRow(
 }
 
 @Composable
-private fun PlacesRowPlaceholder(onPlaceClick: (Place) -> Unit) {
-    // Show placeholder cards when data is not yet loaded
+private fun PlacesRowLoading() {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         items(3) {
-            PlaceCard(
-                place = Place(
-                    id = "placeholder_$it",
-                    name = when (it) {
-                        0 -> "Vịnh Hạ Long"
-                        1 -> "Phố cổ Hội An"
-                        else -> "Sapa"
-                    },
-                    imageUrl = null,
-                    provinces = com.example.vietnam_travel_itinerary_android.data.model.ProvinceSummary(
-                        name = when (it) {
-                            0 -> "Quảng Ninh"
-                            1 -> "Quảng Nam"
-                            else -> "Lào Cai"
-                        }
-                    )
-                ),
-                onPlaceClick = onPlaceClick,
-            )
+            Box(
+                modifier = Modifier
+                    .width(180.dp)
+                    .height(280.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    color = VNRed,
+                    strokeWidth = 2.dp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlacesRowError(
+    failed: Boolean,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = if (failed) {
+                "Chưa tải được gợi ý từ máy chủ."
+            } else {
+                "Chưa có địa điểm gợi ý."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (failed) {
+            TextButton(onClick = onRetry) {
+                Text("Thử lại", color = VNRed)
+            }
         }
     }
 }
@@ -285,7 +260,8 @@ private fun PlacesRowPlaceholder(onPlaceClick: (Place) -> Unit) {
 private fun FestivalsSection(
     events: List<Event>,
     eventsFetched: Boolean,
-    onEventClick: (Event) -> Unit
+    eventsLoadFailed: Boolean,
+    onEventClick: (Event) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -322,10 +298,14 @@ private fun FestivalsSection(
                 }
                 eventsFetched && events.isEmpty() -> {
                     Text(
-                        text = "Chưa có lễ hội trong 3 tháng tới hoặc chưa tải được dữ liệu từ máy chủ.",
+                        text = if (eventsLoadFailed) {
+                            "Chưa tải được lễ hội từ máy chủ. Kéo xuống từ đầu trang để thử lại."
+                        } else {
+                            "Chưa có lễ hội trong 3 tháng tới."
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     )
                 }
                 else -> {

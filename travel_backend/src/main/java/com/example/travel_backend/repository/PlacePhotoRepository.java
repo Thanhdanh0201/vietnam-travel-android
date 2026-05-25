@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface PlacePhotoRepository extends JpaRepository<PlacePhoto, UUID> {
     List<PlacePhoto> findByPlace_Id(UUID placeId);
+
+    List<PlacePhoto> findByPlace_IdAndUser_IdOrderByUploadedAtDesc(UUID placeId, UUID userId);
 }

@@ -49,5 +49,7 @@ public class Event {
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
+    @Column(name = "image_url", length = Integer.MAX_VALUE)
+    private String imageUrl;
 
 }
