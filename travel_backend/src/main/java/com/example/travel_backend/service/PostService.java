@@ -11,6 +11,7 @@ public interface PostService {
     public List<PostResponseDto> getPublicFeed(int limit, int offset);
     public List<PostResponseDto> getFollowingFeed(UUID currentUserId, int limit, int offset);
     public PostResponseDto createPost(UUID userId, CreatePostRequestDto request);
+    PostResponseDto getPostById(UUID postId);
     void deletePost(UUID userId, UUID postId);
 
 }
