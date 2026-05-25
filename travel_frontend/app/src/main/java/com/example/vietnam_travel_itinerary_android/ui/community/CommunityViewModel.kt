@@ -2,13 +2,13 @@ package com.example.vietnam_travel_itinerary_android.ui.community
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.vietnam_travel_itinerary_android.data.dto.UserDto
+import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
+import com.example.vietnam_travel_itinerary_android.data.dto.*
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import com.example.vietnam_travel_itinerary_android.data.repository.CommunityRepository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
-import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.RealtimeChannel
@@ -53,10 +53,27 @@ class CommunityViewModel(
     private var notificationChannel: RealtimeChannel? = null
 
     init {
-        loadUserProfile()
-        loadFeed()
-        subscribeToRealtimeFeed()
-        subscribeToRealtimeNotifications()
+        viewModelScope.launch {
+            supabase.auth.sessionStatus.collect { status ->
+                when (status) {
+                    is SessionStatus.Authenticated -> {
+                        loadUserProfile()
+                        loadFeed()
+                        subscribeToRealtimeFeed()
+                        subscribeToRealtimeNotifications()
+                    }
+                    is SessionStatus.NotAuthenticated -> {
+                        loadUserProfile()
+                        loadFeed()
+                        subscribeToRealtimeFeed()
+                        unsubscribeFromRealtimeNotifications()
+                    }
+                    else -> {
+                        // Initializing... wait until state is resolved
+                    }
+                }
+            }
+        }
     }
 
     private fun getAvatarColor(name: String): Long {
@@ -83,23 +100,67 @@ class CommunityViewModel(
         return (first + last).uppercase()
     }
 
+    private fun getDisplayNameFromSupabase(): String {
+        val user = supabase.auth.currentUserOrNull() ?: return "Traveler"
+        val metadata = user.userMetadata
+        if (metadata != null) {
+            val nameJson = metadata["name"] ?: metadata["full_name"] ?: metadata["username"]
+            if (nameJson != null) {
+                val name = nameJson.jsonPrimitive.content
+                if (name.isNotBlank()) return name
+            }
+        }
+        val email = user.email
+        if (!email.isNullOrBlank()) {
+            return email.substringBefore("@")
+        }
+        return "Traveler"
+    }
+
     fun loadUserProfile() {
         viewModelScope.launch {
             try {
                 val userId = supabase.auth.currentUserOrNull()?.id
-                if (userId != null) {
-                    val userDto = supabase.postgrest["users"].select {
-                        filter {
-                            eq("id", userId)
+                val token = supabase.auth.currentAccessTokenOrNull()
+                if (userId != null && token != null) {
+                    var profileDto: UserProfileResponseDto? = null
+                    try {
+                        profileDto = RetrofitInstance.api.getProfile(userId, "Bearer $token")
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        // User not found in Spring Boot backend, try to sync user first!
+                        val user = supabase.auth.currentUserOrNull()
+                        if (user != null) {
+                            val syncRequest = UserSyncRequest(
+                                id = user.id,
+                                email = user.email ?: "",
+                                name = getDisplayNameFromSupabase()
+                            )
+                            val syncResponse = RetrofitInstance.api.syncUser("Bearer $token", syncRequest)
+                            if (syncResponse.isSuccessful) {
+                                // Try fetching profile again after sync
+                                profileDto = RetrofitInstance.api.getProfile(userId, "Bearer $token")
+                            }
                         }
-                    }.decodeSingleOrNull<UserDto>()
-                    if (userDto != null) {
+                    }
+
+                    if (profileDto != null) {
                         _currentUserProfile.value = UserProfile(
-                            id = userDto.id,
-                            name = userDto.name,
-                            avatarUrl = userDto.avatar_url ?: "",
-                            avatarInitials = getInitials(userDto.name),
-                            avatarColor = getAvatarColor(userDto.name)
+                            id = profileDto.id.toString(),
+                            name = profileDto.name ?: "",
+                            avatarUrl = profileDto.avatarUrl ?: "",
+                            avatarInitials = getInitials(profileDto.name ?: ""),
+                            avatarColor = getAvatarColor(profileDto.name ?: ""),
+                            explorerLevel = ExplorerLevel.from(profileDto.explorerLevel ?: "newbie"),
+                            isVerified = profileDto.isVerified ?: false
+                        )
+                    } else {
+                        // Fallback default user profile for testing
+                        _currentUserProfile.value = UserProfile(
+                            id = currentUserId,
+                            name = "Bạn",
+                            avatarInitials = "BN",
+                            avatarColor = 0xFFC6102E
                         )
                     }
                 } else {
@@ -366,6 +427,7 @@ class CommunityViewModel(
 
     // --- Realtime Subscriptions ---
     private fun subscribeToRealtimeFeed() {
+        unsubscribeFromRealtimeFeed()
         viewModelScope.launch {
             try {
                 feedChannel = supabase.channel("feed-channel")
@@ -462,6 +524,7 @@ class CommunityViewModel(
     }
 
     private fun subscribeToRealtimeNotifications() {
+        unsubscribeFromRealtimeNotifications()
         viewModelScope.launch {
             try {
                 notificationChannel = supabase.channel("notification-channel")
@@ -478,17 +541,43 @@ class CommunityViewModel(
                 notificationChannel!!.subscribe()
                 
                 // Fetch initial count of unread notifications
-                val initialUnread = supabase.postgrest["notifications"].select(Columns.raw("id")) {
-                    filter {
-                        eq("user_id", currentUserId)
-                        eq("is_read", false)
-                    }
-                }.decodeList<UserSyncRequest>().size // Count rows
+                val notifs = repository.getNotifications(currentUserId)
+                val initialUnread = notifs.count { !it.is_read }
                 _unreadNotificationsCount.value = initialUnread
             } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+
+    fun unsubscribeFromRealtimeFeed() {
+        feedChannel?.let {
+            viewModelScope.launch {
+                try {
+                    it.unsubscribe()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        feedChannel = null
+    }
+
+    fun unsubscribeFromRealtimeNotifications() {
+        notificationChannel?.let {
+            viewModelScope.launch {
+                try {
+                    it.unsubscribe()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        notificationChannel = null
     }
 
     override fun onCleared() {
