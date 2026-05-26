@@ -8,6 +8,9 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.Duration
@@ -322,17 +325,21 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         try {
             val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
             val topLevelDtos = api.getComments(postId = postId, limit = 100)
-            val allReplies = mutableListOf<CommentResponseBackendDto>()
-
-            for (topComment in topLevelDtos) {
-                if ((topComment.replyCount ?: 0) > 0) {
-                    try {
-                        val replies = api.getComments(parentCommentId = topComment.id)
-                        allReplies.addAll(replies)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
+            
+            // Parallelize fetching replies for all top-level comments that have them
+            val allReplies = coroutineScope {
+                topLevelDtos
+                    .filter { (it.replyCount ?: 0) > 0 }
+                    .map { topComment ->
+                        async {
+                            try {
+                                api.getComments(parentCommentId = topComment.id)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                emptyList<CommentResponseBackendDto>()
+                            }
+                        }
+                    }.awaitAll().flatten()
             }
 
             val allCommentIds = (topLevelDtos.map { it.id } + allReplies.map { it.id })

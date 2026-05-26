@@ -1,6 +1,9 @@
 package com.example.vietnam_travel_itinerary_android.data.model
 
+import androidx.compose.runtime.Immutable
+
 // ── Tương ứng bảng: post_media
+@Immutable
 data class PostMedia(
     val id: String,
     val mediaUrl: String,           // URL thực hoặc key placeholder
@@ -10,6 +13,7 @@ data class PostMedia(
 
 // ── Tương ứng bảng: posts (post_type = 'repost' | 'quote')
 // Bài viết gốc được embed khi repost / quote
+@Immutable
 data class EmbeddedPost(
     val originalPostId: String,
     val originalAuthorName: String,
@@ -22,6 +26,7 @@ data class EmbeddedPost(
 
 // ── Tương ứng bảng: posts
 // post_type: "original" | "repost" | "quote"
+@Immutable
 data class CommunityPost(
     val id: String,
     val userId: String = "",
@@ -44,6 +49,7 @@ data class CommunityPost(
 // ── Tương ứng bảng: itineraries (fields dùng cho hiển thị)
 // - Compact mode: nhúng trong bài viết (PostCard → LinkedItineraryCard)
 // - Full mode: hiển thị trong Profile tab "Lịch trình" & ItineraryScreen
+@Immutable
 data class LinkedItinerary(
     val id: String,
     val title: String,

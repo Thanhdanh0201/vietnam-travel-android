@@ -175,8 +175,8 @@ fun CommunityScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    item { ScreenHeader(title = "Cộng Đồng") }
-                    item {
+                    item(contentType = "header") { ScreenHeader(title = "Cộng Đồng") }
+                    item(contentType = "create_post") {
                         CreatePostWidget(
                             avatarInitials = currentUserProfile?.avatarInitials ?: "BN",
                             avatarColor = currentUserProfile?.avatarColor ?: 0xFFC6102E,
@@ -190,8 +190,12 @@ fun CommunityScreen(
                             }
                         )
                     }
-                    item { ScreenHeader(title = "Bảng tin cộng đồng") }
-                    items(posts, key = { it.id }) { post ->
+                    item(contentType = "header") { ScreenHeader(title = "Bảng tin cộng đồng") }
+                    items(
+                        items = posts,
+                        key = { it.id },
+                        contentType = { "post" }
+                    ) { post ->
                         PostCard(
                             post = post,
                             onLikeClick = {
