@@ -2,6 +2,7 @@ package com.example.vietnam_travel_itinerary_android.data.repository
 
 import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.UpdateItineraryRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -21,26 +22,17 @@ class ItineraryRepository {
                 Result.failure(e)
             }
         }
-
-    suspend fun createItinerary(itinerary: Itinerary): Result<Itinerary> =
+    suspend fun updateItinerary(
+        id: String,
+        request: UpdateItineraryRequest
+    ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                api.createItinerary(itinerary)
-
-                Result.success(itinerary)
-            } catch (e: Exception) {
-                Result.failure(e)
-            }
-        }
-
-    suspend fun deleteItinerary(id: String): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            try {
-                api.deleteItinerary(id)
-
+                api.updateItinerary(id, request)
                 Result.success(Unit)
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+
 }

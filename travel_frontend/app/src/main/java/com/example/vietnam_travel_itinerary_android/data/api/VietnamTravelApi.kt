@@ -16,6 +16,7 @@ import com.example.vietnam_travel_itinerary_android.data.model.UserSettingRespon
 import com.example.vietnam_travel_itinerary_android.data.model.UserSyncRequest
 import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
 import com.example.vietnam_travel_itinerary_android.data.model.WeatherNearby
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.UpdateItineraryRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -262,14 +263,10 @@ interface VietnamTravelApi {
     @GET("api/itineraries")
     suspend fun getItineraries(): List<Itinerary>
 
-    @POST("api/itineraries")
-    suspend fun createItinerary(
-        @Body itinerary: Itinerary
-    ): Response<Unit>
-
-    @DELETE("api/itineraries/{id}")
-    suspend fun deleteItinerary(
-        @Path("id") id: String
+    @PATCH("api/itineraries")
+    suspend fun updateItinerary(
+        @Query("id") id: String,
+        @Body request: UpdateItineraryRequest
     ): Response<Unit>
 }
 

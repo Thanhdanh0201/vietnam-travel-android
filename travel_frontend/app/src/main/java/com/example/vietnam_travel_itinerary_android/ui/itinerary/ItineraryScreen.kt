@@ -142,7 +142,12 @@ fun ItineraryScreen(
                     ItineraryCard(
                         itinerary = itinerary,
                         onClick = onEditClick,
-                        onDelete = { viewModel.deleteItinerary(itinerary) }
+                        // Old API version:
+// onDelete = { viewModel.deleteItinerary(itinerary) }
+
+                        onDelete = {
+                            viewModel.deleteLocalItinerary(itinerary.id)
+                        }
                     )
                 }
             }
@@ -167,7 +172,10 @@ fun ItineraryScreen(
                             statusSubText = null,
                             participantImages = emptyList()
                         )
-                        viewModel.createItinerary(newItinerary)
+                        // Old API version:
+// viewModel.createItinerary(newItinerary)
+
+                        viewModel.addLocalItinerary(newItinerary)
                         title = ""
                         location = ""
                         showDialog = false

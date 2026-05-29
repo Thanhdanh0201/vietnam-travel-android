@@ -96,7 +96,7 @@ class ItineraryViewModel(
                 TimelineItemData("09:00 AM", "Hang Sửng Sốt", "Hạ Long, Quảng Ninh", "Thám hiểm", "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b"),
                 TimelineItemData("03:00 PM", "Bãi Cháy", "Hạ Long, Quảng Ninh", "Vui chơi", "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b")
             ),
-            
+
             // Hội An - Ngày 12
             "2-12" to listOf(
                 TimelineItemData("08:00 AM", "Phố cổ Hội An", "Hội An, Quảng Nam", "Tham quan", "https://images.unsplash.com/photo-1555921015-5532091f6026"),
@@ -106,7 +106,7 @@ class ItineraryViewModel(
             "2-13" to listOf(
                 TimelineItemData("09:00 AM", "Thánh địa Mỹ Sơn", "Duy Xuyên, Quảng Nam", "Di sản", "https://images.unsplash.com/photo-1555921015-5532091f6026")
             ),
-            
+
             // Sapa - Ngày 12
             "3-12" to listOf(
                 TimelineItemData("09:00 AM", "Bản Cát Cát", "Sa Pa, Lào Cai", "Dã ngoại", "https://images.unsplash.com/photo-1583417657208-cb86acb8b209"),
@@ -210,11 +210,11 @@ class ItineraryViewModel(
                 tag = tag.ifBlank { place.type ?: "Địa điểm" },
                 imageUrl = place.imageUrl ?: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b"
             )
-            
+
             val updatedTimeline = (currentTimeline + newItem).sortedBy { it.time }
             val newMap = state.timelineMap.toMutableMap()
             newMap[key] = updatedTimeline
-            
+
             state.copy(timelineMap = newMap)
         }
     }
@@ -235,11 +235,11 @@ class ItineraryViewModel(
         _uiState.update { state ->
             val currentList = state.participantsMap[itineraryId] ?: emptyList()
             if (currentList.any { it.email.equals(email, ignoreCase = true) }) return
-            
+
             val colors = listOf(0xFF10B981, 0xFF3B82F6, 0xFFF59E0B, 0xFFEF4444, 0xFF8B5CF6, 0xFFEC4899)
             val randomColor = colors.random()
             val initials = name.trim().take(1).uppercase()
-            
+
             val newParticipant = Participant(
                 name = name.ifBlank { "Thành viên" },
                 email = email.ifBlank { "member@gmail.com" },
@@ -247,7 +247,7 @@ class ItineraryViewModel(
                 avatarColor = randomColor,
                 role = role
             )
-            
+
             val newMap = state.participantsMap.toMutableMap()
             newMap[itineraryId] = currentList + newParticipant
             state.copy(participantsMap = newMap)
@@ -320,36 +320,51 @@ class ItineraryViewModel(
         }
         return fallbackList
     }
-    fun createItinerary(itinerary: Itinerary) {
+    fun updateItinerary(
+        itineraryId: String,
+        title: String,
+        description: String,
+        isPublic: Boolean
+    ) {
         viewModelScope.launch {
-            itineraryRepo.createItinerary(itinerary)
+
+            val request = UpdateItineraryRequest(
+                title = title,
+                description = description,
+                is_public = isPublic
+            )
+
+            itineraryRepo.updateItinerary(itineraryId, request)
                 .onSuccess {
                     fetchItineraries()
                 }
                 .onFailure {
-                    _uiState.update { state ->
-                        state.copy(
-                            itineraries = state.itineraries + itinerary
-                        )
-                    }
+                    println(it.message)
                 }
         }
     }
-    fun deleteItinerary(itinerary: Itinerary) {
-        viewModelScope.launch {
-            itineraryRepo.deleteItinerary(itinerary.id)
-                .onSuccess {
-                    fetchItineraries()
+
+    // local-only create for demo/fallback
+    fun addLocalItinerary(itinerary: Itinerary) {
+
+        _uiState.update { state ->
+
+            state.copy(
+                itineraries = state.itineraries + itinerary
+            )
+        }
+    }
+
+    // local-only delete for demo/fallback
+    fun deleteLocalItinerary(itineraryId: String) {
+
+        _uiState.update { state ->
+
+            state.copy(
+                itineraries = state.itineraries.filterNot {
+                    it.id == itineraryId
                 }
-                .onFailure {
-                    _uiState.update { state ->
-                        state.copy(
-                            itineraries = state.itineraries.filterNot {
-                                it.id == itinerary.id
-                            }
-                        )
-                    }
-                }
+            )
         }
     }
 }
