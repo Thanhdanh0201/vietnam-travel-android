@@ -1,5 +1,7 @@
 package com.example.vietnam_travel_itinerary_android.ui.community
 
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -122,6 +124,16 @@ fun CommunityScreen(
     val posts by viewModel.posts.collectAsState()
     val currentUserProfile by viewModel.currentUserProfile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val errorMsg by viewModel.error.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(errorMsg) {
+        errorMsg?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
+    }
+
     // null = feed, non-null = PostDetailScreen
     var openedPost by remember { mutableStateOf<CommunityPost?>(null) }
 
@@ -163,8 +175,8 @@ fun CommunityScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    item { ScreenHeader(title = "Cộng Đồng") }
-                    item {
+                    item(contentType = "header") { ScreenHeader(title = "Cộng Đồng") }
+                    item(contentType = "create_post") {
                         CreatePostWidget(
                             avatarInitials = currentUserProfile?.avatarInitials ?: "BN",
                             avatarColor = currentUserProfile?.avatarColor ?: 0xFFC6102E,
@@ -178,8 +190,12 @@ fun CommunityScreen(
                             }
                         )
                     }
-                    item { ScreenHeader(title = "Bảng tin cộng đồng") }
-                    items(posts, key = { it.id }) { post ->
+                    item(contentType = "header") { ScreenHeader(title = "Bảng tin cộng đồng") }
+                    items(
+                        items = posts,
+                        key = { it.id },
+                        contentType = { "post" }
+                    ) { post ->
                         PostCard(
                             post = post,
                             onLikeClick = {

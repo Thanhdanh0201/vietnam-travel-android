@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.example.vietnam_travel_itinerary_android.ui.navigation.MainScreen
+import com.example.vietnam_travel_itinerary_android.ui.navigation.AppNavigation
 import com.example.vietnam_travel_itinerary_android.ui.theme.VietnamTravelTheme
 
 class MainActivity : ComponentActivity() {
@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VietnamTravelTheme {
-                MainScreen()
+                AppNavigation()
             }
         }
     }

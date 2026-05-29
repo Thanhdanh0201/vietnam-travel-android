@@ -1,6 +1,9 @@
 package com.example.vietnam_travel_itinerary_android.data.model
 
+import androidx.compose.runtime.Immutable
+
 // ── Tương ứng bảng: comment_reactions
+@Immutable
 data class CommentReaction(
     val userId: String,
     val reactionType: String = "like" // "like" | "love" | "haha"
@@ -8,6 +11,7 @@ data class CommentReaction(
 
 // ── Tương ứng bảng: comments
 // Hỗ trợ nested: parentCommentId != null => đây là reply
+@Immutable
 data class Comment(
     val id: String,
     val postId: String,

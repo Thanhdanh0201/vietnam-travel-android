@@ -102,5 +102,5 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     // Bắt buộc phải có Ktor Client để Supabase chạy được mạng
-    implementation("io.ktor:ktor-client-android:3.0.1")
+    implementation("io.ktor:ktor-client-okhttp:3.0.1")
 }
