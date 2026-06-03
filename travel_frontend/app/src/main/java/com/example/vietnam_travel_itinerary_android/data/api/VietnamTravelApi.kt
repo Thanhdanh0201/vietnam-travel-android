@@ -3,6 +3,20 @@ package com.example.vietnam_travel_itinerary_android.data.api
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import com.example.vietnam_travel_itinerary_android.data.dto.*
 import okhttp3.ResponseBody
+import com.example.vietnam_travel_itinerary_android.data.model.Event
+import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.data.model.PlaceDetail
+import com.example.vietnam_travel_itinerary_android.data.model.PlaceReview
+import com.example.vietnam_travel_itinerary_android.data.model.Province
+import com.example.vietnam_travel_itinerary_android.data.model.SubmitPlaceReviewRequest
+import com.example.vietnam_travel_itinerary_android.data.model.TrendingPlace
+import com.example.vietnam_travel_itinerary_android.data.model.UserSettingRequest
+import com.example.vietnam_travel_itinerary_android.data.model.UserSettingResponseDto
+import com.example.vietnam_travel_itinerary_android.data.model.UserSyncRequest
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
+import com.example.vietnam_travel_itinerary_android.data.model.WeatherNearby
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.UpdateItineraryRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -243,5 +257,16 @@ interface VietnamTravelApi {
         @Header("Authorization") token: String,
         @Body request: ReportRequest
     ): Response<ResponseBody>
+
+    // ---- Itineraries ----
+
+    @GET("api/itineraries")
+    suspend fun getItineraries(): List<Itinerary>
+
+    @PATCH("api/itineraries")
+    suspend fun updateItinerary(
+        @Query("id") id: String,
+        @Body request: UpdateItineraryRequest
+    ): Response<Unit>
 }
 

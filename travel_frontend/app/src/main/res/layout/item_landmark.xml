@@ -1,0 +1,37 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="140dp"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/rounded_white_redborder_bg"
+    android:padding="8dp"
+    android:layout_marginEnd="8dp">
+
+    <ImageView
+        android:id="@+id/landmark_image"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:scaleType="centerCrop"
+        android:padding="8dp"
+        android:src="@drawable/ic_launcher_background"/>
+
+    <LinearLayout
+        android:layout_width="60dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/landmark_sub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Địa danh"
+            android:textSize="12sp" />
+        <TextView
+            android:id="@+id/landmark_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Hang Sửng Sốt"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

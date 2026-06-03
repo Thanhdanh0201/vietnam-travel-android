@@ -2,11 +2,13 @@ package com.example.vietnam_travel_itinerary_android.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -24,7 +26,12 @@ import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import androidx.compose.foundation.clickable
 
 @Composable
-fun ItineraryCard(itinerary: Itinerary, onClick: (String) -> Unit = {}) {
+fun ItineraryCard(
+    itinerary: Itinerary,
+    onClick: (String) -> Unit = {},
+    onDelete: () -> Unit
+) {
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -43,6 +50,16 @@ fun ItineraryCard(itinerary: Itinerary, onClick: (String) -> Unit = {}) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+                IconButton(
+                    onClick = { onDelete() },
+                    modifier = Modifier.align(Alignment.TopStart)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.White
+                    )
+                }
 
                 // Tag trạng thái (Sắp diễn ra, Đã kết thúc...)
                 Box(
