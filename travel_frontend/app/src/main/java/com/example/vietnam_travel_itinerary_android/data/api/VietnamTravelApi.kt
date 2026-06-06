@@ -304,5 +304,29 @@ interface VietnamTravelApi {
         @Path("id") id: String,
         @Path("itemId") itemId: String
     ): Response<okhttp3.ResponseBody>
+
+    @GET("api/itineraries/{id}/collaborators")
+    suspend fun getCollaborators(
+        @Path("id") id: String
+    ): List<CollaboratorDto>
+
+    @POST("api/itineraries/{id}/collaborators")
+    suspend fun addCollaborator(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: CollaboratorDto
+    ): CollaboratorDto
+
+    @DELETE("api/itineraries/{id}/collaborators/{email}")
+    suspend fun removeCollaborator(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Path("email") email: String
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("api/provinces/{code}/cities")
+    suspend fun getCitiesByProvince(
+        @Path("code") code: String
+    ): List<CityDto>
 }
 

@@ -29,6 +29,9 @@ public class ItineraryServiceImpl {
     @Autowired
     private com.example.travel_backend.repository.ItineraryItemRepository itineraryItemRepository;
 
+    @Autowired
+    private com.example.travel_backend.repository.ItineraryCollaboratorRepository collaboratorRepository;
+
     public List<ItineraryResponseDto> getPublicItineraries(UUID userId, int limit, int offset) {
         System.out.println("Fetching public itineraries for user: " + userId);
 
@@ -39,12 +42,29 @@ public class ItineraryServiceImpl {
                 .collect(Collectors.toList());
     }
 
+    private boolean hasModifyPermission(Itinerary itinerary, UUID requesterId) {
+        if (itinerary.getUser().getId().equals(requesterId)) {
+            return true;
+        }
+        return userRepository.findById(requesterId)
+                .map(user -> {
+                    String email = user.getEmail();
+                    if (email == null || email.isBlank()) {
+                        return false;
+                    }
+                    return collaboratorRepository.findByItinerary_IdAndEmail(itinerary.getId(), email.trim())
+                            .map(c -> "EDIT".equalsIgnoreCase(c.getRole()))
+                            .orElse(false);
+                })
+                .orElse(false);
+    }
+
     public void updateItineraryStatus(UUID itineraryId, UUID requesterId, UpdateItineraryDto updates) {
         Itinerary itinerary = itineraryRepository.findById(itineraryId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
 
-        if (!itinerary.getUser().getId().equals(requesterId)) {
+        if (!hasModifyPermission(itinerary, requesterId)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to update this itinerary");
         }
@@ -94,6 +114,7 @@ public class ItineraryServiceImpl {
         return mapToDto(saved);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void deleteItinerary(UUID itineraryId, UUID requesterId) {
         Itinerary itinerary = itineraryRepository.findById(itineraryId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
@@ -104,11 +125,16 @@ public class ItineraryServiceImpl {
                     org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to delete this itinerary");
         }
 
+        itineraryItemRepository.deleteByItineraryId(itineraryId);
+        collaboratorRepository.deleteByItineraryId(itineraryId);
         itineraryRepository.delete(itinerary);
     }
 
     public List<ItineraryResponseDto> getMyItineraries(UUID userId) {
-        return itineraryRepository.findByUserIdOrderByCreatedAtDesc(userId)
+        String email = userRepository.findById(userId)
+                .map(com.example.travel_backend.entity.User::getEmail)
+                .orElse("");
+        return itineraryRepository.findMyAndCollaborativeItineraries(userId, email.trim())
                 .stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -126,7 +152,7 @@ public class ItineraryServiceImpl {
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
 
-        if (!itinerary.getUser().getId().equals(requesterId)) {
+        if (!hasModifyPermission(itinerary, requesterId)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to modify this itinerary");
         }
@@ -152,7 +178,7 @@ public class ItineraryServiceImpl {
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
 
-        if (!itinerary.getUser().getId().equals(requesterId)) {
+        if (!hasModifyPermission(itinerary, requesterId)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to modify this itinerary");
         }
@@ -186,6 +212,8 @@ public class ItineraryServiceImpl {
         dto.setDay(item.getDay());
         dto.setNote(item.getNote());
         dto.setOrderIndex(item.getOrderIndex());
+        dto.setWarningType(item.getWarningType());
+        dto.setWarningValue(item.getWarningValue());
         return dto;
     }
 
@@ -195,11 +223,13 @@ public class ItineraryServiceImpl {
         dto.setTitle(i.getTitle());
         dto.setLocation(i.getLocation());
         dto.setDescription(i.getDescription());
+        dto.setCoverUrl(i.getCoverUrl());
         dto.setStartDate(i.getStartDate());
         dto.setEndDate(i.getEndDate());
         dto.setShareCount(i.getShareCount());
         dto.setCreatedAt(i.getCreatedAt());
         dto.setItemCount(itineraryRepository.countItemsByItineraryId(i.getId()));
+        dto.setStatus(i.getStatus());
         return dto;
     }
 }

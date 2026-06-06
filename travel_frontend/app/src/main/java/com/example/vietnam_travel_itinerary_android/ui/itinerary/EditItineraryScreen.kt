@@ -37,6 +37,70 @@ import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
+
+
+fun parseItineraryDays(dateRange: String): List<Pair<String, String>> {
+    val defaultDays = listOf(
+        Pair("TH 2", "12"), Pair("TH 3", "13"), Pair("TH 4", "14"),
+        Pair("TH 5", "15"), Pair("TH 6", "16"), Pair("TH 7", "17")
+    )
+    if (dateRange == "Sắp xếp sau" || dateRange.isBlank()) return defaultDays
+    try {
+        val parts = dateRange.split("-")
+        if (parts.size != 2) return defaultDays
+        val startPart = parts[0].trim()
+        val endPart = parts[1].trim()
+        
+        val endSubParts = endPart.split("/")
+        if (endSubParts.size != 3) return defaultDays
+        val yearStr = endSubParts[2]
+        val endMonthStr = endSubParts[1]
+        val endDayStr = endSubParts[0]
+        
+        val startSubParts = startPart.split("/")
+        val startDayStr = startSubParts[0]
+        val startMonthStr = startSubParts[1]
+        
+        val year = yearStr.toIntOrNull() ?: return defaultDays
+        val startMonth = startMonthStr.toIntOrNull() ?: return defaultDays
+        val startDay = startDayStr.toIntOrNull() ?: return defaultDays
+        val endMonth = endMonthStr.toIntOrNull() ?: return defaultDays
+        val endDay = endDayStr.toIntOrNull() ?: return defaultDays
+        
+        val startDate = LocalDate.of(year, startMonth, startDay)
+        val endDate = LocalDate.of(year, endMonth, endDay)
+        
+        if (startDate.isAfter(endDate)) return defaultDays
+        
+        val daysList = mutableListOf<Pair<String, String>>()
+        var current = startDate
+        val vnLocale = Locale("vi", "VN")
+        
+        while (!current.isAfter(endDate)) {
+            val dayOfWeek = current.dayOfWeek.getDisplayName(TextStyle.SHORT, vnLocale)
+            val label = when (dayOfWeek.lowercase(vnLocale)) {
+                "thứ hai", "t2", "mon" -> "TH 2"
+                "thứ ba", "t3", "tue" -> "TH 3"
+                "thứ tư", "t4", "wed" -> "TH 4"
+                "thứ năm", "t5", "thu" -> "TH 5"
+                "thứ sáu", "t6", "fri" -> "TH 6"
+                "thứ bảy", "t7", "sat" -> "TH 7"
+                "chủ nhật", "cn", "sun" -> "CN"
+                else -> dayOfWeek.uppercase(vnLocale)
+            }
+            val dateStr = current.dayOfMonth.toString().padStart(2, '0')
+            daysList.add(Pair(label, dateStr))
+            current = current.plusDays(1)
+        }
+        return daysList
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return defaultDays
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,7 +110,45 @@ fun EditItineraryScreen(
     onBackClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedDay by remember { mutableStateOf("12") } // Mặc định ngày 12
+    
+    val days = remember(itinerary?.dateRange) {
+        parseItineraryDays(itinerary?.dateRange ?: "")
+    }
+    
+    var selectedDay by remember(days) {
+        mutableStateOf(days.firstOrNull()?.second ?: "12")
+    }
+
+    val monthYearText = remember(itinerary?.dateRange) {
+        if (itinerary?.dateRange == null || itinerary.dateRange == "Sắp xếp sau" || itinerary.dateRange.isBlank()) {
+            "Chọn thời gian"
+        } else {
+            try {
+                val parts = itinerary.dateRange.split("-")
+                val endPart = parts.getOrNull(1)?.trim() ?: ""
+                val endSubParts = endPart.split("/")
+                if (endSubParts.size == 3) {
+                    val year = endSubParts[2]
+                    val month = endSubParts[1].toIntOrNull() ?: 12
+                    "Tháng $month, $year"
+                } else {
+                    "Tháng 12, 2024"
+                }
+            } catch (e: Exception) {
+                "Tháng 12, 2024"
+            }
+        }
+    }
+
+    LaunchedEffect(itinerary?.id) {
+        itinerary?.let {
+            val parsed = it.location.split(",")
+            val province = if (parsed.size >= 2) parsed[1].trim() else it.location.trim()
+            viewModel.fetchPlacesForProvince(province)
+            viewModel.fetchCollaborators(it.id)
+        }
+    }
+
     val timelineItems = uiState.timelineMap["${itinerary?.id}-$selectedDay"] ?: emptyList()
     val participants = uiState.participantsMap[itinerary?.id] ?: emptyList()
     
@@ -113,7 +215,7 @@ fun EditItineraryScreen(
                                     .background(VNRed)
                             )
                             Text(
-                                text = "Tháng 12, 2024",
+                                text = monthYearText,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 18.sp,
                                 color = SlateGray900
@@ -123,11 +225,7 @@ fun EditItineraryScreen(
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
-                    
-                    val days = listOf(
-                        Pair("TH 2", "12"), Pair("TH 3", "13"), Pair("TH 4", "14"),
-                        Pair("TH 5", "15"), Pair("TH 6", "16"), Pair("TH 7", "17")
-                    )
+
                     
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -349,12 +447,41 @@ fun EditItineraryScreen(
     // Modal / Dialog Thêm địa điểm du lịch
     if (showAddDialog) {
         val parsed = itinerary?.location?.split(",") ?: emptyList()
-        val district = parsed.getOrNull(0)?.trim() ?: ""
-        val province = parsed.getOrNull(1)?.trim() ?: ""
+        val (district, province) = if (parsed.size >= 2) {
+            Pair(parsed[0].trim(), parsed[1].trim())
+        } else {
+            Pair("", itinerary?.location?.trim() ?: "")
+        }
 
         val filteredPlaces = uiState.allPlaces.filter { place ->
-            place.provinces?.name?.trim()?.contains(province, ignoreCase = true) == true &&
-            place.cities?.name?.trim()?.contains(district, ignoreCase = true) == true
+            val matchProvince = if (province.isNotBlank()) {
+                place.provinces?.name?.trim()?.contains(province, ignoreCase = true) == true ||
+                province.trim().contains(place.provinces?.name?.trim() ?: "___", ignoreCase = true)
+            } else false
+            
+            val matchDistrict = if (district.isNotBlank()) {
+                place.cities?.name?.trim()?.contains(district, ignoreCase = true) == true ||
+                district.trim().contains(place.cities?.name?.trim() ?: "___", ignoreCase = true)
+            } else false
+            
+            if (province.isNotBlank() && district.isNotBlank()) {
+                matchProvince && matchDistrict
+            } else if (province.isNotBlank()) {
+                matchProvince
+            } else if (district.isNotBlank()) {
+                matchDistrict
+            } else {
+                true
+            }
+        }.ifEmpty {
+            if (province.isNotBlank()) {
+                uiState.allPlaces.filter { place ->
+                    place.provinces?.name?.trim()?.contains(province, ignoreCase = true) == true ||
+                    province.trim().contains(place.provinces?.name?.trim() ?: "___", ignoreCase = true)
+                }
+            } else emptyList()
+        }.ifEmpty {
+            uiState.allPlaces
         }.ifEmpty {
             viewModel.getFallbackPlacesFor(province, district)
         }
@@ -709,7 +836,9 @@ data class TimelineItemData(
     val tag: String,
     val imageUrl: String,
     val id: String = "",
-    val day: String = ""
+    val day: String = "",
+    val warningType: String? = null,
+    val warningValue: Float? = null
 )
 
 @Composable

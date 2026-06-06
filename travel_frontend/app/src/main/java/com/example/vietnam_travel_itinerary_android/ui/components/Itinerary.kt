@@ -22,12 +22,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.Participant
+import coil3.compose.AsyncImage
 
 import androidx.compose.foundation.clickable
 
 @Composable
 fun ItineraryCard(
     itinerary: Itinerary,
+    participants: List<Participant> = emptyList(),
     onClick: (String) -> Unit = {},
     onDelete: () -> Unit
 ) {
@@ -44,12 +48,21 @@ fun ItineraryCard(
         Column {
             // Ảnh bìa & Tag trạng thái
             Box(modifier = Modifier.height(160.dp)) {
-                Image(
-                    painter = painterResource(id = itinerary.imageResId),
-                    contentDescription = itinerary.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (!itinerary.coverUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = itinerary.coverUrl,
+                        contentDescription = itinerary.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = itinerary.imageResId),
+                        contentDescription = itinerary.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
                 IconButton(
                     onClick = { onDelete() },
                     modifier = Modifier.align(Alignment.TopStart)
@@ -124,16 +137,24 @@ fun ItineraryCard(
                         Text(text = itinerary.dateRange, fontSize = 13.sp, color = Color.Gray)
                     }
 
-                    // Hiển thị Avatar những người tham gia (Giả lập)
-                    Row {
-                        itinerary.participantImages.forEach { avatarRes ->
-                            Image(
-                                painter = painterResource(id = avatarRes),
-                                contentDescription = "Avatar",
+                    // Hiển thị Avatar những người tham gia thực tế
+                    Row(
+                        modifier = Modifier.offset(x = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        participants.take(3).forEachIndexed { index, participant ->
+                            Box(
                                 modifier = Modifier
+                                    .offset(x = (-8 * index).dp)
                                     .size(24.dp)
                                     .clip(CircleShape)
-                            )
+                            ) {
+                                AuthorAvatar(
+                                    initials = participant.initials,
+                                    color = Color(participant.avatarColor),
+                                    size = 24
+                                )
+                            }
                         }
                     }
                 }

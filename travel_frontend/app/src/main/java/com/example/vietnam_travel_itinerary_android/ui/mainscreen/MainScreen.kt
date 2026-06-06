@@ -110,9 +110,12 @@ fun MainScreen(
 
             composable("create_itinerary") {
                 CreateItineraryScreen(
+                    viewModel = itineraryViewModel,
                     onBackClick = { bottomNavController.popBackStack() },
-                    onCreate = { newItinerary ->
-                        itineraryViewModel.addItinerary(newItinerary)
+                    onCreate = { newItineraryId ->
+                        bottomNavController.navigate("edit_itinerary/$newItineraryId") {
+                            popUpTo("create_itinerary") { inclusive = true }
+                        }
                     }
                 )
             }

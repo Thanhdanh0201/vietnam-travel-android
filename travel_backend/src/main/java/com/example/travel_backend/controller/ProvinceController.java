@@ -36,4 +36,9 @@ public class ProvinceController {
     public ResponseEntity<List<EventDto>> getEventsByProvinceCode(@PathVariable String code) {
         return ResponseEntity.ok(provinceService.getEventsByProvinceCode(code));
     }
+
+    @GetMapping("/{code}/cities")
+    public ResponseEntity<List<com.example.travel_backend.dto.response.CityDto>> getCitiesByProvinceCode(@PathVariable String code) {
+        return ResponseEntity.ok(provinceService.getCitiesByProvinceCode(code));
+    }
 }

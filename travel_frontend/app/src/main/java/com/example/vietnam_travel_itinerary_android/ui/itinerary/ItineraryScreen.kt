@@ -34,11 +34,6 @@ fun ItineraryScreen(
     onEditClick: (String) -> Unit = {},
 ) {
 
-    // State cho Dialog tạo mới
-    var showDialog by remember { mutableStateOf(false) }
-    var title by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
-
     // State cho việc lọc danh sách
     var filter by remember { mutableStateOf("all") }
     val uiState by viewModel.uiState.collectAsState()
@@ -139,12 +134,11 @@ fun ItineraryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredList) { itinerary ->
+                    val participants = uiState.participantsMap[itinerary.id] ?: emptyList()
                     ItineraryCard(
                         itinerary = itinerary,
+                        participants = participants,
                         onClick = onEditClick,
-                        // Old API version:
-// onDelete = { viewModel.deleteItinerary(itinerary) }
-
                         onDelete = {
                             viewModel.deleteItinerary(itinerary.id)
                         }
@@ -152,61 +146,5 @@ fun ItineraryScreen(
                 }
             }
         }
-    }
-
-    // Dialog tạo lịch trình
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val newItinerary = Itinerary(
-                            id = System.currentTimeMillis().toString(),
-                            title = title,
-                            location = location,
-                            dateRange = "Chưa xác định",
-                            isUpcoming = true,
-                            imageResId = R.drawable.ic_launcher_background,
-                            statusText = "Sắp diễn ra",
-                            statusSubText = null,
-                            participantImages = emptyList()
-                        )
-                        // Old API version:
-// viewModel.createItinerary(newItinerary)
-
-                        viewModel.addLocalItinerary(newItinerary)
-                        title = ""
-                        location = ""
-                        showDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = VNRed)
-                ) {
-                    Text("Lưu", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Hủy")
-                }
-            },
-            title = { Text("Tạo lịch trình mới") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Tên lịch trình") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = location,
-                        onValueChange = { location = it },
-                        label = { Text("Địa điểm") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-        )
     }
 }

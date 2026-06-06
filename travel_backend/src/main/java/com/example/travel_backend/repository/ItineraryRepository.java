@@ -20,4 +20,9 @@ public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
     Integer countItemsByItineraryId(@Param("itineraryId") UUID itineraryId);
 
     java.util.List<Itinerary> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
+    @Query("SELECT DISTINCT i FROM Itinerary i " +
+           "WHERE i.user.id = :userId OR i.id IN (SELECT c.itinerary.id FROM ItineraryCollaborator c WHERE c.email = :email AND :email <> '') " +
+           "ORDER BY i.createdAt DESC")
+    java.util.List<Itinerary> findMyAndCollaborativeItineraries(@Param("userId") UUID userId, @Param("email") String email);
 }

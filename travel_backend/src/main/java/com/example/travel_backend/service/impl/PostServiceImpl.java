@@ -42,6 +42,7 @@ public class PostServiceImpl implements PostService {
 
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getUserPosts(UUID userId, int limit, int offset) {
         System.out.println("Fetching posts for user: " + userId + " | limit: " + limit + ", offset: " + offset);
 
@@ -55,6 +56,7 @@ public class PostServiceImpl implements PostService {
 
     // --- 4.1 Lấy Community Feed ---
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getPublicFeed(int limit, int offset) {
         System.out.println("Fetching public feed | limit: " + limit + ", offset: " + offset);
         Pageable pageable = PageRequest.of(offset / limit, limit);
@@ -63,6 +65,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getFollowingFeed(UUID currentUserId, int limit, int offset) {
         System.out.println("Fetching following feed for user: " + currentUserId);
         Pageable pageable = PageRequest.of(offset / limit, limit);
@@ -131,6 +134,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public PostResponseDto getPostById(UUID postId) {
         System.out.println("Fetching post by ID: " + postId);
         Post post = postRepository.findById(postId)

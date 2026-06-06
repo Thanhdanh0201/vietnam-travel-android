@@ -1,18 +1,34 @@
 package com.example.vietnam_travel_itinerary_android.data.repository
 
 import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
+import com.example.vietnam_travel_itinerary_android.data.dto.CollaboratorDto
 import com.example.vietnam_travel_itinerary_android.data.dto.*
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.TimelineItemData
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.UpdateItineraryRequest
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ItineraryRepository(private val supabase: SupabaseClient) {
 
     private val api = RetrofitInstance.api
+
+    suspend fun uploadCover(byteArray: ByteArray, fileName: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                val bucket = supabase.storage["itinerary-covers"]
+                val path = "${System.currentTimeMillis()}_$fileName"
+                bucket.upload(path, byteArray) {
+                    upsert = true
+                }
+                Result.success(bucket.publicUrl(path))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     private fun getAuthToken(): String {
         val token = supabase.auth.currentAccessTokenOrNull()
@@ -57,7 +73,11 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             statusSubText = if (isUpcoming) "🕒 Lịch trình mới" else null,
             isUpcoming = isUpcoming,
             imageResId = android.R.drawable.ic_menu_gallery,
-            participantImages = emptyList()
+            participantImages = emptyList(),
+            coverUrl = coverUrl,
+            status = status,
+            description = description,
+            shareCount = shareCount ?: 0
         )
     }
 
@@ -81,7 +101,9 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             tag = tag ?: "Tham quan",
             imageUrl = imageUrl ?: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b",
             id = id,
-            day = day ?: ""
+            day = day ?: "",
+            warningType = warningType,
+            warningValue = warningValue
         )
     }
 
@@ -198,4 +220,55 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
                 Result.failure(e)
             }
         }
-}
+
+    suspend fun getCollaborators(itineraryId: String): Result<List<CollaboratorDto>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Result.success(api.getCollaborators(itineraryId))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun addCollaborator(itineraryId: String, email: String, name: String, role: String): Result<CollaboratorDto> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                val response = api.addCollaborator(token, itineraryId, CollaboratorDto(email, name, role))
+                Result.success(response)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun removeCollaborator(itineraryId: String, email: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                api.removeCollaborator(token, itineraryId, email)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getProvinces(): Result<List<com.example.vietnam_travel_itinerary_android.data.model.Province>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Result.success(api.getProvinces())
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getCitiesByProvince(code: String): Result<List<CityDto>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Result.success(api.getCitiesByProvince(code))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+}

@@ -11,7 +11,8 @@ data class ItineraryResponseDto(
     val endDate: String? = null,   // yyyy-MM-dd
     val shareCount: Int? = 0,
     val itemCount: Int? = 0,
-    val createdAt: String? = null  // ISO DateTime
+    val createdAt: String? = null, // ISO DateTime
+    val status: String? = null
 )
 
 // Request body for creating an itinerary
@@ -36,7 +37,9 @@ data class ItineraryItemResponseDto(
     val scheduledTime: String? = null, // HH:mm:ss
     val day: String? = null,
     val note: String? = null,
-    val orderIndex: Int? = 0
+    val orderIndex: Int? = 0,
+    val warningType: String? = null,
+    val warningValue: Float? = null
 )
 
 // Request body for adding an itinerary item
@@ -47,3 +50,14 @@ data class CreateItineraryItemRequest(
     val note: String? = null,
     val orderIndex: Int = 0
 )
+
+data class CollaboratorDto(
+    val email: String,
+    val name: String,
+    val role: String
+)
+
+data class CityDto(
+    val name: String
+)
+

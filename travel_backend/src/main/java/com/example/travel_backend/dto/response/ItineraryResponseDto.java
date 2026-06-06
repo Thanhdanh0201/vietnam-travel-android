@@ -17,4 +17,5 @@ public class ItineraryResponseDto {
     private Integer shareCount;
     private Integer itemCount;
     private OffsetDateTime createdAt;
+    private String status;
 }

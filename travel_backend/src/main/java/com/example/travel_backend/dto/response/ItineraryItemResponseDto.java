@@ -16,4 +16,6 @@ public class ItineraryItemResponseDto {
     private String day;
     private String note;
     private Integer orderIndex;
+    private String warningType;
+    private Float warningValue;
 }

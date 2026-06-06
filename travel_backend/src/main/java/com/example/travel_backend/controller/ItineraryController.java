@@ -3,6 +3,8 @@ package com.example.travel_backend.controller;
 import com.example.travel_backend.dto.request.UpdateItineraryDto;
 import com.example.travel_backend.dto.response.ItineraryResponseDto;
 import com.example.travel_backend.service.impl.ItineraryServiceImpl;
+import com.example.travel_backend.repository.ItineraryCollaboratorRepository;
+import com.example.travel_backend.repository.ItineraryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +21,34 @@ public class ItineraryController {
 
     @Autowired
     private ItineraryServiceImpl itineraryService;
+
+    @Autowired
+    private ItineraryCollaboratorRepository collaboratorRepository;
+
+    @Autowired
+    private ItineraryRepository itineraryRepository;
+
+    public static class CollaboratorDto {
+        private String email;
+        private String name;
+        private String role;
+
+        public CollaboratorDto() {}
+
+        public CollaboratorDto(String email, String name, String role) {
+            this.email = email;
+            this.name = name;
+            this.role = role;
+        }
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
+    }
+
 
     // GET /api/itineraries?user_id=...&is_public=true&limit=20&offset=0
     @GetMapping
@@ -105,4 +135,48 @@ public class ItineraryController {
         itineraryService.deleteItineraryItem(itineraryId, itemId, myId);
         return ResponseEntity.ok().build();
     }
-}
+
+    @GetMapping("/{id}/collaborators")
+    public ResponseEntity<List<CollaboratorDto>> getCollaborators(@PathVariable("id") UUID itineraryId) {
+        List<com.example.travel_backend.entity.ItineraryCollaborator> list = collaboratorRepository.findByItinerary_Id(itineraryId);
+        List<CollaboratorDto> dtoList = list.stream()
+                .map(c -> new CollaboratorDto(c.getEmail(), c.getName(), c.getRole()))
+                .collect(java.util.stream.Collectors.toList());
+        return ResponseEntity.ok(dtoList);
+    }
+
+    @PostMapping("/{id}/collaborators")
+    public ResponseEntity<CollaboratorDto> addCollaborator(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @RequestBody CollaboratorDto request) {
+
+        com.example.travel_backend.entity.Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        com.example.travel_backend.entity.ItineraryCollaborator collaborator = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, request.getEmail().trim())
+                .orElseGet(() -> {
+                    com.example.travel_backend.entity.ItineraryCollaborator c = new com.example.travel_backend.entity.ItineraryCollaborator();
+                    c.setItinerary(itinerary);
+                    c.setEmail(request.getEmail().trim());
+                    return c;
+                });
+        collaborator.setName(request.getName().trim());
+        collaborator.setRole(request.getRole() != null ? request.getRole() : "VIEW");
+
+        collaboratorRepository.save(collaborator);
+
+        return ResponseEntity.ok(new CollaboratorDto(collaborator.getEmail(), collaborator.getName(), collaborator.getRole()));
+    }
+
+    @DeleteMapping("/{id}/collaborators/{email}")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> removeCollaborator(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @PathVariable("email") String email) {
+
+        collaboratorRepository.deleteByItinerary_IdAndEmail(itineraryId, email.trim());
+        return ResponseEntity.ok().build();
+    }
+}

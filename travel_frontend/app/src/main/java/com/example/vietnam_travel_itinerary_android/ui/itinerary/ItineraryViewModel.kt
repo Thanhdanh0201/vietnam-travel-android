@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
 import com.example.vietnam_travel_itinerary_android.SupabaseObject
+import com.example.vietnam_travel_itinerary_android.data.dto.CollaboratorDto
 
 enum class ParticipantRole {
     EDIT, VIEW_ONLY
@@ -36,16 +37,19 @@ class ItineraryViewModel(
         val participantsMap: Map<String, List<Participant>> = emptyMap(), // Key: "itineraryId"
         val allPlaces: List<Place> = emptyList(),
         val isLoadingPlaces: Boolean = false,
-        val placesError: String? = null
+        val placesError: String? = null,
+        val provinces: List<com.example.vietnam_travel_itinerary_android.data.model.Province> = emptyList(),
+        val cities: List<String> = emptyList(),
+        val isLoadingProvinces: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(ItineraryUiState())
     val uiState: StateFlow<ItineraryUiState> = _uiState.asStateFlow()
 
     init {
-        loadInitialData() // fallback/mock first
         fetchItineraries() // overwrite with API if success
         fetchAllPlaces()
+        fetchProvinces()
     }
 
     private fun loadInitialData() {
@@ -190,6 +194,7 @@ class ItineraryViewModel(
 
     fun fetchItineraryItems(itineraryId: String) {
         viewModelScope.launch {
+            fetchCollaborators(itineraryId)
             itineraryRepo.getItineraryItems(itineraryId)
                 .onSuccess { items ->
                     _uiState.update { state ->
@@ -203,6 +208,73 @@ class ItineraryViewModel(
                             newMap["$itineraryId-$day"] = list.sortedBy { it.time }
                         }
                         state.copy(timelineMap = newMap)
+                    }
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
+        }
+    }
+
+    private fun getProvinceCode(provinceName: String): String? {
+        val p = provinceName.trim()
+        return when {
+            p.contains("Hà Nội", ignoreCase = true) -> "01"
+            p.contains("Lào Cai", ignoreCase = true) -> "10"
+            p.contains("Quảng Ninh", ignoreCase = true) -> "22"
+            p.contains("Huế", ignoreCase = true) || p.contains("Thừa Thiên", ignoreCase = true) -> "46"
+            p.contains("Đà Nẵng", ignoreCase = true) -> "48"
+            p.contains("Quảng Nam", ignoreCase = true) -> "49"
+            p.contains("Hồ Chí Minh", ignoreCase = true) || p.contains("Sài Gòn", ignoreCase = true) -> "79"
+            else -> null
+        }
+    }
+
+    fun fetchPlacesForProvince(provinceName: String) {
+        val provinceCode = _uiState.value.provinces.find { it.name.contains(provinceName.trim(), ignoreCase = true) }?.code
+            ?: getProvinceCode(provinceName)
+        _uiState.update { it.copy(isLoadingPlaces = true) }
+        viewModelScope.launch {
+            placeRepo.getPlaces(provinceCode = provinceCode, limit = 100).onSuccess { places ->
+                _uiState.update {
+                    it.copy(
+                        allPlaces = places,
+                        isLoadingPlaces = false,
+                        placesError = null
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoadingPlaces = false,
+                        placesError = error.message ?: "Lỗi tải địa điểm",
+                        allPlaces = emptyList()
+                    )
+                }
+            }
+        }
+    }
+
+    fun fetchProvinces() {
+        viewModelScope.launch {
+            itineraryRepo.getProvinces()
+                .onSuccess { list ->
+                    _uiState.update { state ->
+                        state.copy(provinces = list)
+                    }
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
+        }
+    }
+
+    fun fetchCitiesForProvince(provinceCode: String) {
+        viewModelScope.launch {
+            itineraryRepo.getCitiesByProvince(provinceCode)
+                .onSuccess { list ->
+                    _uiState.update { state ->
+                        state.copy(cities = list.map { it.name })
                     }
                 }
                 .onFailure {
@@ -243,7 +315,24 @@ class ItineraryViewModel(
         }
     }
 
-    fun addItinerary(itinerary: Itinerary) {
+    fun uploadCover(byteArray: ByteArray, fileName: String, onSuccess: (String) -> Unit, onFailure: (String) -> Unit) {
+        viewModelScope.launch {
+            itineraryRepo.uploadCover(byteArray, fileName)
+                .onSuccess { url ->
+                    onSuccess(url)
+                }
+                .onFailure {
+                    onFailure(it.message ?: "Lỗi tải ảnh bìa")
+                }
+        }
+    }
+
+    fun addItinerary(
+        itinerary: Itinerary, 
+        coverUrl: String? = null,
+        onSuccess: (String) -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
         viewModelScope.launch {
             val (startDate, endDate) = parseDateRange(itinerary.dateRange)
             itineraryRepo.createItinerary(
@@ -252,14 +341,16 @@ class ItineraryViewModel(
                 startDate = startDate,
                 endDate = endDate,
                 description = "",
-                coverUrl = null,
+                coverUrl = coverUrl,
                 isPublic = false
             ).onSuccess { saved ->
                 _uiState.update { state ->
                     state.copy(itineraries = state.itineraries + saved)
                 }
+                onSuccess(saved.id)
             }.onFailure {
                 it.printStackTrace()
+                onFailure(it.message ?: "Lỗi tạo lịch trình")
             }
         }
     }
@@ -344,49 +435,74 @@ class ItineraryViewModel(
         }
     }
 
+    fun fetchCollaborators(itineraryId: String) {
+        viewModelScope.launch {
+            itineraryRepo.getCollaborators(itineraryId)
+                .onSuccess { list ->
+                    _uiState.update { state ->
+                        val currentList = list.map { c ->
+                            val colors = listOf(0xFF10B981, 0xFF3B82F6, 0xFFF59E0B, 0xFFEF4444, 0xFF8B5CF6, 0xFFEC4899)
+                            val randomColor = colors.random()
+                            val initials = c.name.trim().take(1).uppercase()
+                            Participant(
+                                name = c.name,
+                                email = c.email,
+                                initials = if (initials.isBlank()) "M" else initials,
+                                avatarColor = randomColor,
+                                role = when (c.role) {
+                                    "EDIT" -> ParticipantRole.EDIT
+                                    else -> ParticipantRole.VIEW_ONLY
+                                }
+                            )
+                        }
+                        val newMap = state.participantsMap.toMutableMap()
+                        newMap[itineraryId] = currentList
+                        state.copy(participantsMap = newMap)
+                    }
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
+        }
+    }
+
     // ---- Các chức năng quản lý Người Tham Gia & Phân Quyền ----
     fun addParticipant(itineraryId: String, name: String, email: String, role: ParticipantRole) {
-        _uiState.update { state ->
-            val currentList = state.participantsMap[itineraryId] ?: emptyList()
-            if (currentList.any { it.email.equals(email, ignoreCase = true) }) return
-
-            val colors = listOf(0xFF10B981, 0xFF3B82F6, 0xFFF59E0B, 0xFFEF4444, 0xFF8B5CF6, 0xFFEC4899)
-            val randomColor = colors.random()
-            val initials = name.trim().take(1).uppercase()
-
-            val newParticipant = Participant(
-                name = name.ifBlank { "Thành viên" },
-                email = email.ifBlank { "member@gmail.com" },
-                initials = initials.ifBlank { "M" },
-                avatarColor = randomColor,
-                role = role
-            )
-
-            val newMap = state.participantsMap.toMutableMap()
-            newMap[itineraryId] = currentList + newParticipant
-            state.copy(participantsMap = newMap)
+        viewModelScope.launch {
+            val roleStr = if (role == ParticipantRole.EDIT) "EDIT" else "VIEW"
+            itineraryRepo.addCollaborator(itineraryId, email, name, roleStr)
+                .onSuccess {
+                    fetchCollaborators(itineraryId)
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
         }
     }
 
     fun updateParticipantRole(itineraryId: String, email: String, newRole: ParticipantRole) {
-        _uiState.update { state ->
-            val currentList = state.participantsMap[itineraryId] ?: emptyList()
-            val updatedList = currentList.map {
-                if (it.email.equals(email, ignoreCase = true)) it.copy(role = newRole) else it
-            }
-            val newMap = state.participantsMap.toMutableMap()
-            newMap[itineraryId] = updatedList
-            state.copy(participantsMap = newMap)
+        viewModelScope.launch {
+            val roleStr = if (newRole == ParticipantRole.EDIT) "EDIT" else "VIEW"
+            val currentName = _uiState.value.participantsMap[itineraryId]?.find { it.email.equals(email, ignoreCase = true) }?.name ?: "Thành viên"
+            itineraryRepo.addCollaborator(itineraryId, email, currentName, roleStr)
+                .onSuccess {
+                    fetchCollaborators(itineraryId)
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
         }
     }
 
     fun removeParticipant(itineraryId: String, email: String) {
-        _uiState.update { state ->
-            val currentList = state.participantsMap[itineraryId] ?: emptyList()
-            val updatedList = currentList.filterNot { it.email.equals(email, ignoreCase = true) }
-            val newMap = state.participantsMap.toMutableMap()
-            newMap[itineraryId] = updatedList
-            state.copy(participantsMap = newMap)
+        viewModelScope.launch {
+            itineraryRepo.removeCollaborator(itineraryId, email)
+                .onSuccess {
+                    fetchCollaborators(itineraryId)
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
         }
     }
 
@@ -455,30 +571,6 @@ class ItineraryViewModel(
                 .onFailure {
                     println(it.message)
                 }
-        }
-    }
-
-    // local-only create for demo/fallback
-    fun addLocalItinerary(itinerary: Itinerary) {
-
-        _uiState.update { state ->
-
-            state.copy(
-                itineraries = state.itineraries + itinerary
-            )
-        }
-    }
-
-    // local-only delete for demo/fallback
-    fun deleteLocalItinerary(itineraryId: String) {
-
-        _uiState.update { state ->
-
-            state.copy(
-                itineraries = state.itineraries.filterNot {
-                    it.id == itineraryId
-                }
-            )
         }
     }
 }
