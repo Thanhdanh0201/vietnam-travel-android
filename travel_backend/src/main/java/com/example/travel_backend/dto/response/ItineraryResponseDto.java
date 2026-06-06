@@ -18,4 +18,9 @@ public class ItineraryResponseDto {
     private Integer itemCount;
     private OffsetDateTime createdAt;
     private String status;
+    /** Role của user hiện tại đang query: "OWNER", "EDIT", "VIEW" */
+    private String myRole;
+    /** ID của chủ sở hữu itinerary */
+    private UUID ownerId;
 }
+

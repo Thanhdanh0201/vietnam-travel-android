@@ -150,10 +150,24 @@ fun EditItineraryScreen(
     }
 
     val timelineItems = uiState.timelineMap["${itinerary?.id}-$selectedDay"] ?: emptyList()
+    // participantsMap là reactive từ collectAsState() — sẽ tự recompose khi fetchCollaborators xong
     val participants = uiState.participantsMap[itinerary?.id] ?: emptyList()
+    
+    // Kiểm tra quyền chỉnh sửa của user hiện tại với itinerary này
+    val canModify = remember(itinerary?.id, uiState.itineraries) {
+        itinerary?.id?.let { viewModel.canModifyItinerary(it) } ?: true
+    }
+    val isOwner = itinerary?.myRole == "OWNER"
     
     var showAddDialog by remember { mutableStateOf(false) }
     var showParticipantsDialog by remember { mutableStateOf(false) }
+
+    // Refresh collaborators after dialog closes
+    LaunchedEffect(showParticipantsDialog) {
+        if (!showParticipantsDialog) {
+            itinerary?.id?.let { viewModel.fetchCollaborators(it) }
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
@@ -295,18 +309,21 @@ fun EditItineraryScreen(
                             )
                         }
                         
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = VNRed.copy(alpha = 0.1f),
-                            modifier = Modifier.clickable { showParticipantsDialog = true }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        // Chỉ OWNER mới được quản lý thành viên
+                        if (isOwner) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = VNRed.copy(alpha = 0.1f),
+                                modifier = Modifier.clickable { showParticipantsDialog = true }
                             ) {
-                                Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(12.dp), tint = VNRed)
-                                Text("QUẢN LÝ THÀNH VIÊN", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VNRed)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(12.dp), tint = VNRed)
+                                    Text("QUẢN LÝ THÀNH VIÊN", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VNRed)
+                                }
                             }
                         }
                     }
@@ -335,18 +352,20 @@ fun EditItineraryScreen(
                                 }
                             }
                             
-                            // Nút Thêm người tham gia nhanh
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = if (participants.isNotEmpty()) (-8 * participants.take(4).size).dp else 0.dp)
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White)
-                                    .border(1.dp, VNRed.copy(alpha = 0.5f), CircleShape)
-                                    .clickable { showParticipantsDialog = true },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Filled.Add, contentDescription = "Thêm người", tint = VNRed, modifier = Modifier.size(20.dp))
+                            // Nút Thêm người tham gia nhanh - chỉ hiện với OWNER
+                            if (isOwner) {
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = if (participants.isNotEmpty()) (-8 * participants.take(4).size).dp else 0.dp)
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .border(1.dp, VNRed.copy(alpha = 0.5f), CircleShape)
+                                        .clickable { showParticipantsDialog = true },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = "Thêm người", tint = VNRed, modifier = Modifier.size(20.dp))
+                                }
                             }
                         }
                         
@@ -384,6 +403,7 @@ fun EditItineraryScreen(
                             TimelineItem(
                                 data = item,
                                 isLast = index == timelineItems.size - 1,
+                                canModify = canModify,
                                 onDeleteClick = {
                                     itinerary?.let { it ->
                                         viewModel.removePlaceFromItinerary(it.id, selectedDay, item)
@@ -393,49 +413,51 @@ fun EditItineraryScreen(
                         }
                     }
                     
-                    // Nút Thêm Địa Điểm ở cuối
-                    Row(modifier = Modifier.fillMaxWidth().height(60.dp)) {
-                        Box(
-                            modifier = Modifier.width(80.dp),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
+                    // Nút Thêm Địa Điểm ở cuối - Chỉ hiện với OWNER/EDIT
+                    if (canModify) {
+                        Row(modifier = Modifier.fillMaxWidth().height(60.dp)) {
+                            Box(
+                                modifier = Modifier.width(80.dp),
+                                contentAlignment = Alignment.TopCenter
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(SlateGray300)
+                                        .align(Alignment.Center)
+                                )
+                            }
+                            
                             Box(
                                 modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(SlateGray300)
-                                    .align(Alignment.Center)
-                            )
-                        }
-                        
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
-                                .align(Alignment.CenterVertically)
-                                .drawBehind {
-                                    val dashWidth = 10f
-                                    val dashSpace = 10f
-                                    drawRoundRect(
-                                        color = VNRed.copy(alpha = 0.5f),
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                            width = 2f,
-                                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(dashWidth, dashSpace), 0f)
-                                        ),
-                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
-                                    )
-                                }
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(VNRed.copy(alpha = 0.05f))
-                                .clickable { showAddDialog = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .align(Alignment.CenterVertically)
+                                    .drawBehind {
+                                        val dashWidth = 10f
+                                        val dashSpace = 10f
+                                        drawRoundRect(
+                                            color = VNRed.copy(alpha = 0.5f),
+                                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                width = 2f,
+                                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(dashWidth, dashSpace), 0f)
+                                            ),
+                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
+                                        )
+                                    }
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(VNRed.copy(alpha = 0.05f))
+                                    .clickable { showAddDialog = true },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Filled.Add, contentDescription = null, tint = VNRed)
-                                Text("THÊM ĐỊA ĐIỂM NGÀY $selectedDay", color = VNRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.Add, contentDescription = null, tint = VNRed)
+                                    Text("THÊM ĐỊA ĐIỂM NGÀY $selectedDay", color = VNRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
                             }
                         }
                     }
@@ -842,7 +864,7 @@ data class TimelineItemData(
 )
 
 @Composable
-fun TimelineItem(data: TimelineItemData, isLast: Boolean, onDeleteClick: () -> Unit = {}) {
+fun TimelineItem(data: TimelineItemData, isLast: Boolean, canModify: Boolean = true, onDeleteClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -946,14 +968,16 @@ fun TimelineItem(data: TimelineItemData, isLast: Boolean, onDeleteClick: () -> U
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = SlateGray400)
-                            Icon(
-                                Icons.Outlined.Delete,
-                                contentDescription = "Xóa",
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { onDeleteClick() },
-                                tint = SlateGray400
-                            )
+                            if (canModify) {
+                                Icon(
+                                    Icons.Outlined.Delete,
+                                    contentDescription = "Xóa",
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { onDeleteClick() },
+                                    tint = SlateGray400
+                                )
+                            }
                             Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = VNRed)
                         }
                     }

@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,13 +34,27 @@ public class ItineraryServiceImpl {
     @Autowired
     private com.example.travel_backend.repository.ItineraryCollaboratorRepository collaboratorRepository;
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<ItineraryResponseDto> getPublicItineraries(UUID userId, int limit, int offset) {
         System.out.println("Fetching public itineraries for user: " + userId);
 
-        return itineraryRepository.findPublicItineraries(userId, PageRequest.of(offset / limit, limit))
-                .getContent()
-                .stream()
-                .map(this::mapToDto)
+        List<Itinerary> itineraries = itineraryRepository.findPublicItineraries(userId, PageRequest.of(offset / limit, limit)).getContent();
+
+        if (itineraries.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> itineraryIds = itineraries.stream().map(Itinerary::getId).collect(Collectors.toList());
+
+        // BULK FETCH: Gom nhóm query count item
+        Map<UUID, Long> itemCountMap = new HashMap<>();
+        for (Object[] result : itineraryItemRepository.countItemsByItineraryIds(itineraryIds)) {
+            itemCountMap.put((UUID) result[0], ((Number) result[1]).longValue());
+        }
+
+        return itineraries.stream()
+                // Do là public feed, role tự mặc định là VIEW
+                .map(i -> mapToDto(i, userId, itemCountMap.getOrDefault(i.getId(), 0L), "VIEW"))
                 .collect(Collectors.toList());
     }
 
@@ -64,9 +80,10 @@ public class ItineraryServiceImpl {
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
 
-        if (!hasModifyPermission(itinerary, requesterId)) {
+        // UPDATE LOGIC: Chi owner moi duoc phep thay doi trang thai
+        if (!itinerary.getUser().getId().equals(requesterId)) {
             throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to update this itinerary");
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Chi owner moi duoc phep thay doi trang thai");
         }
 
         boolean isModified = false;
@@ -111,7 +128,8 @@ public class ItineraryServiceImpl {
         itinerary.setStatus("draft");
 
         Itinerary saved = itineraryRepository.save(itinerary);
-        return mapToDto(saved);
+        // Map DTO với itemCount = 0 và Role = OWNER
+        return mapToDto(saved, userId, 0L, "OWNER");
     }
 
     @org.springframework.transaction.annotation.Transactional
@@ -130,23 +148,56 @@ public class ItineraryServiceImpl {
         itineraryRepository.delete(itinerary);
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<ItineraryResponseDto> getMyItineraries(UUID userId) {
         String email = userRepository.findById(userId)
                 .map(com.example.travel_backend.entity.User::getEmail)
+                .map(String::trim)
+                .map(String::toLowerCase)
                 .orElse("");
-        return itineraryRepository.findMyAndCollaborativeItineraries(userId, email.trim())
-                .stream()
-                .map(this::mapToDto)
+
+        List<Itinerary> itineraries = itineraryRepository.findMyAndCollaborativeItineraries(userId, email);
+
+        if (itineraries.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<UUID> itineraryIds = itineraries.stream().map(Itinerary::getId).collect(Collectors.toList());
+
+        // BULK FETCH: 1 Query đếm toàn bộ item của các Itinerary
+        Map<UUID, Long> itemCountMap = new HashMap<>();
+        for (Object[] result : itineraryItemRepository.countItemsByItineraryIds(itineraryIds)) {
+            itemCountMap.put((UUID) result[0], ((Number) result[1]).longValue());
+        }
+
+        // BULK FETCH: 1 Query lấy quyền (Role) trên tất cả các Itinerary được share
+        Map<UUID, String> roleMap = new HashMap<>();
+        if (!email.isEmpty()) {
+            for (Object[] result : collaboratorRepository.findRolesByItineraryIdsAndEmail(itineraryIds, email)) {
+                roleMap.put((UUID) result[0], (String) result[1]);
+            }
+        }
+
+        // MAP PURE FUNCTION: Không còn Query ngầm nào phát sinh trong vòng lặp này nữa
+        return itineraries.stream()
+                .map(i -> mapToDto(
+                        i, 
+                        userId, 
+                        itemCountMap.getOrDefault(i.getId(), 0L),
+                        roleMap.getOrDefault(i.getId(), "VIEW")
+                ))
                 .collect(Collectors.toList());
     }
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<com.example.travel_backend.dto.response.ItineraryItemResponseDto> getItineraryItems(UUID itineraryId) {
-        return itineraryItemRepository.findByItineraryIdOrderByScheduledTimeAsc(itineraryId)
+        return itineraryItemRepository.findByItineraryIdOrderByOrderIndexAsc(itineraryId) // Cập nhật tên hàm khớp với Repository
                 .stream()
                 .map(this::mapItemToDto)
                 .collect(Collectors.toList());
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public com.example.travel_backend.dto.response.ItineraryItemResponseDto addItineraryItem(UUID itineraryId, UUID requesterId, com.example.travel_backend.dto.request.CreateItineraryItemRequestDto request) {
         Itinerary itinerary = itineraryRepository.findById(itineraryId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
@@ -173,6 +224,7 @@ public class ItineraryServiceImpl {
         return mapItemToDto(saved);
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void deleteItineraryItem(UUID itineraryId, UUID itemId, UUID requesterId) {
         Itinerary itinerary = itineraryRepository.findById(itineraryId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
@@ -217,7 +269,8 @@ public class ItineraryServiceImpl {
         return dto;
     }
 
-    private ItineraryResponseDto mapToDto(Itinerary i) {
+    // PURE FUNCTION: Đã loại bỏ hoàn toàn các lời gọi đến Repository bên trong hàm này
+    private ItineraryResponseDto mapToDto(Itinerary i, UUID requesterId, long itemCount, String collaboratorRole) {
         ItineraryResponseDto dto = new ItineraryResponseDto();
         dto.setId(i.getId());
         dto.setTitle(i.getTitle());
@@ -228,8 +281,17 @@ public class ItineraryServiceImpl {
         dto.setEndDate(i.getEndDate());
         dto.setShareCount(i.getShareCount());
         dto.setCreatedAt(i.getCreatedAt());
-        dto.setItemCount(itineraryRepository.countItemsByItineraryId(i.getId()));
         dto.setStatus(i.getStatus());
+        
+        // i.getUser() sẽ không bị LazyInitializationException vì đã có JOIN FETCH ở query
+        dto.setOwnerId(i.getUser().getId());
+        dto.setItemCount((int) itemCount);
+
+        if (requesterId == null || i.getUser().getId().equals(requesterId)) {
+            dto.setMyRole("OWNER");
+        } else {
+            dto.setMyRole(collaboratorRole);
+        }
         return dto;
     }
 }

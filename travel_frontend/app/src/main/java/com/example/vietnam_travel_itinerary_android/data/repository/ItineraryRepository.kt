@@ -77,7 +77,8 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             coverUrl = coverUrl,
             status = status,
             description = description,
-            shareCount = shareCount ?: 0
+            shareCount = shareCount ?: 0,
+            myRole = myRole ?: "OWNER"
         )
     }
 

@@ -265,6 +265,7 @@ interface VietnamTravelApi {
 
     @PATCH("api/itineraries")
     suspend fun updateItinerary(
+        @Header("Authorization") token: String,
         @Query("id") id: String,
         @Body request: UpdateItineraryRequest
     ): Response<Unit>

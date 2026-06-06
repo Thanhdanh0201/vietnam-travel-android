@@ -39,6 +39,13 @@ fun ItineraryScreen(
     val uiState by viewModel.uiState.collectAsState()
     val itineraries = uiState.itineraries
 
+    // Fetch collaborators mỗi khi danh sách itinerary thay đổi (đảm bảo hiển thị participants)
+    LaunchedEffect(itineraries) {
+        itineraries.forEach { itinerary ->
+            viewModel.fetchCollaborators(itinerary.id)
+        }
+    }
+
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
         topBar = {

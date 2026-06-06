@@ -13,7 +13,9 @@ import java.util.UUID;
 @Repository
 public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
 
-    @Query("SELECT i FROM Itinerary i WHERE i.user.id = :userId AND i.isPublic = true ORDER BY i.createdAt DESC")
+    // THÊM JOIN FETCH và countQuery để tránh lỗi
+    @Query(value = "SELECT i FROM Itinerary i JOIN FETCH i.user WHERE i.user.id = :userId AND i.isPublic = true ORDER BY i.createdAt DESC",
+           countQuery = "SELECT COUNT(i) FROM Itinerary i WHERE i.user.id = :userId AND i.isPublic = true")
     Page<Itinerary> findPublicItineraries(@Param("userId") UUID userId, Pageable pageable);
 
     @Query("SELECT COUNT(item) FROM ItineraryItem item WHERE item.itinerary.id = :itineraryId")
@@ -21,8 +23,9 @@ public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
 
     java.util.List<Itinerary> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
-    @Query("SELECT DISTINCT i FROM Itinerary i " +
-           "WHERE i.user.id = :userId OR i.id IN (SELECT c.itinerary.id FROM ItineraryCollaborator c WHERE c.email = :email AND :email <> '') " +
+    // THÊM JOIN FETCH i.user
+    @Query("SELECT DISTINCT i FROM Itinerary i JOIN FETCH i.user " +
+           "WHERE i.user.id = :userId OR i.id IN (SELECT c.itinerary.id FROM ItineraryCollaborator c WHERE LOWER(c.email) = LOWER(:email) AND :email <> '') " +
            "ORDER BY i.createdAt DESC")
     java.util.List<Itinerary> findMyAndCollaborativeItineraries(@Param("userId") UUID userId, @Param("email") String email);
 }

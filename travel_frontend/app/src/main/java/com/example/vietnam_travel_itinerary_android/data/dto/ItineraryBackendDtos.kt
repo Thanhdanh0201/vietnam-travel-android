@@ -12,7 +12,10 @@ data class ItineraryResponseDto(
     val shareCount: Int? = 0,
     val itemCount: Int? = 0,
     val createdAt: String? = null, // ISO DateTime
-    val status: String? = null
+    val status: String? = null,
+    /** OWNER | EDIT | VIEW - quyền của user hiện tại */
+    val myRole: String? = "OWNER",
+    val ownerId: String? = null
 )
 
 // Request body for creating an itinerary

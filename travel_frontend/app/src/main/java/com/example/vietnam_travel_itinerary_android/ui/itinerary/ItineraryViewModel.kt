@@ -216,6 +216,15 @@ class ItineraryViewModel(
         }
     }
 
+    /**
+     * Trả về true nếu user hiện tại có quyền chỉnh sửa itinerary (OWNER hoặc EDIT).
+     * VIEW-only collaborators không thể thêm/xóa item.
+     */
+    fun canModifyItinerary(itineraryId: String): Boolean {
+        val itinerary = _uiState.value.itineraries.find { it.id == itineraryId } ?: return false
+        return itinerary.myRole == "OWNER" || itinerary.myRole == "EDIT"
+    }
+
     private fun getProvinceCode(provinceName: String): String? {
         val p = provinceName.trim()
         return when {

@@ -146,23 +146,44 @@ public class ItineraryController {
     }
 
     @PostMapping("/{id}/collaborators")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<CollaboratorDto> addCollaborator(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("id") UUID itineraryId,
             @RequestBody CollaboratorDto request) {
 
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+
         com.example.travel_backend.entity.Itinerary itinerary = itineraryRepository.findById(itineraryId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
 
-        com.example.travel_backend.entity.ItineraryCollaborator collaborator = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, request.getEmail().trim())
+        // Chỉ OWNER mới được thêm collaborator
+        if (!itinerary.getUser().getId().equals(requesterId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Only the owner can manage collaborators");
+        }
+
+        // Không cho phép add chính mình làm collaborator
+        if (request.getEmail() == null || request.getEmail().isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Email is required");
+        }
+
+        // Tên hiển thị: nếu không có thì dùng phần trước '@' của email
+        String displayName = (request.getName() != null && !request.getName().isBlank())
+                ? request.getName().trim()
+                : request.getEmail().split("@")[0];
+
+        com.example.travel_backend.entity.ItineraryCollaborator collaborator =
+                collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, request.getEmail().trim())
                 .orElseGet(() -> {
                     com.example.travel_backend.entity.ItineraryCollaborator c = new com.example.travel_backend.entity.ItineraryCollaborator();
                     c.setItinerary(itinerary);
-                    c.setEmail(request.getEmail().trim());
+                    c.setEmail(request.getEmail().trim().toLowerCase());
                     return c;
                 });
-        collaborator.setName(request.getName().trim());
-        collaborator.setRole(request.getRole() != null ? request.getRole() : "VIEW");
+        collaborator.setName(displayName);
+        collaborator.setRole(request.getRole() != null ? request.getRole().toUpperCase() : "VIEW");
 
         collaboratorRepository.save(collaborator);
 
@@ -176,7 +197,17 @@ public class ItineraryController {
             @PathVariable("id") UUID itineraryId,
             @PathVariable("email") String email) {
 
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+
+        // Chỉ OWNER mới được xóa collaborator
+        com.example.travel_backend.entity.Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+        if (!itinerary.getUser().getId().equals(requesterId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Only the owner can manage collaborators");
+        }
+
         collaboratorRepository.deleteByItinerary_IdAndEmail(itineraryId, email.trim());
         return ResponseEntity.ok().build();
     }
-}
+}
