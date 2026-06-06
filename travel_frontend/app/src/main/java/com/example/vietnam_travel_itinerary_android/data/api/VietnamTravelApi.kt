@@ -268,5 +268,41 @@ interface VietnamTravelApi {
         @Query("id") id: String,
         @Body request: UpdateItineraryRequest
     ): Response<Unit>
+
+    @GET("api/itineraries/me")
+    suspend fun getMyItineraries(
+        @Header("Authorization") token: String
+    ): List<ItineraryResponseDto>
+
+    @POST("api/itineraries")
+    suspend fun createItinerary(
+        @Header("Authorization") token: String,
+        @Body request: CreateItineraryRequest
+    ): ItineraryResponseDto
+
+    @DELETE("api/itineraries")
+    suspend fun deleteItinerary(
+        @Header("Authorization") token: String,
+        @Query("id") id: String
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("api/itineraries/{id}/items")
+    suspend fun getItineraryItems(
+        @Path("id") id: String
+    ): List<ItineraryItemResponseDto>
+
+    @POST("api/itineraries/{id}/items")
+    suspend fun addItineraryItem(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: CreateItineraryItemRequest
+    ): ItineraryItemResponseDto
+
+    @DELETE("api/itineraries/{id}/items/{itemId}")
+    suspend fun deleteItineraryItem(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Path("itemId") itemId: String
+    ): Response<okhttp3.ResponseBody>
 }
 

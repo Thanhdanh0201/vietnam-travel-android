@@ -707,7 +707,9 @@ data class TimelineItemData(
     val title: String,
     val location: String,
     val tag: String,
-    val imageUrl: String
+    val imageUrl: String,
+    val id: String = "",
+    val day: String = ""
 )
 
 @Composable

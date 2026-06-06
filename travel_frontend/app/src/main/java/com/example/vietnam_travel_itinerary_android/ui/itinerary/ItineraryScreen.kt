@@ -146,7 +146,7 @@ fun ItineraryScreen(
 // onDelete = { viewModel.deleteItinerary(itinerary) }
 
                         onDelete = {
-                            viewModel.deleteLocalItinerary(itinerary.id)
+                            viewModel.deleteItinerary(itinerary.id)
                         }
                     )
                 }

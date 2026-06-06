@@ -102,7 +102,7 @@ fun MainScreen(
 
             composable("itinerary") {
                 ItineraryScreen(
-                    itineraries = itinerariesState,
+                    viewModel = itineraryViewModel,
                     onCreateClick = { bottomNavController.navigate("create_itinerary") },
                     onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") }
                 )

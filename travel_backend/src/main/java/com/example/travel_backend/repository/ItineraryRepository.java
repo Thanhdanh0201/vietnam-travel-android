@@ -18,4 +18,6 @@ public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
 
     @Query("SELECT COUNT(item) FROM ItineraryItem item WHERE item.itinerary.id = :itineraryId")
     Integer countItemsByItineraryId(@Param("itineraryId") UUID itineraryId);
+
+    java.util.List<Itinerary> findByUserIdOrderByCreatedAtDesc(UUID userId);
 }

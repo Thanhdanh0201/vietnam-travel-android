@@ -9,6 +9,7 @@ import java.util.UUID;
 public class ItineraryResponseDto {
     private UUID id;
     private String title;
+    private String location;
     private String description;
     private String coverUrl;
     private LocalDate startDate;

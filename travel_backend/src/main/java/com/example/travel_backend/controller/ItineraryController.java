@@ -44,4 +44,65 @@ public class ItineraryController {
 
         return ResponseEntity.ok().build();
     }
+
+    // POST /api/itineraries
+    @PostMapping
+    public ResponseEntity<ItineraryResponseDto> createItinerary(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody com.example.travel_backend.dto.request.CreateItineraryRequestDto request) {
+
+        UUID myId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(itineraryService.createItinerary(myId, request));
+    }
+
+    // DELETE /api/itineraries
+    @DeleteMapping
+    public ResponseEntity<Void> deleteItinerary(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam("id") UUID itineraryId) {
+
+        UUID myId = UUID.fromString(jwt.getSubject());
+        itineraryService.deleteItinerary(itineraryId, myId);
+        return ResponseEntity.ok().build();
+    }
+
+    // GET /api/itineraries/me
+    @GetMapping("/me")
+    public ResponseEntity<List<ItineraryResponseDto>> getMyItineraries(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        UUID myId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(itineraryService.getMyItineraries(myId));
+    }
+
+    // GET /api/itineraries/{id}/items
+    @GetMapping("/{id}/items")
+    public ResponseEntity<List<com.example.travel_backend.dto.response.ItineraryItemResponseDto>> getItineraryItems(
+            @PathVariable("id") UUID itineraryId) {
+
+        return ResponseEntity.ok(itineraryService.getItineraryItems(itineraryId));
+    }
+
+    // POST /api/itineraries/{id}/items
+    @PostMapping("/{id}/items")
+    public ResponseEntity<com.example.travel_backend.dto.response.ItineraryItemResponseDto> addItineraryItem(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @RequestBody com.example.travel_backend.dto.request.CreateItineraryItemRequestDto request) {
+
+        UUID myId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(itineraryService.addItineraryItem(itineraryId, myId, request));
+    }
+
+    // DELETE /api/itineraries/{id}/items/{itemId}
+    @DeleteMapping("/{id}/items/{itemId}")
+    public ResponseEntity<Void> deleteItineraryItem(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @PathVariable("itemId") UUID itemId) {
+
+        UUID myId = UUID.fromString(jwt.getSubject());
+        itineraryService.deleteItineraryItem(itineraryId, itemId, myId);
+        return ResponseEntity.ok().build();
+    }
 }

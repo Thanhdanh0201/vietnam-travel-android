@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
+import com.example.vietnam_travel_itinerary_android.SupabaseObject
 
 enum class ParticipantRole {
     EDIT, VIEW_ONLY
@@ -26,7 +27,7 @@ data class Participant(
 
 class ItineraryViewModel(
     private val placeRepo: PlaceRepository = PlaceRepository(),
-    private val itineraryRepo: ItineraryRepository = ItineraryRepository()
+    private val itineraryRepo: ItineraryRepository = ItineraryRepository(SupabaseObject.client)
 ) : ViewModel() {
 
     data class ItineraryUiState(
@@ -144,6 +145,31 @@ class ItineraryViewModel(
         }
     }
 
+    private fun parseDateRange(dateRange: String): Pair<String?, String?> {
+        try {
+            val parts = dateRange.split("-")
+            if (parts.size == 2) {
+                val startPart = parts[0].trim() // "16/12"
+                val endPart = parts[1].trim() // "20/12/2024"
+                val endSubParts = endPart.split("/") // ["20", "12", "2024"]
+                if (endSubParts.size == 3) {
+                    val year = endSubParts[2]
+                    val endMonth = endSubParts[1].padStart(2, '0')
+                    val endDay = endSubParts[0].padStart(2, '0')
+
+                    val startSubParts = startPart.split("/")
+                    val startDay = startSubParts[0].padStart(2, '0')
+                    val startMonth = startSubParts[1].padStart(2, '0')
+
+                    return Pair("$year-$startMonth-$startDay", "$year-$endMonth-$endDay")
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return Pair(null, null)
+    }
+
     private fun fetchItineraries() {
         viewModelScope.launch {
             itineraryRepo.getItineraries()
@@ -151,10 +177,36 @@ class ItineraryViewModel(
                     _uiState.update {
                         it.copy(itineraries = itineraries)
                     }
+                    itineraries.forEach {
+                        fetchItineraryItems(it.id)
+                    }
                 }
                 .onFailure {
                     // fallback to mock data already loaded
                     println(it.message)
+                }
+        }
+    }
+
+    fun fetchItineraryItems(itineraryId: String) {
+        viewModelScope.launch {
+            itineraryRepo.getItineraryItems(itineraryId)
+                .onSuccess { items ->
+                    _uiState.update { state ->
+                        val newMap = state.timelineMap.toMutableMap()
+                        // Clear old keys for this itinerary first
+                        val keysToRemove = newMap.keys.filter { it.startsWith("$itineraryId-") }
+                        keysToRemove.forEach { newMap.remove(it) }
+
+                        val itemsByDay = items.groupBy { it.day ?: "12" }
+                        itemsByDay.forEach { (day, list) ->
+                            newMap["$itineraryId-$day"] = list.sortedBy { it.time }
+                        }
+                        state.copy(timelineMap = newMap)
+                    }
+                }
+                .onFailure {
+                    it.printStackTrace()
                 }
         }
     }
@@ -192,41 +244,103 @@ class ItineraryViewModel(
     }
 
     fun addItinerary(itinerary: Itinerary) {
-        _uiState.update {
-            val newList = it.itineraries + itinerary
-            it.copy(itineraries = newList)
+        viewModelScope.launch {
+            val (startDate, endDate) = parseDateRange(itinerary.dateRange)
+            itineraryRepo.createItinerary(
+                title = itinerary.title,
+                location = itinerary.location,
+                startDate = startDate,
+                endDate = endDate,
+                description = "",
+                coverUrl = null,
+                isPublic = false
+            ).onSuccess { saved ->
+                _uiState.update { state ->
+                    state.copy(itineraries = state.itineraries + saved)
+                }
+            }.onFailure {
+                it.printStackTrace()
+            }
+        }
+    }
+
+    fun deleteItinerary(itineraryId: String) {
+        viewModelScope.launch {
+            itineraryRepo.deleteItinerary(itineraryId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        state.copy(
+                            itineraries = state.itineraries.filterNot { it.id == itineraryId }
+                        )
+                    }
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
         }
     }
 
     fun addPlaceToItinerary(itineraryId: String, day: String, time: String, place: Place, tag: String) {
-        _uiState.update { state ->
+        viewModelScope.launch {
+            val scheduledTime = try {
+                val cleanTime = time.ifBlank { "08:00 AM" }.trim()
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US)
+                val localTime = java.time.LocalTime.parse(cleanTime, formatter)
+                localTime.format(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME)
+            } catch (e: Exception) {
+                "08:00:00"
+            }
+
             val key = "$itineraryId-$day"
-            val currentTimeline = state.timelineMap[key] ?: emptyList()
-            val newLocation = "${place.cities?.name ?: ""}, ${place.provinces?.name ?: ""}"
-            val newItem = TimelineItemData(
-                time = time.ifBlank { "08:00 AM" },
-                title = place.name,
-                location = newLocation.trim().removePrefix(",").removeSuffix(",").trim(),
-                tag = tag.ifBlank { place.type ?: "Địa điểm" },
-                imageUrl = place.imageUrl ?: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b"
-            )
+            val currentTimeline = _uiState.value.timelineMap[key] ?: emptyList()
+            val orderIndex = currentTimeline.size
 
-            val updatedTimeline = (currentTimeline + newItem).sortedBy { it.time }
-            val newMap = state.timelineMap.toMutableMap()
-            newMap[key] = updatedTimeline
-
-            state.copy(timelineMap = newMap)
+            itineraryRepo.addItineraryItem(
+                itineraryId = itineraryId,
+                placeId = place.id,
+                scheduledTime = scheduledTime,
+                day = day,
+                note = "",
+                orderIndex = orderIndex
+            ).onSuccess { newItem ->
+                _uiState.update { state ->
+                    val list = (state.timelineMap[key] ?: emptyList()) + newItem
+                    val newMap = state.timelineMap.toMutableMap()
+                    newMap[key] = list.sortedBy { it.time }
+                    state.copy(timelineMap = newMap)
+                }
+            }.onFailure {
+                it.printStackTrace()
+            }
         }
     }
 
     fun removePlaceFromItinerary(itineraryId: String, day: String, item: TimelineItemData) {
-        _uiState.update { state ->
-            val key = "$itineraryId-$day"
-            val currentTimeline = state.timelineMap[key] ?: emptyList()
-            val updatedTimeline = currentTimeline - item
-            val newMap = state.timelineMap.toMutableMap()
-            newMap[key] = updatedTimeline
-            state.copy(timelineMap = newMap)
+        viewModelScope.launch {
+            if (item.id.isBlank()) {
+                _uiState.update { state ->
+                    val key = "$itineraryId-$day"
+                    val list = (state.timelineMap[key] ?: emptyList()) - item
+                    val newMap = state.timelineMap.toMutableMap()
+                    newMap[key] = list
+                    state.copy(timelineMap = newMap)
+                }
+                return@launch
+            }
+
+            itineraryRepo.deleteItineraryItem(itineraryId, item.id)
+                .onSuccess {
+                    _uiState.update { state ->
+                        val key = "$itineraryId-$day"
+                        val list = (state.timelineMap[key] ?: emptyList()).filterNot { it.id == item.id }
+                        val newMap = state.timelineMap.toMutableMap()
+                        newMap[key] = list
+                        state.copy(timelineMap = newMap)
+                    }
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
         }
     }
 
