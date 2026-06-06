@@ -167,7 +167,9 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
     ): Result<Unit> =
         withContext(Dispatchers.IO) {
             try {
-                api.updateItinerary(id, request)
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                api.updateItinerary(token, id, request)
                 Result.success(Unit)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -272,4 +274,4 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
                 Result.failure(e)
             }
         }
-}
+}
