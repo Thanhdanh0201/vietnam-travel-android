@@ -115,6 +115,7 @@ fun PostDetailScreen(
                 replyingTo = replyingTo,
                 currentUserAvatarColor = currentUserProfile?.avatarColor ?: 0xFFC6102E,
                 currentUserAvatarInitials = currentUserProfile?.avatarInitials ?: "BN",
+                currentUserAvatarUrl = currentUserProfile?.avatarUrl ?: "",
                 onTextChange = { inputText = it },
                 onCancelReply = { replyingTo = null },
                 onSend = {
@@ -156,8 +157,10 @@ fun PostDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AuthorAvatar(
-                            post.authorAvatarInitials,
-                            Color(post.authorAvatarColor), 42
+                            initials = post.authorAvatarInitials,
+                            color = Color(post.authorAvatarColor),
+                            avatarUrl = post.authorAvatarUrl,
+                            size = 42,
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
@@ -360,6 +363,7 @@ private fun CommentInputBar(
     replyingTo: Comment?,
     currentUserAvatarColor: Long,
     currentUserAvatarInitials: String,
+    currentUserAvatarUrl: String = "",
     onTextChange: (String) -> Unit,
     onCancelReply: () -> Unit,
     onSend: () -> Unit
@@ -401,13 +405,12 @@ private fun CommentInputBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Current user avatar
-                Box(
-                    modifier = Modifier.size(34.dp).clip(CircleShape).background(Color(currentUserAvatarColor)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(currentUserAvatarInitials, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
+                AuthorAvatar(
+                    initials = currentUserAvatarInitials,
+                    color = Color(currentUserAvatarColor),
+                    avatarUrl = currentUserAvatarUrl,
+                    size = 34,
+                )
                 // Input field
                 Box(
                     modifier = Modifier
@@ -480,18 +483,12 @@ fun ThreadCommentItem(
         ) {
             // Thread line + avatar stack
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(if (isReply) 28.dp else 34.dp)
-                        .clip(CircleShape)
-                        .background(Color(comment.authorAvatarColor)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        comment.authorAvatarInitials, color = Color.White,
-                        fontSize = if (isReply) 10.sp else 12.sp, fontWeight = FontWeight.Bold
-                    )
-                }
+                AuthorAvatar(
+                    initials = comment.authorAvatarInitials,
+                    color = Color(comment.authorAvatarColor),
+                    avatarUrl = comment.authorAvatarUrl,
+                    size = if (isReply) 28 else 34,
+                )
                 // Vertical thread line (only if has replies)
                 if (!isReply && comment.replies.isNotEmpty()) {
                     Box(

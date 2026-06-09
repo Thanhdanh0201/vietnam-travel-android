@@ -39,7 +39,8 @@ public class UserSyncFilter extends OncePerRequestFilter {
             Jwt jwt = (Jwt) authentication.getPrincipal();
             UUID userId = UUID.fromString(jwt.getSubject());
 
-            if (!userRepository.existsById(userId)) {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user == null) {
                 System.out.println("UserSyncFilter: Auto-syncing missing user ID " + userId);
                 
                 String email = jwt.getClaimAsString("email");
@@ -66,7 +67,9 @@ public class UserSyncFilter extends OncePerRequestFilter {
                 newUser.setFollowingCount(0);
                 newUser.setPostCount(0);
                 newUser.setIsPrivate(false);
-                userRepository.save(newUser);
+                newUser.setRole("user"); // default role
+                newUser.setIsBanned(false);
+                user = userRepository.save(newUser);
 
                 UserSetting newSettings = new UserSetting();
                 newSettings.setUser(newUser);
@@ -79,6 +82,31 @@ public class UserSyncFilter extends OncePerRequestFilter {
                 newSettings.setPushMentions(true);
                 newSettings.setPushAchievements(true);
                 userSettingsRepository.save(newSettings);
+            }
+
+            if (user != null) {
+                if (Boolean.TRUE.equals(user.getIsBanned())) {
+                    String method = request.getMethod();
+                    if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) || "DELETE".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.setCharacterEncoding("UTF-8");
+                        response.getWriter().write("{\"error\": \"User is banned\", \"reason\": \"" + user.getBannedReason() + "\"}");
+                        return;
+                    }
+                }
+
+                // Cập nhật SecurityContext với role từ Database
+                String roleName = user.getRole();
+                if (roleName == null || roleName.isBlank()) {
+                    roleName = "user";
+                }
+                java.util.List<org.springframework.security.core.GrantedAuthority> authorities = new java.util.ArrayList<>();
+                authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + roleName));
+
+                org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken newAuth = 
+                        new org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken(jwt, authorities);
+                SecurityContextHolder.getContext().setAuthentication(newAuth);
             }
         }
 

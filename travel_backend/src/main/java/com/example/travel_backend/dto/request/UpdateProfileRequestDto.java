@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class UpdateProfileRequestDto {
     private String name;
+    private String username;
     private String bio;
     private String avatarUrl;
     private String coverUrl;

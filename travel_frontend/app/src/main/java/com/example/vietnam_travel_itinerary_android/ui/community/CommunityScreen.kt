@@ -20,6 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileMockData
 import com.example.vietnam_travel_itinerary_android.ui.components.post.CreatePostWidget
 import com.example.vietnam_travel_itinerary_android.ui.components.post.PostCard
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
@@ -180,6 +181,7 @@ fun CommunityScreen(
                         CreatePostWidget(
                             avatarInitials = currentUserProfile?.avatarInitials ?: "BN",
                             avatarColor = currentUserProfile?.avatarColor ?: 0xFFC6102E,
+                            avatarUrl = currentUserProfile?.avatarUrl ?: "",
                             text = postText,
                             onTextChange = { postText = it },
                             onPost = {
@@ -202,7 +204,16 @@ fun CommunityScreen(
                                 if (post.isLiked) viewModel.unlikePost(post.id) else viewModel.likePost(post.id)
                             },
                             onCommentClick = { openedPost = post },
-                            onItineraryClick = { onNavigate("itinerary_detail/$it") }
+                            onItineraryClick = { onNavigate("itinerary_detail/$it") },
+                            onAuthorClick = {
+                                val authorId = post.userId.takeIf { it.isNotBlank() }
+                                    ?: ProfileMockData.MOCK_OTHER_USER_ID
+                                if (authorId == viewModel.currentUserId) {
+                                    onNavigate("profile")
+                                } else {
+                                    onNavigate("profile/$authorId")
+                                }
+                            },
                         )
                     }
                 }

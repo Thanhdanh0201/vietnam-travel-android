@@ -129,8 +129,33 @@ interface VietnamTravelApi {
     @GET("api/users/{id}")
     suspend fun getProfile(
         @Path("id") id: String,
-        @Header("Authorization") token: String
+        @Header("Authorization") token: String? = null
     ): UserProfileResponseDto
+
+    @PATCH("api/users/me")
+    suspend fun updateProfile(
+        @Header("Authorization") token: String,
+        @Body request: UpdateProfileRequest
+    ): UserProfileResponseDto
+
+    // ---- Follows ----
+    @POST("api/follows/{followingId}")
+    suspend fun followUser(
+        @Header("Authorization") token: String,
+        @Path("followingId") followingId: String
+    ): Response<ResponseBody>
+
+    @DELETE("api/follows/{followingId}")
+    suspend fun unfollowUser(
+        @Header("Authorization") token: String,
+        @Path("followingId") followingId: String
+    ): Response<ResponseBody>
+
+    @GET("api/follows/check/{userId}")
+    suspend fun checkIsFollowing(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: String
+    ): Boolean
 
     // ---- Posts ----
     @GET("api/posts/public")

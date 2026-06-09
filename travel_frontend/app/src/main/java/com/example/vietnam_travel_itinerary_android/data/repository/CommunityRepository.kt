@@ -71,11 +71,13 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         val postTypeVal = postType ?: "text"
         
         val embeddedVal = originalPost?.let { orig ->
+            val origAuthorName = orig.author?.name ?: "Người dùng"
             EmbeddedPost(
                 originalPostId = orig.id,
-                originalAuthorName = orig.author?.name ?: "Người dùng",
-                originalAuthorInitials = getInitials(orig.author?.name ?: "Người dùng"),
-                originalAuthorColor = getAvatarColor(orig.author?.name ?: "Người dùng"),
+                originalAuthorName = origAuthorName,
+                originalAuthorInitials = getInitials(origAuthorName),
+                originalAuthorColor = getAvatarColor(origAuthorName),
+                originalAuthorAvatarUrl = orig.author?.avatarUrl ?: "",
                 originalContent = orig.content ?: "",
                 originalMedia = orig.media?.map {
                     PostMedia(
@@ -111,6 +113,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             id = id,
             userId = author?.id ?: "",
             authorName = authorNameVal,
+            authorAvatarUrl = author?.avatarUrl ?: "",
             authorAvatarInitials = getInitials(authorNameVal),
             authorAvatarColor = getAvatarColor(authorNameVal),
             timeAgo = formatTimeAgo(createdAt).uppercase(),
@@ -134,6 +137,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             userId = authorId ?: "",
             parentCommentId = parentCommentId,
             authorName = authorNameVal,
+            authorAvatarUrl = authorAvatarUrl ?: "",
             authorAvatarInitials = getInitials(authorNameVal),
             authorAvatarColor = getAvatarColor(authorNameVal),
             timeAgo = formatTimeAgo(createdAt),

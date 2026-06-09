@@ -37,6 +37,11 @@ public class AuthController {
         newUser.setId(request.getId());
         newUser.setEmail(request.getEmail());
         newUser.setName(request.getName());
+        if (request.getEmail() != null && request.getEmail().contains("@")) {
+            newUser.setUsername(
+                    request.getEmail().substring(0, request.getEmail().indexOf("@")).toLowerCase()
+            );
+        }
         newUser.setCreatedAt(OffsetDateTime.now());
         newUser.setIsVerified(true);
         userRepository.save(newUser);

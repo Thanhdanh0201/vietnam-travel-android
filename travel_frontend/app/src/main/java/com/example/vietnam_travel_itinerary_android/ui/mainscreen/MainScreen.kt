@@ -26,7 +26,9 @@ import com.example.vietnam_travel_itinerary_android.ui.itinerary.CreateItinerary
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.EditItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
+import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
@@ -61,6 +63,10 @@ fun MainScreen(
         }
     }
 
+    fun navigateToProfile(userId: String) {
+        bottomNavController.navigate("profile/$userId")
+    }
+
     val showBottomBar = currentDestination?.route in mainTabRoutes
 
     Scaffold(
@@ -89,7 +95,11 @@ fun MainScreen(
             composable("community") {
                 CommunityScreen(
                     onNavigate = { route ->
-                        if (route in mainTabRoutes) navigateToMainTab(route)
+                        when {
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route == "profile" -> navigateToMainTab("profile")
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                        }
                     }
                 )
             }
@@ -102,7 +112,6 @@ fun MainScreen(
 
             composable("itinerary") {
                 ItineraryScreen(
-                    itineraries = itinerariesState,
                     onCreateClick = { bottomNavController.navigate("create_itinerary") },
                     onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") }
                 )
@@ -133,11 +142,54 @@ fun MainScreen(
             }
 
             composable("profile") {
+                val profileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
                 ProfileScreen(
+                    viewModel = profileViewModel,
+                    onBack = { bottomNavController.popBackStack() },
+                    onNavigate = { route ->
+                        when (route) {
+                            "edit_profile" -> bottomNavController.navigate("edit_profile")
+                            else -> {
+                                if (route.startsWith("profile/")) {
+                                    navigateToProfile(route.removePrefix("profile/"))
+                                } else if (route in mainTabRoutes) {
+                                    navigateToMainTab(route)
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+
+            composable("edit_profile") {
+                val profileViewModel: ProfileViewModel = viewModel(
+                    factory = AppViewModelProvider.Factory,
+                    viewModelStoreOwner = bottomNavController.getBackStackEntry("profile"),
+                )
+                EditProfileScreen(
+                    onBack = { bottomNavController.popBackStack() },
+                    onSaved = {
+                        profileViewModel.loadProfile()
+                        bottomNavController.popBackStack()
+                    },
+                )
+            }
+
+            composable(
+                route = "profile/{userId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("userId") {
+                        type = androidx.navigation.NavType.StringType
+                    },
+                ),
+            ) { backStackEntry ->
+                val profileUserId = backStackEntry.arguments?.getString("userId")
+                ProfileScreen(
+                    userId = profileUserId,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
                         if (route in mainTabRoutes) navigateToMainTab(route)
-                    }
+                    },
                 )
             }
         }
