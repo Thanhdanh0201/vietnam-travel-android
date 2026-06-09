@@ -200,8 +200,36 @@ public class ItineraryServiceImpl {
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public List<com.example.travel_backend.dto.response.ItineraryItemResponseDto> getItineraryItems(UUID itineraryId) {
-        return itineraryItemRepository.findByItineraryIdOrderByOrderIndexAsc(itineraryId) // Cập nhật tên hàm khớp với Repository
+    public List<com.example.travel_backend.dto.response.ItineraryItemResponseDto> getItineraryItems(UUID itineraryId, UUID requesterId) {
+        Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        if (itinerary.getIsPublic() != null && itinerary.getIsPublic()) {
+            return itineraryItemRepository.findByItineraryIdOrderByOrderIndexAsc(itineraryId)
+                    .stream()
+                    .map(this::mapItemToDto)
+                    .collect(Collectors.toList());
+        }
+
+        boolean isOwner = requesterId != null && itinerary.getUser().getId().equals(requesterId);
+        boolean isCollaborator = isOwner;
+        if (!isOwner && requesterId != null) {
+            com.example.travel_backend.entity.User user = userRepository.findById(requesterId).orElse(null);
+            if (user != null) {
+                String email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
+                if (!email.isEmpty()) {
+                    isCollaborator = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email).isPresent();
+                }
+            }
+        }
+
+        if (!isCollaborator) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to view items of this itinerary");
+        }
+
+        return itineraryItemRepository.findByItineraryIdOrderByOrderIndexAsc(itineraryId)
                 .stream()
                 .map(this::mapItemToDto)
                 .collect(Collectors.toList());

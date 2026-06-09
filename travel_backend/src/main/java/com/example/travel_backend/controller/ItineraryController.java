@@ -28,6 +28,9 @@ public class ItineraryController {
     @Autowired
     private ItineraryRepository itineraryRepository;
 
+    @Autowired
+    private com.example.travel_backend.repository.UserRepository userRepository;
+
     public static class CollaboratorDto {
         private String email;
         private String name;
@@ -118,9 +121,11 @@ public class ItineraryController {
     // GET /api/itineraries/{id}/items
     @GetMapping("/{id}/items")
     public ResponseEntity<List<com.example.travel_backend.dto.response.ItineraryItemResponseDto>> getItineraryItems(
+            @AuthenticationPrincipal Jwt jwt,
             @PathVariable("id") UUID itineraryId) {
 
-        return ResponseEntity.ok(itineraryService.getItineraryItems(itineraryId));
+        UUID myId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
+        return ResponseEntity.ok(itineraryService.getItineraryItems(itineraryId, myId));
     }
 
     // POST /api/itineraries/{id}/items
@@ -147,7 +152,31 @@ public class ItineraryController {
     }
 
     @GetMapping("/{id}/collaborators")
-    public ResponseEntity<List<CollaboratorDto>> getCollaborators(@PathVariable("id") UUID itineraryId) {
+    public ResponseEntity<List<CollaboratorDto>> getCollaborators(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId) {
+
+        UUID myId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
+
+        com.example.travel_backend.entity.Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        boolean isOwner = myId != null && itinerary.getUser().getId().equals(myId);
+        boolean isCollaborator = isOwner;
+        if (!isOwner && myId != null) {
+            com.example.travel_backend.entity.User user = userRepository.findById(myId).orElse(null);
+            if (user != null) {
+                String email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
+                if (!email.isEmpty()) {
+                    isCollaborator = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email).isPresent();
+                }
+            }
+        }
+
+        if (!isCollaborator && (itinerary.getIsPublic() == null || !itinerary.getIsPublic())) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to view collaborators");
+        }
+
         List<com.example.travel_backend.entity.ItineraryCollaborator> list = collaboratorRepository.findByItinerary_Id(itineraryId);
         List<CollaboratorDto> dtoList = list.stream()
                 .map(c -> new CollaboratorDto(c.getEmail(), c.getName(), c.getRole()))
