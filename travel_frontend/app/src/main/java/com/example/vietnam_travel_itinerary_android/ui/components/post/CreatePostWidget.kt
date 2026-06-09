@@ -21,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
+import com.example.vietnam_travel_itinerary_android.data.model.LinkedItinerary
+import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.ItineraryCompactCard
+import androidx.compose.material.icons.outlined.Close
 
 // ============================================================
 // CREATE POST WIDGET — dùng chung ở Community + Profile
@@ -32,6 +35,8 @@ fun CreatePostWidget(
     avatarColor: Long = 0xFFC6102E,
     text: String = "",
     onTextChange: (String) -> Unit = {},
+    linkedItinerary: LinkedItinerary? = null,
+    onUnlinkClick: () -> Unit = {},
     onPost: () -> Unit = {}
 ) {
     Surface(
@@ -75,6 +80,34 @@ fun CreatePostWidget(
                         )
                     }
 
+                    if (linkedItinerary != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        ) {
+                            ItineraryCompactCard(
+                                itinerary = linkedItinerary,
+                                onViewClick = {}
+                            )
+                            IconButton(
+                                onClick = onUnlinkClick,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(4.dp)
+                                    .size(24.dp)
+                                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = "Hủy đính kèm",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+
                     HorizontalDivider(color = SlateGray50)
 
                     // ── Bottom actions
@@ -91,7 +124,7 @@ fun CreatePostWidget(
                         Button(
                             onClick = onPost,
                             shape = CircleShape,
-                            enabled = text.isNotBlank(),
+                            enabled = text.isNotBlank() || linkedItinerary != null,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VNRed,
                                 disabledContainerColor = SlateGray200

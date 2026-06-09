@@ -9,5 +9,8 @@ public class UpdateItineraryDto {
     private String description;
     @JsonProperty("is_public")
     private Boolean isPublic;
+    private String status;
+    @JsonProperty("cover_url")
+    private String coverUrl;
 
 }
