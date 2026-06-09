@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -44,9 +45,9 @@ fun MainScreen(
     val currentDestination = navBackStackEntry?.destination
     val currentRoute =
         bottomNavItems.firstOrNull { item ->
-            currentDestination?.hierarchy?.any { it.route == item.route } == true
+            val destRoute = currentDestination?.route ?: ""
+            destRoute.substringBefore("?") == item.route
         }?.route
-            ?: currentDestination?.route?.takeIf { it in mainTabRoutes }
             ?: ""
 
     val uiState by itineraryViewModel.uiState.collectAsState()
@@ -67,7 +68,9 @@ fun MainScreen(
         bottomNavController.navigate("profile/$userId")
     }
 
-    val showBottomBar = currentDestination?.route in mainTabRoutes
+    val showBottomBar = currentDestination?.route?.let { route ->
+        route.substringBefore("?") in mainTabRoutes
+    } ?: false
 
     Scaffold(
         bottomBar = {
@@ -87,18 +90,48 @@ fun MainScreen(
             composable("home") {
                 HomeScreen(
                     onNavigate = { route ->
-                        if (route in mainTabRoutes) navigateToMainTab(route)
+                        if (route == "community") {
+                            bottomNavController.navigate("community") {
+                                popUpTo("community?shareItineraryId={shareItineraryId}") {
+                                    inclusive = true
+                                }
+                            }
+                        } else if (route in mainTabRoutes) {
+                            navigateToMainTab(route)
+                        } else {
+                            bottomNavController.navigate(route)
+                        }
                     }
                 )
             }
 
-            composable("community") {
+            composable(
+                route = "community?shareItineraryId={shareItineraryId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("shareItineraryId") {
+                        type = androidx.navigation.NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
+                val shareItineraryId = backStackEntry.arguments?.getString("shareItineraryId")
                 CommunityScreen(
+                    shareItineraryId = shareItineraryId,
+                    itineraryViewModel = itineraryViewModel,
                     onNavigate = { route ->
                         when {
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
                             route == "profile" -> navigateToMainTab("profile")
+                            route == "community" -> {
+                                bottomNavController.navigate("community") {
+                                    popUpTo("community?shareItineraryId={shareItineraryId}") {
+                                        inclusive = true
+                                    }
+                                }
+                            }
                             route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
                         }
                     }
                 )
@@ -112,16 +145,23 @@ fun MainScreen(
 
             composable("itinerary") {
                 ItineraryScreen(
+                    viewModel = itineraryViewModel,
                     onCreateClick = { bottomNavController.navigate("create_itinerary") },
-                    onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") }
+                    onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") },
+                    onShareClick = { itineraryId ->
+                        bottomNavController.navigate("community?shareItineraryId=$itineraryId")
+                    }
                 )
             }
 
             composable("create_itinerary") {
                 CreateItineraryScreen(
+                    viewModel = itineraryViewModel,
                     onBackClick = { bottomNavController.popBackStack() },
-                    onCreate = { newItinerary ->
-                        itineraryViewModel.addItinerary(newItinerary)
+                    onCreate = { newItineraryId ->
+                        bottomNavController.navigate("edit_itinerary/$newItineraryId") {
+                            popUpTo("create_itinerary") { inclusive = true }
+                        }
                     }
                 )
             }
@@ -133,6 +173,24 @@ fun MainScreen(
                 )
             ) { backStackEntry ->
                 val itineraryId = backStackEntry.arguments?.getString("itineraryId")
+                val itinerary = itinerariesState.find { it.id == itineraryId }
+                EditItineraryScreen(
+                    itinerary = itinerary,
+                    viewModel = itineraryViewModel,
+                    onBackClick = { bottomNavController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "itinerary_detail/{itineraryId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("itineraryId") { type = androidx.navigation.NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val itineraryId = backStackEntry.arguments?.getString("itineraryId") ?: ""
+                LaunchedEffect(itineraryId) {
+                    itineraryViewModel.fetchItineraryDetail(itineraryId)
+                }
                 val itinerary = itinerariesState.find { it.id == itineraryId }
                 EditItineraryScreen(
                     itinerary = itinerary,
@@ -188,7 +246,18 @@ fun MainScreen(
                     userId = profileUserId,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
-                        if (route in mainTabRoutes) navigateToMainTab(route)
+                        when {
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route == "community" -> {
+                                bottomNavController.navigate("community") {
+                                    popUpTo("community?shareItineraryId={shareItineraryId}") {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
+                        }
                     },
                 )
             }

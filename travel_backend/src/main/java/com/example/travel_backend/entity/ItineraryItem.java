@@ -32,6 +32,9 @@ public class ItineraryItem {
     @Column(name = "scheduled_time")
     private LocalTime scheduledTime;
 
+    @Column(name = "day", length = 50)
+    private String day;
+
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
 

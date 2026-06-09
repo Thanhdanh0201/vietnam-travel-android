@@ -43,4 +43,19 @@ public class ProvinceServiceImpl implements ProvinceService {
                 .map(EventMapper::toDto)
                 .collect(Collectors.toList());
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.example.travel_backend.repository.CityRepository cityRepository;
+
+    @Override
+    public List<com.example.travel_backend.dto.response.CityDto> getCitiesByProvinceCode(String code) {
+        System.out.println("Get cities by province code: " + code);
+        return cityRepository.findByProvince_Code(code).stream()
+                .map(city -> {
+                    com.example.travel_backend.dto.response.CityDto dto = new com.example.travel_backend.dto.response.CityDto();
+                    dto.setName(city.getName());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
 }

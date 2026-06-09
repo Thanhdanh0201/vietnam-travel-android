@@ -29,6 +29,9 @@ public class Itinerary {
     @Column(name = "title", nullable = false, length = Integer.MAX_VALUE)
     private String title;
 
+    @Column(name = "location", length = Integer.MAX_VALUE)
+    private String location;
+
     @Column(name = "start_date")
     private LocalDate startDate;
 

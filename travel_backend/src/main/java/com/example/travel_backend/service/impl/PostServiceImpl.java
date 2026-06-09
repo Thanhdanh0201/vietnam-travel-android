@@ -42,6 +42,7 @@ public class PostServiceImpl implements PostService {
 
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getUserPosts(UUID userId, int limit, int offset) {
         System.out.println("Fetching posts for user: " + userId + " | limit: " + limit + ", offset: " + offset);
 
@@ -55,6 +56,7 @@ public class PostServiceImpl implements PostService {
 
     // --- 4.1 Lấy Community Feed ---
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getPublicFeed(int limit, int offset) {
         System.out.println("Fetching public feed | limit: " + limit + ", offset: " + offset);
         Pageable pageable = PageRequest.of(offset / limit, limit);
@@ -63,6 +65,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getFollowingFeed(UUID currentUserId, int limit, int offset) {
         System.out.println("Fetching following feed for user: " + currentUserId);
         Pageable pageable = PageRequest.of(offset / limit, limit);
@@ -97,7 +100,15 @@ public class PostServiceImpl implements PostService {
         post.setPostType(request.getPostType() != null ? request.getPostType() : "text");
         post.setVisibility(request.getVisibility() != null ? request.getVisibility() : "public");
 
-        if (request.getItineraryId() != null) post.setItinerary(itineraryRepository.getReferenceById(request.getItineraryId()));
+        if (request.getItineraryId() != null) {
+            com.example.travel_backend.entity.Itinerary itinerary = itineraryRepository.findById(request.getItineraryId()).orElse(null);
+            if (itinerary != null) {
+                post.setItinerary(itinerary);
+                itinerary.setIsPublic(true);
+                itinerary.setShareCount((itinerary.getShareCount() != null ? itinerary.getShareCount() : 0) + 1);
+                itineraryRepository.save(itinerary);
+            }
+        }
         if (request.getPlaceId() != null) post.setPlace(placeRepository.getReferenceById(request.getPlaceId()));
 
         // Set mặc định các chỉ số để tránh lỗi NullPointerException khi mapping
@@ -131,6 +142,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public PostResponseDto getPostById(UUID postId) {
         System.out.println("Fetching post by ID: " + postId);
         Post post = postRepository.findById(postId)

@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface FollowRepository extends JpaRepository<Follow, String> {
+public interface FollowRepository extends JpaRepository<Follow, UUID> {
     boolean existsByFollowerIdAndFollowingId(UUID followerId, UUID followingId);
 
     @Transactional

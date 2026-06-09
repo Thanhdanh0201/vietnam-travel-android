@@ -119,9 +119,31 @@ private val mockPosts = listOf(
 @Composable
 fun CommunityScreen(
     onNavigate: (String) -> Unit = {},
+    shareItineraryId: String? = null,
+    itineraryViewModel: com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel? = null,
     viewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     var postText by remember { mutableStateOf("") }
+    var activeShareItineraryId by remember(shareItineraryId) { mutableStateOf(shareItineraryId) }
+
+    val sharedItinerary = remember(activeShareItineraryId, itineraryViewModel) {
+        if (itineraryViewModel != null && activeShareItineraryId != null) {
+            itineraryViewModel.uiState.value.itineraries.find { it.id == activeShareItineraryId }
+        } else null
+    }
+
+    val linkedItinerary = remember(sharedItinerary) {
+        sharedItinerary?.let {
+            LinkedItinerary(
+                id = it.id,
+                title = it.title,
+                stopCount = 0,
+                location = it.location,
+                isPublic = it.isPublic,
+                coverImageKey = it.coverUrl ?: ""
+            )
+        }
+    }
     val posts by viewModel.posts.collectAsState()
     val currentUserProfile by viewModel.currentUserProfile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -184,10 +206,17 @@ fun CommunityScreen(
                             avatarUrl = currentUserProfile?.avatarUrl ?: "",
                             text = postText,
                             onTextChange = { postText = it },
+                            linkedItinerary = linkedItinerary,
+                            onUnlinkClick = { activeShareItineraryId = null },
                             onPost = {
-                                if (postText.isNotBlank()) {
-                                    viewModel.createPost(postText)
+                                if (postText.isNotBlank() || activeShareItineraryId != null) {
+                                    viewModel.createPost(
+                                        content = postText,
+                                        itineraryId = activeShareItineraryId
+                                    )
                                     postText = ""
+                                    activeShareItineraryId = null
+                                    onNavigate("community")
                                 }
                             }
                         )

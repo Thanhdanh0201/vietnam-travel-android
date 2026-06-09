@@ -55,6 +55,7 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PlaceResponse> getPlacesByProvince(String provinceCode, String type, int limit) {
         System.out.println("Get places by province: " + provinceCode);
         PageRequest pageRequest = PageRequest.of(0, limit);
@@ -206,6 +207,7 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PlaceResponse> getPlaces(String provinceCode, String type, int limit) {
         System.out.println("Get places");
         PageRequest pageRequest = PageRequest.of(0, limit);
@@ -231,13 +233,37 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     @Override
-    public List<PlaceTrending> getTrendingPlaces(int limit) {
+    @Transactional(readOnly = true)
+    public List<com.example.travel_backend.dto.response.PlaceTrendingResponseDto> getTrendingPlaces(int limit) {
         System.out.println("Get trending places");
         PageRequest pageRequest = PageRequest.of(0, limit);
-        return placeTrendingRepository.findAllByOrderByScoreDesc(pageRequest);
+        return placeTrendingRepository.findAllByOrderByScoreDesc(pageRequest)
+                .stream()
+                .map(this::mapToTrendingDto)
+                .collect(Collectors.toList());
+    }
+
+    private com.example.travel_backend.dto.response.PlaceTrendingResponseDto mapToTrendingDto(PlaceTrending trending) {
+        com.example.travel_backend.dto.response.PlaceTrendingResponseDto dto = new com.example.travel_backend.dto.response.PlaceTrendingResponseDto();
+        dto.setPlace_id(trending.getPlace().getId());
+        dto.setProvince_id(trending.getProvince().getId());
+        dto.setRank_position(trending.getRankPosition());
+        dto.setTotal_searches(trending.getScore());
+        
+        com.example.travel_backend.dto.response.PlaceTrendingResponseDto.PlaceDetailCompactDto placeDto = 
+                new com.example.travel_backend.dto.response.PlaceTrendingResponseDto.PlaceDetailCompactDto();
+        placeDto.setName(trending.getPlace().getName());
+        placeDto.setImage_url(trending.getPlace().getImageUrl());
+        placeDto.setType(trending.getPlace().getType());
+        placeDto.setLat(trending.getPlace().getLat());
+        placeDto.setLng(trending.getPlace().getLng());
+        dto.setPlaces(placeDto);
+        
+        return dto;
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<PlacePhoto> getPlacePhotos(UUID id) {
         System.out.println("Get photos for place: " + id);
         return placePhotoRepository.findByPlace_Id(id);
