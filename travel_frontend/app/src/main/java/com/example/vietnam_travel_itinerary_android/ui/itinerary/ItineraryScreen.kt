@@ -20,8 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
-import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
-import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
+import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import com.example.vietnam_travel_itinerary_android.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +37,14 @@ fun ItineraryScreen(
     var filter by remember { mutableStateOf("all") }
     val uiState by viewModel.uiState.collectAsState()
     val itineraries = uiState.itineraries
+
+    // State cho việc xóa lịch trình
+    var itineraryToDelete by remember { mutableStateOf<Itinerary?>(null) }
+
+    // Fetch itineraries when screen is shown
+    LaunchedEffect(Unit) {
+        viewModel.fetchItineraries()
+    }
 
     // Fetch collaborators mỗi khi danh sách itinerary thay đổi (đảm bảo hiển thị participants)
     LaunchedEffect(itineraries) {
@@ -145,13 +152,53 @@ fun ItineraryScreen(
                     ItineraryCard(
                         itinerary = itinerary,
                         participants = participants,
+                        canDelete = itinerary.myRole == "OWNER",
                         onClick = onEditClick,
                         onDelete = {
-                            viewModel.deleteItinerary(itinerary.id)
+                            itineraryToDelete = itinerary
                         }
                     )
                 }
             }
         }
+    }
+
+    // Hộp thoại xác nhận xóa lịch trình
+    itineraryToDelete?.let { toDelete ->
+        AlertDialog(
+            onDismissRequest = { itineraryToDelete = null },
+            title = {
+                Text(
+                    text = "Xóa lịch trình",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = SlateGray900
+                )
+            },
+            text = {
+                Text(
+                    text = "Bạn có chắc chắn muốn xóa lịch trình \"${toDelete.title}\" không? Hành động này không thể hoàn tác.",
+                    fontSize = 14.sp,
+                    color = SlateGray600
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteItinerary(toDelete.id)
+                        itineraryToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                ) {
+                    Text("Xóa", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { itineraryToDelete = null }) {
+                    Text("Hủy", color = SlateGray500)
+                }
+            },
+            containerColor = Color.White
+        )
     }
 }

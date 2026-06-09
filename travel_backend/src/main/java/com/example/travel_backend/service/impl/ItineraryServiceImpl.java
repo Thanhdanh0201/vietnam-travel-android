@@ -103,6 +103,16 @@ public class ItineraryServiceImpl {
             isModified = true;
         }
 
+        if (updates.getStatus() != null) {
+            itinerary.setStatus(updates.getStatus());
+            isModified = true;
+        }
+
+        if (updates.getCoverUrl() != null) {
+            itinerary.setCoverUrl(updates.getCoverUrl());
+            isModified = true;
+        }
+
         if (isModified) {
             itineraryRepository.save(itinerary);
             System.out.println("Updated itinerary " + itineraryId + " successfully.");
@@ -260,7 +270,7 @@ public class ItineraryServiceImpl {
         String location = (city + ", " + province).trim().replaceAll("^,\\s*|\\s*,\\s*$", "");
         dto.setLocation(location);
 
-        dto.setScheduledTime(item.getScheduledTime());
+        dto.setScheduledTime(item.getScheduledTime() != null ? item.getScheduledTime().toString() : null);
         dto.setDay(item.getDay());
         dto.setNote(item.getNote());
         dto.setOrderIndex(item.getOrderIndex());
@@ -282,6 +292,7 @@ public class ItineraryServiceImpl {
         dto.setShareCount(i.getShareCount());
         dto.setCreatedAt(i.getCreatedAt());
         dto.setStatus(i.getStatus());
+        dto.setIsPublic(i.getIsPublic());
         
         // i.getUser() sẽ không bị LazyInitializationException vì đã có JOIN FETCH ở query
         dto.setOwnerId(i.getUser().getId());

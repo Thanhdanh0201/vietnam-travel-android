@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,6 +33,7 @@ import androidx.compose.foundation.clickable
 fun ItineraryCard(
     itinerary: Itinerary,
     participants: List<Participant> = emptyList(),
+    canDelete: Boolean = true,
     onClick: (String) -> Unit = {},
     onDelete: () -> Unit
 ) {
@@ -63,15 +65,17 @@ fun ItineraryCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-                IconButton(
-                    onClick = { onDelete() },
-                    modifier = Modifier.align(Alignment.TopStart)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = Color.White
-                    )
+                if (canDelete) {
+                    IconButton(
+                        onClick = { onDelete() },
+                        modifier = Modifier.align(Alignment.TopStart)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White
+                        )
+                    }
                 }
 
                 // Tag trạng thái (Sắp diễn ra, Đã kết thúc...)
@@ -116,6 +120,47 @@ fun ItineraryCard(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Badges for isPublic and status
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (itinerary.isPublic) "Công khai" else "Riêng tư",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (itinerary.isPublic) Color(0xFFD32F2F) else Color.Gray,
+                        modifier = Modifier
+                            .background(
+                                color = (if (itinerary.isPublic) Color(0xFFD32F2F) else Color.Gray).copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                    val statusText = when (itinerary.status) {
+                        "completed" -> "Hoàn thành"
+                        else -> "Bản nháp"
+                    }
+                    val statusColor = when (itinerary.status) {
+                        "completed" -> Color(0xFF10B981)
+                        else -> Color.Gray
+                    }
+                    Text(
+                        text = statusText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor,
+                        modifier = Modifier
+                            .background(
+                                color = statusColor.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -131,10 +176,22 @@ fun ItineraryCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = itinerary.dateRange, fontSize = 13.sp, color = Color.Gray)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(text = itinerary.dateRange, fontSize = 13.sp, color = Color.Gray)
+                        }
+                        if (itinerary.shareCount > 0) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = itinerary.shareCount.toString(), fontSize = 13.sp, color = Color.Gray)
+                            }
+                        }
                     }
 
                     // Hiển thị Avatar những người tham gia thực tế

@@ -174,7 +174,7 @@ class ItineraryViewModel(
         return Pair(null, null)
     }
 
-    private fun fetchItineraries() {
+    fun fetchItineraries() {
         viewModelScope.launch {
             itineraryRepo.getItineraries()
                 .onSuccess { itineraries ->
@@ -380,7 +380,7 @@ class ItineraryViewModel(
         }
     }
 
-    fun addPlaceToItinerary(itineraryId: String, day: String, time: String, place: Place, tag: String) {
+    fun addPlaceToItinerary(itineraryId: String, day: String, time: String, place: Place, note: String?) {
         viewModelScope.launch {
             val scheduledTime = try {
                 val cleanTime = time.ifBlank { "08:00 AM" }.trim()
@@ -400,7 +400,7 @@ class ItineraryViewModel(
                 placeId = place.id,
                 scheduledTime = scheduledTime,
                 day = day,
-                note = "",
+                note = note,
                 orderIndex = orderIndex
             ).onSuccess { newItem ->
                 _uiState.update { state ->
@@ -451,13 +451,13 @@ class ItineraryViewModel(
                     _uiState.update { state ->
                         val currentList = list.map { c ->
                             val colors = listOf(0xFF10B981, 0xFF3B82F6, 0xFFF59E0B, 0xFFEF4444, 0xFF8B5CF6, 0xFFEC4899)
-                            val randomColor = colors.random()
+                            val colorIndex = (c.email.hashCode().and(0x7FFFFFFF)) % colors.size
                             val initials = c.name.trim().take(1).uppercase()
                             Participant(
                                 name = c.name,
                                 email = c.email,
                                 initials = if (initials.isBlank()) "M" else initials,
-                                avatarColor = randomColor,
+                                avatarColor = colors[colorIndex],
                                 role = when (c.role) {
                                     "EDIT" -> ParticipantRole.EDIT
                                     else -> ParticipantRole.VIEW_ONLY
@@ -561,24 +561,31 @@ class ItineraryViewModel(
     }
     fun updateItinerary(
         itineraryId: String,
-        title: String,
-        description: String,
-        isPublic: Boolean
+        title: String?,
+        description: String?,
+        isPublic: Boolean?,
+        status: String?,
+        coverUrl: String?,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
-
             val request = UpdateItineraryRequest(
                 title = title,
                 description = description,
-                is_public = isPublic
+                isPublic = isPublic,
+                status = status,
+                coverUrl = coverUrl
             )
 
             itineraryRepo.updateItinerary(itineraryId, request)
                 .onSuccess {
                     fetchItineraries()
+                    onSuccess()
                 }
                 .onFailure {
-                    println(it.message)
+                    it.printStackTrace()
+                    onFailure(it.message ?: "Lỗi cập nhật lịch trình")
                 }
         }
     }

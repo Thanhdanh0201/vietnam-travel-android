@@ -289,6 +289,7 @@ interface VietnamTravelApi {
 
     @GET("api/itineraries/{id}/items")
     suspend fun getItineraryItems(
+        @Header("Authorization") token: String,
         @Path("id") id: String
     ): List<ItineraryItemResponseDto>
 
@@ -308,6 +309,7 @@ interface VietnamTravelApi {
 
     @GET("api/itineraries/{id}/collaborators")
     suspend fun getCollaborators(
+        @Header("Authorization") token: String,
         @Path("id") id: String
     ): List<CollaboratorDto>
 

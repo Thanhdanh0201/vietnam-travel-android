@@ -1,5 +1,7 @@
 package com.example.vietnam_travel_itinerary_android.data.dto
 
+import com.squareup.moshi.Json
+
 // Response structure for Itinerary from Spring Boot backend
 data class ItineraryResponseDto(
     val id: String,
@@ -13,6 +15,7 @@ data class ItineraryResponseDto(
     val itemCount: Int? = 0,
     val createdAt: String? = null, // ISO DateTime
     val status: String? = null,
+    @Json(name = "is_public") val isPublic: Boolean? = false,
     /** OWNER | EDIT | VIEW - quyền của user hiện tại */
     val myRole: String? = "OWNER",
     val ownerId: String? = null

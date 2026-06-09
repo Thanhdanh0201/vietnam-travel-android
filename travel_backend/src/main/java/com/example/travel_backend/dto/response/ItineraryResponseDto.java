@@ -1,5 +1,6 @@
 package com.example.travel_backend.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -18,6 +19,8 @@ public class ItineraryResponseDto {
     private Integer itemCount;
     private OffsetDateTime createdAt;
     private String status;
+    @JsonProperty("is_public")
+    private Boolean isPublic;
     /** Role của user hiện tại đang query: "OWNER", "EDIT", "VIEW" */
     private String myRole;
     /** ID của chủ sở hữu itinerary */

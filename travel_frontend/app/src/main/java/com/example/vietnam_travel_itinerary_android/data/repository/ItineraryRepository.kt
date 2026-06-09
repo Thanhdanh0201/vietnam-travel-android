@@ -1,5 +1,6 @@
 package com.example.vietnam_travel_itinerary_android.data.repository
 
+import android.util.Log
 import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
 import com.example.vietnam_travel_itinerary_android.data.dto.CollaboratorDto
 import com.example.vietnam_travel_itinerary_android.data.dto.*
@@ -78,6 +79,7 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             status = status,
             description = description,
             shareCount = shareCount ?: 0,
+            isPublic = isPublic ?: false,
             myRole = myRole ?: "OWNER"
         )
     }
@@ -103,6 +105,7 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             imageUrl = imageUrl ?: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b",
             id = id,
             day = day ?: "",
+            note = note,
             warningType = warningType,
             warningValue = warningValue
         )
@@ -179,9 +182,16 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
     suspend fun getItineraryItems(itineraryId: String): Result<List<TimelineItemData>> =
         withContext(Dispatchers.IO) {
             try {
-                val response = api.getItineraryItems(itineraryId)
+                val token = getAuthToken()
+                if (token.isBlank()) {
+                    Log.w("ItineraryRepo", "getItineraryItems: No auth token")
+                    return@withContext Result.success(emptyList())
+                }
+                val response = api.getItineraryItems(token, itineraryId)
+                Log.d("ItineraryRepo", "getItineraryItems($itineraryId): ${response.size} items")
                 Result.success(response.map { it.toTimelineItemData() })
             } catch (e: Exception) {
+                Log.e("ItineraryRepo", "getItineraryItems($itineraryId) FAILED", e)
                 Result.failure(e)
             }
         }
@@ -227,8 +237,16 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
     suspend fun getCollaborators(itineraryId: String): Result<List<CollaboratorDto>> =
         withContext(Dispatchers.IO) {
             try {
-                Result.success(api.getCollaborators(itineraryId))
+                val token = getAuthToken()
+                if (token.isBlank()) {
+                    Log.w("ItineraryRepo", "getCollaborators: No auth token")
+                    return@withContext Result.success(emptyList())
+                }
+                val response = api.getCollaborators(token, itineraryId)
+                Log.d("ItineraryRepo", "getCollaborators($itineraryId): ${response.size} collabs")
+                Result.success(response)
             } catch (e: Exception) {
+                Log.e("ItineraryRepo", "getCollaborators($itineraryId) FAILED", e)
                 Result.failure(e)
             }
         }
