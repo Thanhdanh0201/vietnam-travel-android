@@ -192,6 +192,27 @@ class ItineraryViewModel(
         }
     }
 
+    fun fetchItineraryDetail(itineraryId: String) {
+        viewModelScope.launch {
+            itineraryRepo.getItineraryById(itineraryId)
+                .onSuccess { itinerary ->
+                    _uiState.update { state ->
+                        val currentList = state.itineraries
+                        val updatedList = if (currentList.any { it.id == itinerary.id }) {
+                            currentList.map { if (it.id == itinerary.id) itinerary else it }
+                        } else {
+                            currentList + itinerary
+                        }
+                        state.copy(itineraries = updatedList)
+                    }
+                    fetchItineraryItems(itineraryId)
+                }
+                .onFailure {
+                    it.printStackTrace()
+                }
+        }
+    }
+
     fun fetchItineraryItems(itineraryId: String) {
         viewModelScope.launch {
             fetchCollaborators(itineraryId)

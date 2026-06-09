@@ -123,6 +123,18 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             }
         }
 
+    suspend fun getItineraryById(id: String): Result<Itinerary> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                val response = api.getItineraryById(token, id)
+                Result.success(response.toItinerary())
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     suspend fun createItinerary(
         title: String,
         location: String,

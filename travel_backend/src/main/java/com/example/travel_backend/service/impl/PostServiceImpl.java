@@ -100,7 +100,15 @@ public class PostServiceImpl implements PostService {
         post.setPostType(request.getPostType() != null ? request.getPostType() : "text");
         post.setVisibility(request.getVisibility() != null ? request.getVisibility() : "public");
 
-        if (request.getItineraryId() != null) post.setItinerary(itineraryRepository.getReferenceById(request.getItineraryId()));
+        if (request.getItineraryId() != null) {
+            com.example.travel_backend.entity.Itinerary itinerary = itineraryRepository.findById(request.getItineraryId()).orElse(null);
+            if (itinerary != null) {
+                post.setItinerary(itinerary);
+                itinerary.setIsPublic(true);
+                itinerary.setShareCount((itinerary.getShareCount() != null ? itinerary.getShareCount() : 0) + 1);
+                itineraryRepository.save(itinerary);
+            }
+        }
         if (request.getPlaceId() != null) post.setPlace(placeRepository.getReferenceById(request.getPlaceId()));
 
         // Set mặc định các chỉ số để tránh lỗi NullPointerException khi mapping

@@ -96,6 +96,16 @@ public class ItineraryController {
         return ResponseEntity.ok().build();
     }
 
+    // GET /api/itineraries/{id}
+    @GetMapping("/{id}")
+    public ResponseEntity<ItineraryResponseDto> getItineraryById(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId) {
+
+        UUID myId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(itineraryService.getItineraryById(itineraryId, myId));
+    }
+
     // GET /api/itineraries/me
     @GetMapping("/me")
     public ResponseEntity<List<ItineraryResponseDto>> getMyItineraries(

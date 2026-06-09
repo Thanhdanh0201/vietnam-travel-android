@@ -279,6 +279,42 @@ public class ItineraryServiceImpl {
         return dto;
     }
 
+    public ItineraryResponseDto getItineraryById(UUID itineraryId, UUID requesterId) {
+        Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        boolean isOwner = itinerary.getUser().getId().equals(requesterId);
+        String role = "VIEW";
+        String email = "";
+        boolean isCollaborator = false;
+        
+        com.example.travel_backend.entity.User user = userRepository.findById(requesterId).orElse(null);
+        if (user != null) {
+            email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
+        }
+
+        if (isOwner) {
+            role = "OWNER";
+            isCollaborator = true;
+        } else if (!email.isEmpty()) {
+            var collabOpt = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email);
+            if (collabOpt.isPresent()) {
+                role = collabOpt.get().getRole();
+                isCollaborator = true;
+            }
+        }
+
+        if (!itinerary.getIsPublic() && !isCollaborator) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to view this itinerary");
+        }
+
+        long itemCount = itineraryItemRepository.findByItineraryIdOrderByOrderIndexAsc(itineraryId).size();
+
+        return mapToDto(itinerary, requesterId, itemCount, role);
+    }
+
     // PURE FUNCTION: Đã loại bỏ hoàn toàn các lời gọi đến Repository bên trong hàm này
     private ItineraryResponseDto mapToDto(Itinerary i, UUID requesterId, long itemCount, String collaboratorRole) {
         ItineraryResponseDto dto = new ItineraryResponseDto();

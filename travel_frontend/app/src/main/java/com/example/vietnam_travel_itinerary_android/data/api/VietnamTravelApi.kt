@@ -270,6 +270,12 @@ interface VietnamTravelApi {
         @Body request: UpdateItineraryRequest
     ): Response<Unit>
 
+    @GET("api/itineraries/{id}")
+    suspend fun getItineraryById(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): ItineraryResponseDto
+
     @GET("api/itineraries/me")
     suspend fun getMyItineraries(
         @Header("Authorization") token: String

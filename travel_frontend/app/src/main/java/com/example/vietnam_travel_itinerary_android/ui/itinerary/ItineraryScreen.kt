@@ -31,6 +31,7 @@ fun ItineraryScreen(
     onNotificationClick: () -> Unit = {},
     onCreateClick: () -> Unit = {},
     onEditClick: (String) -> Unit = {},
+    onShareClick: (String) -> Unit = {}
 ) {
 
     // State cho việc lọc danh sách
@@ -154,6 +155,7 @@ fun ItineraryScreen(
                         participants = participants,
                         canDelete = itinerary.myRole == "OWNER",
                         onClick = onEditClick,
+                        onShareClick = onShareClick,
                         onDelete = {
                             itineraryToDelete = itinerary
                         }

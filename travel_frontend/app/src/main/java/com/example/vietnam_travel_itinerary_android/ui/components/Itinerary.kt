@@ -26,6 +26,7 @@ import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.Participant
 import coil3.compose.AsyncImage
+import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 
 import androidx.compose.foundation.clickable
 
@@ -35,6 +36,7 @@ fun ItineraryCard(
     participants: List<Participant> = emptyList(),
     canDelete: Boolean = true,
     onClick: (String) -> Unit = {},
+    onShareClick: (String) -> Unit = {},
     onDelete: () -> Unit
 ) {
 
@@ -185,12 +187,23 @@ fun ItineraryCard(
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(text = itinerary.dateRange, fontSize = 13.sp, color = Color.Gray)
                         }
-                        if (itinerary.shareCount > 0) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.Gray)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = itinerary.shareCount.toString(), fontSize = 13.sp, color = Color.Gray)
-                            }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable { onShareClick(itinerary.id) }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Chia sẻ",
+                                modifier = Modifier.size(14.dp),
+                                tint = VNRed
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (itinerary.shareCount > 0) itinerary.shareCount.toString() else "Chia sẻ",
+                                fontSize = 13.sp,
+                                color = VNRed,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
 

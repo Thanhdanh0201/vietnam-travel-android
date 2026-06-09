@@ -212,13 +212,14 @@ class CommunityViewModel(
         }
     }
 
-    fun createPost(content: String, mediaUrls: List<String> = emptyList()) {
+    fun createPost(content: String, mediaUrls: List<String> = emptyList(), itineraryId: String? = null) {
         viewModelScope.launch {
             try {
                 val newPost = repository.createPost(
                     userId = currentUserId,
                     content = content,
-                    postType = if (mediaUrls.isNotEmpty()) "image" else "text",
+                    postType = if (itineraryId != null) "itinerary_share" else if (mediaUrls.isNotEmpty()) "image" else "text",
+                    itineraryId = itineraryId,
                     mediaUrls = mediaUrls
                 )
                 // Prepend locally (if realtime is laggy, we see it instantly)
