@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
@@ -36,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import java.time.LocalDate
@@ -179,45 +179,18 @@ fun EditItineraryScreen(
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
         topBar = {
-            Surface(
-                color = Color(0xFFF8F6F6),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .statusBarsPadding(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = VNRed)
+            AppBackTopBar(
+                onBackClick = onBackClick,
+                trailingContent = if (isOwner) {
+                    {
+                        IconButton(onClick = { showSettingsDialog = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Cài đặt", tint = VNRed)
                         }
-                        Text(
-                            text = itinerary?.title ?: "Kỳ nghỉ của tôi",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = VNRed
-                        )
                     }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (isOwner) {
-                            IconButton(onClick = { showSettingsDialog = true }) {
-                                Icon(Icons.Default.Settings, contentDescription = "Cài đặt", tint = VNRed)
-                            }
-                        }
-                        AuthorAvatar(initials = "P", color = Color(0xFFF59E0B), size = 36)
-                    }
-                }
-            }
+                } else {
+                    null
+                },
+            )
         }
     ) { paddingValues ->
         LazyColumn(
@@ -226,6 +199,32 @@ fun EditItineraryScreen(
                 .padding(paddingValues),
             contentPadding = PaddingValues(bottom = 80.dp)
         ) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(6.dp)
+                            .height(28.dp)
+                            .clip(CircleShape)
+                            .background(VNRed),
+                    )
+                    Text(
+                        text = itinerary?.title ?: "Kỳ nghỉ của tôi",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        color = SlateGray900,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
             // Tháng & Lịch chọn ngày nằm ngang
             item {
                 Column(modifier = Modifier.padding(16.dp)) {

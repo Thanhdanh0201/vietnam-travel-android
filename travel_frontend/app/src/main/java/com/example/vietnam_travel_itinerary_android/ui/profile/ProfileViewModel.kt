@@ -40,14 +40,6 @@ class ProfileViewModel(
             return
         }
 
-        if (ProfileMockData.isMockUserId(targetUserId)) {
-            _uiState.value = ProfileUiState(
-                isLoading = false,
-                profile = ProfileMockData.mockOtherUserProfile(currentUserId),
-            )
-            return
-        }
-
         _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             try {
@@ -80,11 +72,9 @@ class ProfileViewModel(
                     isFollowing = !wasFollowing,
                     followerCount = updatedFollowerCount,
                 ),
-                isFollowLoading = !ProfileMockData.isMockUserId(profile.id),
+                isFollowLoading = true,
             )
         }
-
-        if (ProfileMockData.isMockUserId(profile.id)) return
 
         viewModelScope.launch {
             val success = if (wasFollowing) {

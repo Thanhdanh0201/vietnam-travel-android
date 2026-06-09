@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Edit
@@ -33,7 +32,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
-import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
+import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import java.time.Instant
 import java.time.ZoneId
@@ -143,37 +142,7 @@ fun CreateItineraryScreen(
 
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
-        topBar = {
-            Surface(
-                color = Color(0xFFF8F6F6),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .statusBarsPadding(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = VNRed)
-                        }
-                        Text(
-                            text = "Quay lại Lịch trình",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = VNRed
-                        )
-                    }
-                    AuthorAvatar(initials = "P", color = Color(0xFFF59E0B), size = 36)
-                }
-            }
-        },
+        topBar = { AppBackTopBar(onBackClick = onBackClick) },
         bottomBar = {
             Surface(
                 color = Color(0xFFF8F6F6),

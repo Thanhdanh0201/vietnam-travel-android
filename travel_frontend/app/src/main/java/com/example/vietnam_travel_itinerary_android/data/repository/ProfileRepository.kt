@@ -1,6 +1,7 @@
 package com.example.vietnam_travel_itinerary_android.data.repository
 
 import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
+import com.example.vietnam_travel_itinerary_android.data.dto.ItineraryResponseDto
 import com.example.vietnam_travel_itinerary_android.data.dto.PostResponseBackendDto
 import com.example.vietnam_travel_itinerary_android.data.dto.UpdateProfileRequest
 import com.example.vietnam_travel_itinerary_android.data.dto.UserProfileResponseDto
@@ -36,10 +37,20 @@ class ProfileRepository(
         } else false
 
         val posts = fetchUserPosts(userId, currentUserId, token)
+        val displayName = profileDto.name ?: "Người dùng"
+        val itineraries = fetchUserItineraries(
+            userId = userId,
+            isOwnProfile = isOwnProfile,
+            token = token,
+            authorName = displayName,
+            authorInitials = getInitials(displayName),
+            authorAvatarColor = getAvatarColor(displayName),
+        )
         profileDto.toUserProfile(
             currentUserId = currentUserId,
             isFollowing = isFollowing,
             posts = posts,
+            publicItineraries = itineraries,
         )
     }
 
@@ -157,10 +168,72 @@ class ProfileRepository(
         }
     }
 
+    private suspend fun fetchUserItineraries(
+        userId: String,
+        isOwnProfile: Boolean,
+        token: String?,
+        authorName: String,
+        authorInitials: String,
+        authorAvatarColor: Long,
+    ): List<LinkedItinerary> {
+        if (token.isNullOrBlank()) return emptyList()
+        return try {
+            val dtos = if (isOwnProfile) {
+                api.getMyItineraries(token)
+            } else {
+                api.getPublicItinerariesByUser(token, userId)
+            }
+            dtos.map {
+                it.toLinkedItinerary(
+                    authorName = authorName,
+                    authorInitials = authorInitials,
+                    authorAvatarColor = authorAvatarColor,
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    private fun ItineraryResponseDto.toLinkedItinerary(
+        authorName: String,
+        authorInitials: String,
+        authorAvatarColor: Long,
+    ): LinkedItinerary {
+        val durationDays = if (!startDate.isNullOrBlank() && !endDate.isNullOrBlank()) {
+            try {
+                val start = java.time.LocalDate.parse(startDate)
+                val end = java.time.LocalDate.parse(endDate)
+                java.time.temporal.ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(1)
+            } catch (e: Exception) {
+                0
+            }
+        } else {
+            0
+        }
+
+        return LinkedItinerary(
+            id = id,
+            title = title,
+            stopCount = itemCount ?: 0,
+            location = location ?: "",
+            durationDays = durationDays,
+            isPublic = isPublic ?: false,
+            likeCount = shareCount ?: 0,
+            coverImageKey = coverUrl ?: title,
+            authorName = authorName,
+            authorAvatarInitials = authorInitials,
+            authorAvatarColor = authorAvatarColor,
+            timeAgo = formatTimeAgo(createdAt),
+        )
+    }
+
     private fun UserProfileResponseDto.toUserProfile(
         currentUserId: String?,
         isFollowing: Boolean,
         posts: List<CommunityPost>,
+        publicItineraries: List<LinkedItinerary> = emptyList(),
     ): UserProfile {
         val displayName = name ?: "Người dùng"
         return UserProfile(
@@ -185,6 +258,7 @@ class ProfileRepository(
             isOwnProfile = currentUserId != null && id == currentUserId,
             isFollowing = isFollowing,
             posts = posts,
+            publicItineraries = publicItineraries,
         )
     }
 

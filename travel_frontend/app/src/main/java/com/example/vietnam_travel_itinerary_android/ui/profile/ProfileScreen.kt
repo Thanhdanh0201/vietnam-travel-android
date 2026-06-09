@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,34 +32,6 @@ import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.Itin
 import com.example.vietnam_travel_itinerary_android.ui.components.post.CreatePostWidget
 import com.example.vietnam_travel_itinerary_android.ui.components.post.PostCard
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
-
-// Mock data cho tab Lịch trình — team Itinerary sẽ thay sau
-private val mockPublicItineraries = listOf(
-    LinkedItinerary(
-        id = "it1", title = "Hành trình Vịnh Hạ Long 3 ngày",
-        stopCount = 8, location = "Quảng Ninh", durationDays = 3,
-        isPublic = true, likeCount = 47,
-        coverImageKey = "halong_bay",
-        authorName = "Danh Nguyen", authorAvatarInitials = "DN", authorAvatarColor = 0xFFC6102E,
-        timeAgo = "1 tuần trước",
-    ),
-    LinkedItinerary(
-        id = "it2", title = "Phố cổ Hội An & Mỹ Sơn",
-        stopCount = 6, location = "Quảng Nam", durationDays = 2,
-        isPublic = true, likeCount = 63,
-        coverImageKey = "hoian_lantern",
-        authorName = "Danh Nguyen", authorAvatarInitials = "DN", authorAvatarColor = 0xFFC6102E,
-        timeAgo = "2 tuần trước",
-    ),
-    LinkedItinerary(
-        id = "it3", title = "Chinh phục Sapa & Fansipan",
-        stopCount = 5, location = "Lào Cai", durationDays = 3,
-        isPublic = false, likeCount = 29,
-        coverImageKey = "sapa",
-        authorName = "Danh Nguyen", authorAvatarInitials = "DN", authorAvatarColor = 0xFFC6102E,
-        timeAgo = "1 tháng trước",
-    ),
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,7 +110,6 @@ private fun ProfileContent(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Bài viết", "Câu trả lời", "Lịch trình")
-    val displayItineraries = profile.publicItineraries.ifEmpty { mockPublicItineraries }
 
     Scaffold(
         topBar = {
@@ -182,24 +154,6 @@ private fun ProfileContent(
                 )
             }
 
-            if (profile.isOwnProfile) {
-                item {
-                    TextButton(
-                        onClick = { onNavigate("profile/${ProfileMockData.MOCK_OTHER_USER_ID}") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp),
-                    ) {
-                        Text(
-                            text = "Xem profile mẫu (demo)",
-                            color = VNRed,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                    }
-                }
-            }
-
             item {
                 ProfileTabRow(
                     tabs = tabs,
@@ -238,24 +192,24 @@ private fun ProfileContent(
                 }
                 1 -> item { EmptyTabContent("Chưa có câu trả lời nào.") }
                 2 -> {
-                    items(displayItineraries, key = { it.id }) { itinerary ->
-                        Column(
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            if (!itinerary.isPublic && profile.isOwnProfile) {
-                                Text(
-                                    text = "🔒 Chỉ mình tôi",
-                                    fontSize = 11.sp,
-                                    color = SlateGray400,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp),
+                    if (profile.publicItineraries.isEmpty()) {
+                        item { EmptyTabContent("Chưa có lịch trình nào.") }
+                    } else {
+                        items(profile.publicItineraries, key = { it.id }) { itinerary ->
+                            Column(
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                if (!itinerary.isPublic && profile.isOwnProfile) {
+                                    PrivateItineraryBadge(
+                                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                                    )
+                                }
+                                ItineraryCompactCard(
+                                    itinerary = itinerary,
+                                    onViewClick = { onNavigate("itinerary_detail/${itinerary.id}") },
                                 )
                             }
-                            ItineraryCompactCard(
-                                itinerary = itinerary,
-                                onViewClick = { onNavigate("itinerary_detail/${itinerary.id}") },
-                            )
                         }
                     }
                 }
@@ -512,6 +466,31 @@ private fun ProfileTabRow(
                     .background(VNRed.copy(alpha = 0.05f)),
             )
         }
+    }
+}
+
+@Composable
+private fun PrivateItineraryBadge(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(SlateGray100)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Lock,
+            contentDescription = "Riêng tư",
+            tint = SlateGray500,
+            modifier = Modifier.size(12.dp),
+        )
+        Text(
+            text = "Chỉ mình tôi",
+            fontSize = 11.sp,
+            color = SlateGray500,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 

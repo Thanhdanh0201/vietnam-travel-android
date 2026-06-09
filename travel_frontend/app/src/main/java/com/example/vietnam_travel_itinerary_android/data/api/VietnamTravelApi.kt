@@ -286,6 +286,15 @@ interface VietnamTravelApi {
     // ---- Itineraries ----
 
     @GET("api/itineraries")
+    suspend fun getPublicItinerariesByUser(
+        @Header("Authorization") token: String,
+        @Query("user_id") userId: String,
+        @Query("is_public") isPublic: Boolean = true,
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0,
+    ): List<ItineraryResponseDto>
+
+    @GET("api/itineraries")
     suspend fun getItineraries(): List<Itinerary>
 
     @PATCH("api/itineraries")
