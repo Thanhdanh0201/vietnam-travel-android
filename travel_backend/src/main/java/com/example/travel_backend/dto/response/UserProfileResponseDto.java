@@ -10,8 +10,11 @@ public class UserProfileResponseDto {
     private String avatarUrl;
     private String coverUrl;
     private String bio;
+    private String username;
+    private String websiteUrl;
     private String explorerLevel;
     private Integer totalProvinces;
+    private Integer totalPlacesVisited;
     private Integer followerCount;
     private Integer followingCount;
     private Integer postCount;

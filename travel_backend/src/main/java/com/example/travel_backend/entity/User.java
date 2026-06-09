@@ -26,6 +26,9 @@ public class User {
     @Column(name = "name", length = Integer.MAX_VALUE)
     private String name;
 
+    @Column(name = "username", length = Integer.MAX_VALUE)
+    private String username;
+
     @ColumnDefault("NULL")
     @Column(name = "avatar_url", length = Integer.MAX_VALUE)
     private String avatarUrl;
@@ -75,6 +78,20 @@ public class User {
     @ColumnDefault("now()")
     @Column(name = "last_active_at")
     private OffsetDateTime lastActiveAt;
+
+    @ColumnDefault("'user'")
+    @Column(name = "role", length = Integer.MAX_VALUE)
+    private String role = "user";
+
+    @ColumnDefault("false")
+    @Column(name = "is_banned")
+    private Boolean isBanned = false;
+
+    @Column(name = "banned_reason", length = Integer.MAX_VALUE)
+    private String bannedReason;
+
+    @Column(name = "banned_at")
+    private OffsetDateTime bannedAt;
 
 
 }

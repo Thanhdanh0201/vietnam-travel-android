@@ -19,6 +19,7 @@ data class EmbeddedPost(
     val originalAuthorName: String,
     val originalAuthorInitials: String,
     val originalAuthorColor: Long,
+    val originalAuthorAvatarUrl: String = "",
     val originalContent: String,
     val originalMedia: List<PostMedia> = emptyList(),
     val originalTimeAgo: String = ""
@@ -31,6 +32,7 @@ data class CommunityPost(
     val id: String,
     val userId: String = "",
     val authorName: String,
+    val authorAvatarUrl: String = "",
     val authorAvatarInitials: String,
     val authorAvatarColor: Long,
     val timeAgo: String,

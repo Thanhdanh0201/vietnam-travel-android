@@ -45,6 +45,7 @@ fun PostCard(
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onItineraryClick: (String) -> Unit = {},
+    onAuthorClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -54,7 +55,7 @@ fun PostCard(
         shadowElevation = 1.dp
     ) {
         Column(modifier = Modifier.border(1.dp, VNRed.copy(alpha = 0.05f), RoundedCornerShape(12.dp))) {
-            PostHeader(post)
+            PostHeader(post, onAuthorClick = onAuthorClick)
 
             // Caption (repost thuần thì content = "")
             if (post.content.isNotBlank()) {
@@ -103,14 +104,34 @@ fun PostCard(
 
 // ── Post Header: avatar + name + post type badge + time + more
 @Composable
-fun PostHeader(post: CommunityPost) {
+fun PostHeader(post: CommunityPost, onAuthorClick: (() -> Unit)? = null) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
-        AuthorAvatar(post.authorAvatarInitials, Color(post.authorAvatarColor), 40)
-        Column(modifier = Modifier.weight(1f)) {
+        Box(
+            modifier = Modifier
+                .then(
+                    if (onAuthorClick != null) Modifier.clickable(onClick = onAuthorClick)
+                    else Modifier
+                ),
+        ) {
+            AuthorAvatar(
+                initials = post.authorAvatarInitials,
+                color = Color(post.authorAvatarColor),
+                avatarUrl = post.authorAvatarUrl,
+                size = 40,
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (onAuthorClick != null) Modifier.clickable(onClick = onAuthorClick)
+                    else Modifier
+                ),
+        ) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(post.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SlateGray900)
@@ -142,12 +163,12 @@ fun EmbeddedPostCard(embedded: EmbeddedPost, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(22.dp).clip(CircleShape).background(Color(embedded.originalAuthorColor)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(embedded.originalAuthorInitials, color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            }
+            AuthorAvatar(
+                initials = embedded.originalAuthorInitials,
+                color = Color(embedded.originalAuthorColor),
+                avatarUrl = embedded.originalAuthorAvatarUrl,
+                size = 22,
+            )
             Text(embedded.originalAuthorName, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlateGray900)
             Text("• ${embedded.originalTimeAgo}", fontSize = 10.sp, color = SlateGray400)
         }
@@ -275,14 +296,38 @@ fun PostActions(
     }
 }
 
-// ── Author Avatar — reusable circular avatar with initials
+// ── Author Avatar — image URL with initials fallback
 @Composable
-fun AuthorAvatar(initials: String, color: Color, size: Int, modifier: Modifier = Modifier) {
+fun AuthorAvatar(
+    initials: String,
+    color: Color,
+    size: Int,
+    avatarUrl: String = "",
+    modifier: Modifier = Modifier,
+) {
+    val url = avatarUrl.trim().takeIf { it.isNotBlank() }
     Box(
-        modifier = modifier.size(size.dp).clip(CircleShape).background(color),
-        contentAlignment = Alignment.Center
+        modifier = modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .then(if (url == null) Modifier.background(color) else Modifier),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size * 0.35f).sp)
+        if (url != null) {
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Text(
+                initials,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = (size * 0.35f).sp,
+            )
+        }
     }
 }
 

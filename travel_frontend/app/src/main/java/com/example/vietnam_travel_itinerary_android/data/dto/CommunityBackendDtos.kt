@@ -129,11 +129,23 @@ data class UserProfileResponseDto(
     val avatarUrl: String? = null,
     val coverUrl: String? = null,
     val bio: String? = null,
+    val username: String? = null,
+    val websiteUrl: String? = null,
     val explorerLevel: String? = null,
     val totalProvinces: Int? = 0,
+    val totalPlacesVisited: Int? = 0,
     val followerCount: Int? = 0,
     val followingCount: Int? = 0,
     val postCount: Int? = 0,
     val isVerified: Boolean? = false,
     val isPrivate: Boolean? = false
+)
+
+data class UpdateProfileRequest(
+    val name: String? = null,
+    val username: String? = null,
+    val bio: String? = null,
+    val avatarUrl: String? = null,
+    val coverUrl: String? = null,
+    val isPrivate: Boolean? = null
 )

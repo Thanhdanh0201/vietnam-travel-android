@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.Close
 fun CreatePostWidget(
     avatarInitials: String = "U",
     avatarColor: Long = 0xFFC6102E,
+    avatarUrl: String = "",
     text: String = "",
     onTextChange: (String) -> Unit = {},
     linkedItinerary: LinkedItinerary? = null,
@@ -52,13 +53,12 @@ fun CreatePostWidget(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                // ── Avatar
-                Box(
-                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(avatarColor)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(avatarInitials, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
+                AuthorAvatar(
+                    initials = avatarInitials,
+                    color = Color(avatarColor),
+                    avatarUrl = avatarUrl,
+                    size = 40,
+                )
 
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                     // ── Text input

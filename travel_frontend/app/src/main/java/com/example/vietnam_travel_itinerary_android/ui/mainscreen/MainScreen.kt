@@ -27,7 +27,9 @@ import com.example.vietnam_travel_itinerary_android.ui.itinerary.CreateItinerary
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.EditItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
+import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
@@ -60,6 +62,10 @@ fun MainScreen(
             launchSingleTop = true
             restoreState = true
         }
+    }
+
+    fun navigateToProfile(userId: String) {
+        bottomNavController.navigate("profile/$userId")
     }
 
     val showBottomBar = currentDestination?.route?.let { route ->
@@ -114,16 +120,18 @@ fun MainScreen(
                     shareItineraryId = shareItineraryId,
                     itineraryViewModel = itineraryViewModel,
                     onNavigate = { route ->
-                        if (route == "community") {
-                            bottomNavController.navigate("community") {
-                                popUpTo("community?shareItineraryId={shareItineraryId}") {
-                                    inclusive = true
+                        when {
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route == "profile" -> navigateToMainTab("profile")
+                            route == "community" -> {
+                                bottomNavController.navigate("community") {
+                                    popUpTo("community?shareItineraryId={shareItineraryId}") {
+                                        inclusive = true
+                                    }
                                 }
                             }
-                        } else if (route in mainTabRoutes) {
-                            navigateToMainTab(route)
-                        } else {
-                            bottomNavController.navigate(route)
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
                         }
                     }
                 )
@@ -192,21 +200,65 @@ fun MainScreen(
             }
 
             composable("profile") {
+                val profileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
                 ProfileScreen(
+                    viewModel = profileViewModel,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
-                        if (route == "community") {
-                            bottomNavController.navigate("community") {
-                                popUpTo("community?shareItineraryId={shareItineraryId}") {
-                                    inclusive = true
+                        when (route) {
+                            "edit_profile" -> bottomNavController.navigate("edit_profile")
+                            else -> {
+                                if (route.startsWith("profile/")) {
+                                    navigateToProfile(route.removePrefix("profile/"))
+                                } else if (route in mainTabRoutes) {
+                                    navigateToMainTab(route)
                                 }
                             }
-                        } else if (route in mainTabRoutes) {
-                            navigateToMainTab(route)
-                        } else {
-                            bottomNavController.navigate(route)
                         }
-                    }
+                    },
+                )
+            }
+
+            composable("edit_profile") {
+                val profileViewModel: ProfileViewModel = viewModel(
+                    factory = AppViewModelProvider.Factory,
+                    viewModelStoreOwner = bottomNavController.getBackStackEntry("profile"),
+                )
+                EditProfileScreen(
+                    onBack = { bottomNavController.popBackStack() },
+                    onSaved = {
+                        profileViewModel.loadProfile()
+                        bottomNavController.popBackStack()
+                    },
+                )
+            }
+
+            composable(
+                route = "profile/{userId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("userId") {
+                        type = androidx.navigation.NavType.StringType
+                    },
+                ),
+            ) { backStackEntry ->
+                val profileUserId = backStackEntry.arguments?.getString("userId")
+                ProfileScreen(
+                    userId = profileUserId,
+                    onBack = { bottomNavController.popBackStack() },
+                    onNavigate = { route ->
+                        when {
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route == "community" -> {
+                                bottomNavController.navigate("community") {
+                                    popUpTo("community?shareItineraryId={shareItineraryId}") {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
+                        }
+                    },
                 )
             }
         }
