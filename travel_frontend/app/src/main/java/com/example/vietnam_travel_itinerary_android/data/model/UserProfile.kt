@@ -37,6 +37,7 @@ data class UserProfile(
 
     // Dữ liệu phụ (load riêng, không trong bảng users)
     val posts: List<CommunityPost> = emptyList(),
+    val savedPosts: List<CommunityPost> = emptyList(),
     val publicItineraries: List<LinkedItinerary> = emptyList()   // tab "Lịch trình"
 )
 

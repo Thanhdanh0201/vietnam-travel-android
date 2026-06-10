@@ -46,10 +46,29 @@ class ProfileRepository(
             authorInitials = getInitials(displayName),
             authorAvatarColor = getAvatarColor(displayName),
         )
+
+        val savedPosts = if (isOwnProfile && token != null && currentUserId != null) {
+            try {
+                val postsDto = api.getSavedPosts(token, limit = 50, offset = 0)
+                val likedPostIds = if (postsDto.isNotEmpty()) {
+                    try {
+                        api.checkLikedPosts(token, postsDto.map { it.id }).toSet()
+                    } catch (e: Exception) {
+                        emptySet()
+                    }
+                } else emptySet()
+                postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds = postsDto.map { it.id }.toSet()) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                emptyList()
+            }
+        } else emptyList()
+
         profileDto.toUserProfile(
             currentUserId = currentUserId,
             isFollowing = isFollowing,
             posts = posts,
+            savedPosts = savedPosts,
             publicItineraries = itineraries,
         )
     }
@@ -123,6 +142,16 @@ class ProfileRepository(
     suspend fun unlikePost(userId: String, postId: String): Boolean =
         communityRepository.unlikePost(userId, postId)
 
+    suspend fun savePost(userId: String, postId: String): Boolean =
+        communityRepository.savePost(userId, postId)
+
+    suspend fun unsavePost(userId: String, postId: String): Boolean =
+        communityRepository.unsavePost(userId, postId)
+
+    suspend fun deletePost(postId: String): Boolean =
+        communityRepository.deletePost(postId)
+
+
     private suspend fun fetchProfileDto(userId: String, token: String?): UserProfileResponseDto {
         try {
             return api.getProfile(userId, token)
@@ -161,7 +190,15 @@ class ProfileRepository(
                 }
             } else emptySet()
 
-            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+            val savedPostIds = if (token != null && postsDto.isNotEmpty()) {
+                try {
+                    api.checkSavedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds) }
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -233,6 +270,7 @@ class ProfileRepository(
         currentUserId: String?,
         isFollowing: Boolean,
         posts: List<CommunityPost>,
+        savedPosts: List<CommunityPost> = emptyList(),
         publicItineraries: List<LinkedItinerary> = emptyList(),
     ): UserProfile {
         val displayName = name ?: "Người dùng"
@@ -258,6 +296,7 @@ class ProfileRepository(
             isOwnProfile = currentUserId != null && id == currentUserId,
             isFollowing = isFollowing,
             posts = posts,
+            savedPosts = savedPosts,
             publicItineraries = publicItineraries,
         )
     }
@@ -268,6 +307,7 @@ class ProfileRepository(
     private fun PostResponseBackendDto.toCommunityPost(
         currentUserId: String?,
         likedPostIds: Set<String>,
+        savedPostIds: Set<String> = emptySet(),
     ): CommunityPost {
         val authorNameVal = author?.name ?: "Người dùng"
         val mediaList = media?.map {
@@ -303,6 +343,7 @@ class ProfileRepository(
             commentCount = commentCount ?: 0,
             repostCount = repostCount ?: 0,
             isLiked = likedPostIds.contains(id),
+            isSaved = savedPostIds.contains(id),
             linkedItinerary = linkedItineraryVal,
         )
     }

@@ -163,6 +163,88 @@ class ProfileViewModel(
         }
     }
 
+    fun savePost(postId: String) {
+        val profile = _uiState.value.profile ?: return
+        val userId = currentUserId ?: return
+
+        _uiState.update { state ->
+            state.copy(
+                profile = profile.copy(
+                    posts = profile.posts.map { post ->
+                        if (post.id == postId) post.copy(isSaved = true) else post
+                    },
+                    savedPosts = if (profile.savedPosts.any { it.id == postId }) {
+                        profile.savedPosts.map { post ->
+                            if (post.id == postId) post.copy(isSaved = true) else post
+                        }
+                    } else {
+                        val foundPost = profile.posts.find { it.id == postId }?.copy(isSaved = true)
+                        if (foundPost != null) profile.savedPosts + foundPost else profile.savedPosts
+                    }
+                )
+            )
+        }
+
+        viewModelScope.launch {
+            val success = repository.savePost(userId, postId)
+            if (!success) {
+                _uiState.update { state ->
+                    val freshProfile = state.profile ?: return@update state
+                    state.copy(
+                        profile = freshProfile.copy(
+                            posts = freshProfile.posts.map { post ->
+                                if (post.id == postId) post.copy(isSaved = false) else post
+                            },
+                            savedPosts = freshProfile.savedPosts.filter { it.id != postId }
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    fun unsavePost(postId: String) {
+        val profile = _uiState.value.profile ?: return
+        val userId = currentUserId ?: return
+
+        _uiState.update { state ->
+            state.copy(
+                profile = profile.copy(
+                    posts = profile.posts.map { post ->
+                        if (post.id == postId) post.copy(isSaved = false) else post
+                    },
+                    savedPosts = profile.savedPosts.filter { it.id != postId }
+                )
+            )
+        }
+
+        viewModelScope.launch {
+            val success = repository.unsavePost(userId, postId)
+            if (!success) {
+                loadProfile(profile.id)
+            }
+        }
+    }
+
+    fun deletePost(postId: String) {
+        val profile = _uiState.value.profile ?: return
+        _uiState.update { state ->
+            state.copy(
+                profile = profile.copy(
+                    posts = profile.posts.filter { it.id != postId },
+                    savedPosts = profile.savedPosts.filter { it.id != postId }
+                )
+            )
+        }
+
+        viewModelScope.launch {
+            val success = repository.deletePost(postId)
+            if (!success) {
+                loadProfile(profile.id)
+            }
+        }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = null) }
     }

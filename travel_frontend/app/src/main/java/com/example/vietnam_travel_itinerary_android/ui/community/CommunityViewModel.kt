@@ -430,6 +430,42 @@ class CommunityViewModel(
         }
     }
 
+    fun savePost(postId: String) {
+        _posts.update { list ->
+            list.map {
+                if (it.id == postId) it.copy(isSaved = true) else it
+            }
+        }
+        viewModelScope.launch {
+            val success = repository.savePost(currentUserId, postId)
+            if (!success) {
+                _posts.update { list ->
+                    list.map {
+                        if (it.id == postId) it.copy(isSaved = false) else it
+                    }
+                }
+            }
+        }
+    }
+
+    fun unsavePost(postId: String) {
+        _posts.update { list ->
+            list.map {
+                if (it.id == postId) it.copy(isSaved = false) else it
+            }
+        }
+        viewModelScope.launch {
+            val success = repository.unsavePost(currentUserId, postId)
+            if (!success) {
+                _posts.update { list ->
+                    list.map {
+                        if (it.id == postId) it.copy(isSaved = true) else it
+                    }
+                }
+            }
+        }
+    }
+
     fun deletePost(postId: String) {
         viewModelScope.launch {
             val success = repository.deletePost(postId)

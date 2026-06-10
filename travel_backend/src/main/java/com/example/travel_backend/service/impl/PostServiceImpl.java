@@ -7,6 +7,7 @@ import com.example.travel_backend.dto.response.UserCompactDto;
 import com.example.travel_backend.entity.Post;
 import com.example.travel_backend.entity.PostMedia;
 import com.example.travel_backend.entity.User;
+import com.example.travel_backend.entity.SavedPost;
 import com.example.travel_backend.repository.*;
 import com.example.travel_backend.service.PostService;
 import jakarta.transaction.Transactional;
@@ -39,6 +40,9 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private ItineraryRepository itineraryRepository;
+
+    @Autowired
+    private SavedPostRepository savedPostRepository;
 
 
     @Override
@@ -174,6 +178,38 @@ public class PostServiceImpl implements PostService {
         }
 
         postRepository.delete(post);
+    }
+
+    @Override
+    @Transactional
+    public void savePost(UUID userId, UUID postId) {
+        if (savedPostRepository.findByUserIdAndPostId(userId, postId).isPresent()) {
+            return;
+        }
+        SavedPost savedPost = new SavedPost();
+        savedPost.setUser(userRepository.getReferenceById(userId));
+        savedPost.setPost(postRepository.getReferenceById(postId));
+        savedPost.setCreatedAt(java.time.OffsetDateTime.now());
+        savedPostRepository.save(savedPost);
+    }
+
+    @Override
+    @Transactional
+    public void unsavePost(UUID userId, UUID postId) {
+        savedPostRepository.deleteByUserIdAndPostId(userId, postId);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<PostResponseDto> getSavedPosts(UUID userId, int limit, int offset) {
+        System.out.println("Fetching saved posts for user: " + userId + " | limit: " + limit + ", offset: " + offset);
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit);
+        Page<SavedPost> savedPostPage = savedPostRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        List<Post> posts = savedPostPage.getContent().stream()
+                .map(SavedPost::getPost)
+                .collect(Collectors.toList());
+        return mapPostPageToDtoList(posts);
     }
 
 

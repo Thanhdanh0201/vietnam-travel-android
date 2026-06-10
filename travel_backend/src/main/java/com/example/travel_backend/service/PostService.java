@@ -14,4 +14,8 @@ public interface PostService {
     PostResponseDto getPostById(UUID postId);
     void deletePost(UUID userId, UUID postId);
 
+    void savePost(UUID userId, UUID postId);
+    void unsavePost(UUID userId, UUID postId);
+    List<PostResponseDto> getSavedPosts(UUID userId, int limit, int offset);
 }
+

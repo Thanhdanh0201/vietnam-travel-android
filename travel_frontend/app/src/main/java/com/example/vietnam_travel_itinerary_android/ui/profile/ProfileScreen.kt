@@ -87,6 +87,7 @@ fun ProfileScreen(
             ProfileContent(
                 profile = uiState.profile!!,
                 isFollowLoading = uiState.isFollowLoading,
+                viewModel = viewModel,
                 onBack = onBack,
                 onNavigate = onNavigate,
                 onToggleFollow = { viewModel.toggleFollow() },
@@ -103,13 +104,21 @@ fun ProfileScreen(
 private fun ProfileContent(
     profile: UserProfile,
     isFollowLoading: Boolean,
+    viewModel: ProfileViewModel,
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
     onToggleFollow: () -> Unit,
     onLikePost: (postId: String, liked: Boolean) -> Unit,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Bài viết", "Câu trả lời", "Lịch trình")
+    val tabs = remember(profile.isOwnProfile) {
+        if (profile.isOwnProfile) {
+            listOf("Bài viết", "Câu trả lời", "Lịch trình", "Đã lưu")
+        } else {
+            listOf("Bài viết", "Câu trả lời", "Lịch trình")
+        }
+    }
+    var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
 
     Scaffold(
         topBar = {
@@ -183,8 +192,15 @@ private fun ProfileContent(
                             Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
                                 PostCard(
                                     post = post,
+                                    currentUserId = viewModel.currentUserId,
                                     onLikeClick = { onLikePost(post.id, post.isLiked) },
                                     onCommentClick = {},
+                                    onSaveClick = {
+                                        if (post.isSaved) viewModel.unsavePost(post.id) else viewModel.savePost(post.id)
+                                    },
+                                    onDeleteClick = {
+                                        postToDelete = post
+                                    },
                                     onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
                                 )
                             }
@@ -214,7 +230,53 @@ private fun ProfileContent(
                         }
                     }
                 }
+                3 -> {
+                    if (profile.savedPosts.isEmpty()) {
+                        item { EmptyTabContent("Chưa có bài viết nào được lưu.") }
+                    } else {
+                        items(profile.savedPosts, key = { it.id }) { post ->
+                            Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                                PostCard(
+                                    post = post,
+                                    currentUserId = viewModel.currentUserId,
+                                    onLikeClick = { onLikePost(post.id, post.isLiked) },
+                                    onCommentClick = {},
+                                    onSaveClick = {
+                                        if (post.isSaved) viewModel.unsavePost(post.id) else viewModel.savePost(post.id)
+                                    },
+                                    onDeleteClick = {
+                                        postToDelete = post
+                                    },
+                                    onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
+                                )
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        postToDelete?.let { post ->
+            AlertDialog(
+                onDismissRequest = { postToDelete = null },
+                title = { Text("Xoá bài viết", fontWeight = FontWeight.Bold) },
+                text = { Text("Bạn có chắc chắn muốn xoá bài viết này không? Hành động này không thể hoàn tác.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deletePost(post.id)
+                            postToDelete = null
+                        }
+                    ) {
+                        Text("Xoá", color = VNRed, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { postToDelete = null }) {
+                        Text("Huỷ", color = SlateGray500)
+                    }
+                }
+            )
         }
     }
 }
