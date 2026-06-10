@@ -46,6 +46,12 @@ interface VietnamTravelApi {
     ): Response<UserSettingResponseDto>
 
     // ---- Places ----
+    @GET("api/places/search")
+    suspend fun searchPlaces(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 10
+    ): List<Place>
+
     @GET("api/places")
     suspend fun getPlaces(
         @Query("province_code") provinceCode: String? = null,

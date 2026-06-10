@@ -51,6 +51,13 @@ public class PlaceController {
         return ResponseEntity.ok(placeService.getPlaces(null, null, limit));
     }
 
+    @GetMapping("/places/search")
+    public ResponseEntity<List<PlaceResponse>> searchPlaces(
+            @RequestParam("q") String query,
+            @RequestParam(value = "limit", defaultValue = "10") int limit) {
+        return ResponseEntity.ok(placeService.searchPlaces(query, limit));
+    }
+
     @GetMapping("/places/trending")
     public ResponseEntity<List<com.example.travel_backend.dto.response.PlaceTrendingResponseDto>> getTrendingPlaces(
             @RequestParam(defaultValue = "10") int limit) {

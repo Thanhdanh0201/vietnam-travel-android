@@ -63,14 +63,23 @@ public class PostController {
 
     // 4.2 Dang bai viet moi (Kem theo danh sach media, itinerary, place...)
     @PostMapping
-    public ResponseEntity<PostResponseDto> createPost(
+    public ResponseEntity<?> createPost(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody CreatePostRequestDto request) {
 
         UUID myId = UUID.fromString(jwt.getSubject());
         System.out.println("API Call: Create Post by user " + myId);
-        PostResponseDto newPost = postService.createPost(myId, request);
-        return ResponseEntity.ok(newPost);
+        try {
+            PostResponseDto newPost = postService.createPost(myId, request);
+            return ResponseEntity.ok(newPost);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("CREATE POST ERROR: " + e.getClass().getSimpleName() + " — " + e.getMessage());
+            return ResponseEntity.status(500).body(java.util.Map.of(
+                "error", e.getClass().getSimpleName(),
+                "message", e.getMessage() != null ? e.getMessage() : "Unknown error"
+            ));
+        }
     }
 
     @GetMapping("/reactions/check-likes")

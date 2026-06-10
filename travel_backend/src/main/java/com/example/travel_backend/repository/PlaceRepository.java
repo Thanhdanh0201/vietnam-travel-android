@@ -1,6 +1,7 @@
 package com.example.travel_backend.repository;
 
 import com.example.travel_backend.entity.Place;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,7 @@ import java.util.UUID;
 public interface PlaceRepository extends JpaRepository<Place, UUID> {
     List<Place> findByProvince_Code(String code, Pageable pageable);
     List<Place> findByProvince_CodeAndType(String code, String type, Pageable pageable);
+    Page<Place> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
     /**
      * Điểm gần tọa độ GPS nhất (Haversine, mét) — dùng cho thời tiết theo vị trí thực.

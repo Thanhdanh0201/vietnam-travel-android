@@ -301,4 +301,16 @@ public class PlaceServiceImpl implements PlaceService {
 
         return response;
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlaceResponse> searchPlaces(String query, int limit) {
+        System.out.println("Search places by name: " + query);
+        PageRequest pageRequest = PageRequest.of(0, limit);
+        return placeRepository.findByNameContainingIgnoreCase(query, pageRequest)
+                .getContent()
+                .stream()
+                .map(this::mapToPlaceResponse)
+                .collect(Collectors.toList());
+    }
 }
