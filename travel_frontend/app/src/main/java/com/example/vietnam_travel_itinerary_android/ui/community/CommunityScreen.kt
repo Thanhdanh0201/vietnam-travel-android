@@ -72,6 +72,7 @@ fun CommunityScreen(
     val isSearchingPlaces by viewModel.isSearchingPlaces.collectAsState()
     val isCreatingPost by viewModel.isCreatingPost.collectAsState()
     val context = LocalContext.current
+    var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
 
     // ── Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -259,10 +260,17 @@ fun CommunityScreen(
                     ) { post ->
                         PostCard(
                             post = post,
+                            currentUserId = viewModel.currentUserId,
                             onLikeClick = {
                                 if (post.isLiked) viewModel.unlikePost(post.id) else viewModel.likePost(post.id)
                             },
                             onCommentClick = { openedPost = post },
+                            onSaveClick = {
+                                if (post.isSaved) viewModel.unsavePost(post.id) else viewModel.savePost(post.id)
+                            },
+                            onDeleteClick = {
+                                postToDelete = post
+                            },
                             onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") },
                             onPlaceClick = { lat, lng, name ->
                                 openGoogleMaps(lat, lng, name)
@@ -279,6 +287,29 @@ fun CommunityScreen(
                     }
                 }
             }
+        }
+
+        postToDelete?.let { post ->
+            AlertDialog(
+                onDismissRequest = { postToDelete = null },
+                title = { Text("Xoá bài viết", fontWeight = FontWeight.Bold) },
+                text = { Text("Bạn có chắc chắn muốn xoá bài viết này không? Hành động này không thể hoàn tác.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deletePost(post.id)
+                            postToDelete = null
+                        }
+                    ) {
+                        Text("Xoá", color = VNRed, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { postToDelete = null }) {
+                        Text("Huỷ", color = SlateGray500)
+                    }
+                }
+            )
         }
     }
 }

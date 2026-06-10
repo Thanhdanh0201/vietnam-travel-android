@@ -54,6 +54,7 @@ data class CommunityPost(
     val commentCount: Int = 0,
     val repostCount: Int = 0,                   // reposts COUNT
     val isLiked: Boolean = false,
+    val isSaved: Boolean = false,
     val place: PostPlace? = null,               // Địa điểm đính kèm
     val linkedItinerary: LinkedItinerary? = null,
     val embeddedPost: EmbeddedPost? = null,     // Bài gốc nếu là repost/quote

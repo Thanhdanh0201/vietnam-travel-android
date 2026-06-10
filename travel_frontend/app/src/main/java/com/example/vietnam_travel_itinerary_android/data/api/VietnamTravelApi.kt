@@ -204,6 +204,31 @@ interface VietnamTravelApi {
         @Query("id") postId: String
     ): Response<ResponseBody>
 
+    @POST("api/saved_posts")
+    suspend fun savePost(
+        @Header("Authorization") token: String,
+        @Query("post_id") postId: String
+    ): Response<ResponseBody>
+
+    @DELETE("api/saved_posts")
+    suspend fun unsavePost(
+        @Header("Authorization") token: String,
+        @Query("post_id") postId: String
+    ): Response<ResponseBody>
+
+    @GET("api/saved_posts/check-saved")
+    suspend fun checkSavedPosts(
+        @Header("Authorization") token: String,
+        @Query("post_ids") postIds: List<String>
+    ): List<String>
+
+    @GET("api/saved_posts")
+    suspend fun getSavedPosts(
+        @Header("Authorization") token: String,
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0
+    ): List<PostResponseBackendDto>
+
     @GET("api/posts/reactions/check-likes")
     suspend fun checkLikedPosts(
         @Header("Authorization") token: String,

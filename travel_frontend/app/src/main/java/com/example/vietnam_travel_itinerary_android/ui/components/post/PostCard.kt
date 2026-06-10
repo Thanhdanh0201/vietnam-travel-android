@@ -7,12 +7,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +44,11 @@ import androidx.compose.ui.layout.ContentScale
 @Composable
 fun PostCard(
     post: CommunityPost,
+    currentUserId: String? = null,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
+    onSaveClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
     onItineraryClick: (String) -> Unit = {},
     onPlaceClick: ((Double, Double, String) -> Unit)? = null,
     onAuthorClick: (() -> Unit)? = null,
@@ -57,7 +61,12 @@ fun PostCard(
         shadowElevation = 1.dp
     ) {
         Column(modifier = Modifier.border(1.dp, VNRed.copy(alpha = 0.05f), RoundedCornerShape(12.dp))) {
-            PostHeader(post, onAuthorClick = onAuthorClick)
+            PostHeader(
+                post = post,
+                showDeleteOption = currentUserId != null && post.userId == currentUserId,
+                onDeleteClick = onDeleteClick,
+                onAuthorClick = onAuthorClick
+            )
 
             // Caption (repost thuần thì content = "")
             if (post.content.isNotBlank()) {
@@ -130,8 +139,10 @@ fun PostCard(
                     commentCount = post.commentCount,
                     repostCount = post.repostCount,
                     isLiked = post.isLiked,
+                    isSaved = post.isSaved,
                     onLikeClick = onLikeClick,
-                    onCommentClick = onCommentClick
+                    onCommentClick = onCommentClick,
+                    onSaveClick = onSaveClick
                 )
             }
         }
@@ -140,7 +151,14 @@ fun PostCard(
 
 // ── Post Header: avatar + name + post type badge + time + more
 @Composable
-fun PostHeader(post: CommunityPost, onAuthorClick: (() -> Unit)? = null) {
+fun PostHeader(
+    post: CommunityPost,
+    showDeleteOption: Boolean = false,
+    onDeleteClick: () -> Unit = {},
+    onAuthorClick: (() -> Unit)? = null
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -179,7 +197,37 @@ fun PostHeader(post: CommunityPost, onAuthorClick: (() -> Unit)? = null) {
                 Text(post.timeAgo, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp, color = SlateGray400)
             }
         }
-        Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400, modifier = Modifier.size(20.dp))
+        
+        Box {
+            IconButton(
+                onClick = { if (showDeleteOption) showMenu = true },
+                modifier = Modifier.size(20.dp)
+            ) {
+                Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400)
+            }
+
+            if (showDeleteOption) {
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Xoá bài viết", color = Color.Red) },
+                        onClick = {
+                            showMenu = false
+                            onDeleteClick()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = "Xoá",
+                                tint = Color.Red
+                            )
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -295,8 +343,10 @@ fun PostActions(
     commentCount: Int,
     repostCount: Int,
     isLiked: Boolean,
+    isSaved: Boolean,
     onLikeClick: () -> Unit,
-    onCommentClick: () -> Unit
+    onCommentClick: () -> Unit,
+    onSaveClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         // Like
@@ -328,7 +378,14 @@ fun PostActions(
             if (repostCount > 0) Text(repostCount.toString(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SlateGray500)
         }
         Spacer(Modifier.weight(1f))
-        Icon(Icons.Outlined.BookmarkBorder, "Lưu", tint = SlateGray400, modifier = Modifier.size(17.dp))
+        Icon(
+            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+            contentDescription = "Lưu",
+            tint = if (isSaved) VNRed else SlateGray400,
+            modifier = Modifier
+                .size(17.dp)
+                .clickable { onSaveClick() }
+        )
     }
 }
 

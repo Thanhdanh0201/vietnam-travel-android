@@ -66,9 +66,14 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     }
 
     // Mapping DTOs to UI models
-    private fun PostResponseBackendDto.toCommunityPost(currentUserId: String? = null, likedPostIds: Set<String> = emptySet()): CommunityPost {
+    private fun PostResponseBackendDto.toCommunityPost(
+        currentUserId: String? = null,
+        likedPostIds: Set<String> = emptySet(),
+        savedPostIds: Set<String> = emptySet()
+    ): CommunityPost {
         val authorNameVal = author?.name ?: "Người dùng"
         val isLikedVal = likedPostIds.contains(id)
+        val isSavedVal = savedPostIds.contains(id)
         val postTypeVal = postType ?: "text"
         
         val embeddedVal = originalPost?.let { orig ->
@@ -136,6 +141,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             commentCount = commentCount ?: 0,
             repostCount = repostCount ?: 0,
             isLiked = isLikedVal,
+            isSaved = isSavedVal,
             place = placeVal,
             linkedItinerary = linkedItineraryVal,
             embeddedPost = embeddedVal
@@ -196,7 +202,15 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                 }
             } else emptySet()
 
-            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+            val savedPostIds = if (token?.isNotBlank() == true && postsDto.isNotEmpty()) {
+                try {
+                    api.checkSavedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds) }
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
@@ -216,7 +230,15 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                 }
             } else emptySet()
 
-            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+            val savedPostIds = if (postsDto.isNotEmpty()) {
+                try {
+                    api.checkSavedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds) }
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
@@ -236,7 +258,15 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                 }
             } else emptySet()
 
-            postDto.toCommunityPost(currentUserId, likedPostIds)
+            val savedPostIds = if (token?.isNotBlank() == true) {
+                try {
+                    api.checkSavedPosts(token, listOf(postId)).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postDto.toCommunityPost(currentUserId, likedPostIds, savedPostIds)
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
@@ -345,6 +375,49 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    // --- 4.5b Lưu / Bỏ lưu bài đăng ---
+    suspend fun savePost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.savePost(token, postId)
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun unsavePost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.unsavePost(token, postId)
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun getSavedPosts(currentUserId: String, limit: Int = 20, offset: Int = 0): List<CommunityPost> = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext emptyList()
+            val postsDto = api.getSavedPosts(token, limit, offset)
+
+            val likedPostIds = if (postsDto.isNotEmpty()) {
+                try {
+                    api.checkLikedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds = postsDto.map { it.id }.toSet()) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
         }
     }
 
