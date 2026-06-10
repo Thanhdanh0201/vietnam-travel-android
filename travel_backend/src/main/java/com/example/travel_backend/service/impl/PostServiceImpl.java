@@ -121,6 +121,10 @@ public class PostServiceImpl implements PostService {
         post.setUpdatedAt(java.time.OffsetDateTime.now());
 
         Post savedPost = postRepository.save(post);
+
+        // Refetch to ensure all lazy associations (user, place, province) are properly loaded
+        savedPost = postRepository.findById(savedPost.getId()).orElseThrow();
+
         List<PostMedia> savedMediaList = new ArrayList<>();
 
         // Luu Media
@@ -132,6 +136,7 @@ public class PostServiceImpl implements PostService {
                 media.setMediaType(mediaReq.getMediaType() != null ? mediaReq.getMediaType() : "image");
                 media.setThumbnailUrl(mediaReq.getThumbnailUrl());
                 media.setOrderIndex(mediaReq.getOrderIndex() != null ? mediaReq.getOrderIndex() : 0);
+                media.setCreatedAt(java.time.OffsetDateTime.now());
                 savedMediaList.add(postMediaRepository.save(media));
             }
         }
@@ -193,6 +198,18 @@ public class PostServiceImpl implements PostService {
             itDto.setIsPublic(post.getItinerary().getIsPublic());
             itDto.setDescription(post.getItinerary().getDescription());
             dto.setItinerary(itDto);
+        }
+        if (post.getPlace() != null) {
+            PostResponseDto.PlaceCompactDto placeDto = new PostResponseDto.PlaceCompactDto();
+            placeDto.setId(post.getPlace().getId());
+            placeDto.setName(post.getPlace().getName());
+            placeDto.setLat(post.getPlace().getLat());
+            placeDto.setLng(post.getPlace().getLng());
+            placeDto.setImageUrl(post.getPlace().getImageUrl());
+            if (post.getPlace().getProvince() != null) {
+                placeDto.setProvinceName(post.getPlace().getProvince().getName());
+            }
+            dto.setPlace(placeDto);
         }
         if (post.getOriginalPost() != null) {
             PostResponseDto origDto = mapToPostDto(post.getOriginalPost());

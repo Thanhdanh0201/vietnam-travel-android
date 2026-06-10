@@ -20,4 +20,5 @@ public interface PlaceService {
     Map<String, String> logPlaceAction(UUID id, String actionType, UUID userId);
 
     PlaceReviewDto createReview(UUID placeId, UUID userId, CreatePlaceReviewRequest request);
+    List<PlaceResponse> searchPlaces(String query, int limit);
 }

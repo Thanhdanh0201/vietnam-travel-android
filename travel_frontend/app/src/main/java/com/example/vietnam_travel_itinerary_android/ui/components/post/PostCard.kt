@@ -27,6 +27,7 @@ import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
 import com.example.vietnam_travel_itinerary_android.data.model.EmbeddedPost
 import com.example.vietnam_travel_itinerary_android.data.model.LinkedItinerary
 import com.example.vietnam_travel_itinerary_android.data.model.PostMedia
+import com.example.vietnam_travel_itinerary_android.data.model.PostPlace
 import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.ItineraryCompactCard
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import coil3.compose.AsyncImage
@@ -45,6 +46,7 @@ fun PostCard(
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onItineraryClick: (String) -> Unit = {},
+    onPlaceClick: ((Double, Double, String) -> Unit)? = null,
     onAuthorClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -64,6 +66,40 @@ fun PostCard(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
                 Spacer(Modifier.height(12.dp))
+            }
+
+            // Place badge
+            post.place?.let { place ->
+                val badgeModifier = if (onPlaceClick != null && place.lat != 0.0) {
+                    Modifier.clickable { onPlaceClick(place.lat, place.lng, place.name) }
+                } else Modifier
+                Row(
+                    modifier = badgeModifier
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Place,
+                        contentDescription = "Địa điểm",
+                        tint = VNRed,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        buildString {
+                            append(place.name)
+                            if (place.provinceName.isNotBlank()) {
+                                append(", ").append(place.provinceName)
+                            }
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = VNRed,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             // Media (chỉ khi original)

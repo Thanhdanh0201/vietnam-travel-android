@@ -109,6 +109,17 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             )
         }
 
+        val placeVal = place?.let {
+            PostPlace(
+                id = it.id,
+                name = it.name ?: "",
+                lat = it.lat ?: 0.0,
+                lng = it.lng ?: 0.0,
+                imageUrl = it.imageUrl ?: "",
+                provinceName = it.provinceName ?: ""
+            )
+        }
+
         return CommunityPost(
             id = id,
             userId = author?.id ?: "",
@@ -124,6 +135,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             commentCount = commentCount ?: 0,
             repostCount = repostCount ?: 0,
             isLiked = isLikedVal,
+            place = placeVal,
             linkedItinerary = linkedItineraryVal,
             embeddedPost = embeddedVal
         )
@@ -262,6 +274,17 @@ class CommunityRepository(private val supabase: SupabaseClient) {
 
         val createdPost = api.createPost(token, request)
         createdPost.toCommunityPost(userId)
+    }
+
+    // --- 4.2b Tìm kiếm địa điểm ---
+    suspend fun searchPlaces(query: String, limit: Int = 10): List<Place> = withContext(Dispatchers.IO) {
+        try {
+            val places = api.searchPlaces(query, limit)
+            places
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     // --- 4.3 Repost / Quote ---
