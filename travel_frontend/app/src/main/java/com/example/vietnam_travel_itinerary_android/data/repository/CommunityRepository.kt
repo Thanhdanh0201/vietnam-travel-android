@@ -47,17 +47,18 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     private fun formatTimeAgo(isoString: String?): String {
         if (isoString.isNullOrBlank()) return "vừa xong"
         return try {
-            val parsed = OffsetDateTime.parse(isoString)
-            val now = OffsetDateTime.now(parsed.offset)
-            val diff = Duration.between(parsed, now)
-            val seconds = diff.seconds
+            val parsed = java.time.OffsetDateTime.parse(isoString).toInstant()
+            val now = java.time.Instant.now()
+            val seconds = java.time.Duration.between(parsed, now).seconds.coerceAtLeast(0)
             when {
-                seconds < 6 -> "vừa xong"
-                seconds < 60 -> "$seconds giây trước"
+                seconds < 60 -> "vừa xong"
                 seconds < 3600 -> "${seconds / 60} phút trước"
                 seconds < 86400 -> "${seconds / 3600} giờ trước"
                 seconds < 604800 -> "${seconds / 86400} ngày trước"
-                else -> parsed.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                else -> {
+                    val localDateTime = java.time.LocalDateTime.ofInstant(parsed, java.time.ZoneId.systemDefault())
+                    localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                }
             }
         } catch (e: Exception) {
             "vừa xong"

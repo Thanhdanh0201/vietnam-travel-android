@@ -185,6 +185,7 @@ private fun ProfileContent(
                                     post = post,
                                     onLikeClick = { onLikePost(post.id, post.isLiked) },
                                     onCommentClick = {},
+                                    onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
                                 )
                             }
                         }

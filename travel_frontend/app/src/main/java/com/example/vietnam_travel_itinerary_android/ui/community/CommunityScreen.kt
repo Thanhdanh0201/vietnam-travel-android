@@ -37,11 +37,11 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 @Composable
 fun CommunityScreen(
     onNavigate: (String) -> Unit = {},
-    shareItineraryId: String? = null,
     itineraryViewModel: com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel? = null,
     viewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     var postText by remember { mutableStateOf("") }
+    val shareItineraryId by viewModel.shareItineraryId.collectAsState()
     var activeShareItineraryId by remember(shareItineraryId) { mutableStateOf(shareItineraryId) }
 
     val sharedItinerary = remember(activeShareItineraryId, itineraryViewModel) {
@@ -145,7 +145,7 @@ fun CommunityScreen(
             post = post,
             viewModel = viewModel,
             onBack = { openedPost = null },
-            onItineraryClick = { onNavigate("itinerary_detail/$it") }
+            onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
         )
         return@CommunityScreen
     }
@@ -180,7 +180,10 @@ fun CommunityScreen(
                             text = postText,
                             onTextChange = { postText = it },
                             linkedItinerary = linkedItinerary,
-                            onUnlinkClick = { activeShareItineraryId = null },
+                            onUnlinkClick = {
+                                activeShareItineraryId = null
+                                viewModel.setShareItineraryId(null)
+                            },
                             selectedImages = selectedImages,
                             onImageClick = {
                                 val remaining = 4 - selectedImages.size
@@ -213,6 +216,7 @@ fun CommunityScreen(
                                     // Clear UI immediately for responsive feel
                                     postText = ""
                                     activeShareItineraryId = null
+                                    viewModel.setShareItineraryId(null)
                                     // Upload + create in background (ViewModel clears images/place on success)
                                     viewModel.createPost(
                                         content = currentText,
@@ -259,7 +263,7 @@ fun CommunityScreen(
                                 if (post.isLiked) viewModel.unlikePost(post.id) else viewModel.likePost(post.id)
                             },
                             onCommentClick = { openedPost = post },
-                            onItineraryClick = { onNavigate("itinerary_detail/$it") },
+                            onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") },
                             onPlaceClick = { lat, lng, name ->
                                 openGoogleMaps(lat, lng, name)
                             },

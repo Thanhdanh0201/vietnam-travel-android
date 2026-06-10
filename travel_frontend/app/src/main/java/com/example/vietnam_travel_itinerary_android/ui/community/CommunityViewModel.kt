@@ -52,6 +52,13 @@ class CommunityViewModel(
     private val _selectedImages = MutableStateFlow<List<Uri>>(emptyList())
     val selectedImages: StateFlow<List<Uri>> = _selectedImages.asStateFlow()
 
+    private val _shareItineraryId = MutableStateFlow<String?>(null)
+    val shareItineraryId: StateFlow<String?> = _shareItineraryId.asStateFlow()
+
+    fun setShareItineraryId(id: String?) {
+        _shareItineraryId.value = id
+    }
+
     private val _selectedPlace = MutableStateFlow<PostPlace?>(null)
     val selectedPlace: StateFlow<PostPlace?> = _selectedPlace.asStateFlow()
 
@@ -80,12 +87,22 @@ class CommunityViewModel(
                     is SessionStatus.Authenticated -> {
                         loadUserProfile()
                         loadFeed()
+                        try {
+                            supabase.realtime.connect()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                         subscribeToRealtimeFeed()
                         subscribeToRealtimeNotifications()
                     }
                     is SessionStatus.NotAuthenticated -> {
                         loadUserProfile()
                         loadFeed()
+                        try {
+                            supabase.realtime.connect()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                         subscribeToRealtimeFeed()
                         unsubscribeFromRealtimeNotifications()
                     }
@@ -573,6 +590,22 @@ class CommunityViewModel(
                         _posts.update { currentList ->
                             if (currentList.any { it.id == detailedPost.id }) currentList
                             else listOf(detailedPost) + currentList
+                        }
+                    }
+                }.launchIn(viewModelScope)
+
+                // Listen for Update events in posts table
+                val updateFlow = feedChannel!!.postgresChangeFlow<PostgresAction.Update>(schema = "public") {
+                    table = "posts"
+                }
+                updateFlow.onEach { action ->
+                    val updatedPostId = action.record["id"]?.jsonPrimitive?.content ?: return@onEach
+                    val detailedPost = repository.getPostDetails(updatedPostId, currentUserId)
+                    if (detailedPost != null) {
+                        _posts.update { currentList ->
+                            currentList.map { post ->
+                                if (post.id == detailedPost.id) detailedPost else post
+                            }
                         }
                     }
                 }.launchIn(viewModelScope)

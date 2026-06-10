@@ -193,12 +193,22 @@ fun EditItineraryScreen(
             )
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(bottom = 80.dp)
-        ) {
+        if (itinerary == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = VNRed)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
             item {
                 Row(
                     modifier = Modifier
@@ -497,6 +507,7 @@ fun EditItineraryScreen(
             }
         }
     }
+}
 
     // Modal / Dialog Thêm địa điểm du lịch
     if (showAddDialog) {

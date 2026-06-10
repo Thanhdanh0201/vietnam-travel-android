@@ -47,6 +47,7 @@ fun ItineraryCompactCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(VNRed.copy(alpha = 0.05f))
+            .clickable(onClick = onViewClick)
             .drawBehind {
                 drawLine(red, Offset(0f, 0f), Offset(0f, size.height), 8.dp.toPx())
             }
