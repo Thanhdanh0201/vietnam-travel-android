@@ -33,6 +33,7 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit = {},
+    unreadCount: Int = 0,
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -63,6 +64,7 @@ fun HomeScreen(
                     onEventClick = { selectedEvent = it },
                     onSearchClick = { onNavigate("search") },
                     onNotificationClick = { onNavigate("notifications") },
+                    unreadCount = unreadCount,
                     onSeeAllPlaces = { onNavigate("places") },
                     onFavoriteWeatherCityChange = viewModel::setFavoriteWeatherCity,
                     onExploreClick = { onNavigate("explore") },
@@ -104,6 +106,7 @@ private fun HomeContent(
     onEventClick: (Event) -> Unit,
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
+    unreadCount: Int = 0,
     onSeeAllPlaces: () -> Unit,
     onFavoriteWeatherCityChange: (String) -> Unit,
     onExploreClick: () -> Unit,
@@ -123,7 +126,8 @@ private fun HomeContent(
         item {
             AppTopBar(
                 onSearchClick = onSearchClick,
-                onNotificationClick = onNotificationClick
+                onNotificationClick = onNotificationClick,
+                unreadCount = unreadCount,
             )
         }
 

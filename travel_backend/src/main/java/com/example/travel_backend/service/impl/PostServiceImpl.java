@@ -9,6 +9,8 @@ import com.example.travel_backend.entity.PostMedia;
 import com.example.travel_backend.entity.User;
 import com.example.travel_backend.entity.SavedPost;
 import com.example.travel_backend.repository.*;
+import com.example.travel_backend.entity.Mention;
+import com.example.travel_backend.service.NotificationTriggerService;
 import com.example.travel_backend.service.PostService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +20,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,6 +49,14 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private SavedPostRepository savedPostRepository;
+
+    @Autowired
+    private com.example.travel_backend.repository.MentionRepository mentionRepository;
+
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
+
+    private static final Pattern MENTION_PATTERN = Pattern.compile("@([a-zA-Z0-9_.]+)");
 
 
     @Override
@@ -127,7 +141,7 @@ public class PostServiceImpl implements PostService {
         Post savedPost = postRepository.save(post);
 
         // Refetch to ensure all lazy associations (user, place, province) are properly loaded
-        savedPost = postRepository.findById(savedPost.getId()).orElseThrow();
+        final Post persistedPost = postRepository.findById(savedPost.getId()).orElseThrow();
 
         List<PostMedia> savedMediaList = new ArrayList<>();
 
@@ -135,7 +149,7 @@ public class PostServiceImpl implements PostService {
         if (request.getMedia() != null && !request.getMedia().isEmpty()) {
             for (var mediaReq : request.getMedia()) {
                 PostMedia media = new PostMedia();
-                media.setPost(savedPost);
+                media.setPost(persistedPost);
                 media.setMediaUrl(mediaReq.getMediaUrl());
                 media.setMediaType(mediaReq.getMediaType() != null ? mediaReq.getMediaType() : "image");
                 media.setThumbnailUrl(mediaReq.getThumbnailUrl());
@@ -145,7 +159,26 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        PostResponseDto dto = mapToPostDto(savedPost);
+        if (request.getContent() != null) {
+            Set<String> mentionedUsernames = new HashSet<>();
+            Matcher matcher = MENTION_PATTERN.matcher(request.getContent());
+            while (matcher.find()) {
+                mentionedUsernames.add(matcher.group(1));
+            }
+            for (String username : mentionedUsernames) {
+                userRepository.findByUsernameIgnoreCase(username).ifPresent(mentionedUser -> {
+                    Mention mention = new Mention();
+                    mention.setMentionedUser(mentionedUser);
+                    mention.setMentionedBy(userRepository.getReferenceById(userId));
+                    mention.setPost(persistedPost);
+                    mention.setCreatedAt(java.time.OffsetDateTime.now());
+                    mentionRepository.save(mention);
+                    notificationTriggerService.notifyMention(userId, mentionedUser.getId(), persistedPost.getId(), null);
+                });
+            }
+        }
+
+        PostResponseDto dto = mapToPostDto(persistedPost);
         dto.setMedia(savedMediaList.stream().map(this::mapToMediaDto).collect(Collectors.toList()));
         return dto;
     }

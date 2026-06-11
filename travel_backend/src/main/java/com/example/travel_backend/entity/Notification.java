@@ -46,6 +46,17 @@ public class Notification {
     @Column(name = "achievement_id")
     private UUID achievementId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @JoinColumn(name = "itinerary_id")
+    private Itinerary itinerary;
+
+    @Column(name = "place_suggestion_id")
+    private UUID placeSuggestionId;
+
+    @Column(name = "group_key", length = Integer.MAX_VALUE)
+    private String groupKey;
+
     @Column(name = "preview_text", length = Integer.MAX_VALUE)
     private String previewText;
 

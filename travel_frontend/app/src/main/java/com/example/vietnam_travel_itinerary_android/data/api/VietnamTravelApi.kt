@@ -298,8 +298,21 @@ interface VietnamTravelApi {
     suspend fun getNotifications(
         @Header("Authorization") token: String,
         @Query("limit") limit: Int = 30,
-        @Query("offset") offset: Int = 0
+        @Query("offset") offset: Int = 0,
+        @Query("category") category: String? = null
     ): List<NotificationResponseBackendDto>
+
+    @GET("api/notifications/unread-count")
+    suspend fun getUnreadNotificationCount(
+        @Header("Authorization") token: String
+    ): UnreadCountDto
+
+    @PATCH("api/notifications/{id}")
+    suspend fun markNotificationAsRead(
+        @Header("Authorization") token: String,
+        @Path("id") notifId: String,
+        @Body request: NotificationPatchDto
+    ): Response<ResponseBody>
 
     @PATCH("api/notifications")
     suspend fun markNotificationsAsRead(
@@ -390,6 +403,18 @@ interface VietnamTravelApi {
         @Path("id") id: String,
         @Body request: CollaboratorDto
     ): CollaboratorDto
+
+    @POST("api/itineraries/{id}/invites/accept")
+    suspend fun acceptItineraryInvite(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<ResponseBody>
+
+    @POST("api/itineraries/{id}/invites/decline")
+    suspend fun declineItineraryInvite(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<ResponseBody>
 
     @DELETE("api/itineraries/{id}/collaborators/{email}")
     suspend fun removeCollaborator(

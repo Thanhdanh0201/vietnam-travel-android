@@ -115,9 +115,18 @@ data class NotificationResponseBackendDto(
     val postId: String? = null,
     val commentId: String? = null,
     val achievementId: String? = null,
+    val itineraryId: String? = null,
+    val itineraryTitle: String? = null,
+    val placeSuggestionId: String? = null,
     val actorId: String? = null,
     val actorName: String? = null,
-    val actorAvatarUrl: String? = null
+    val actorUsername: String? = null,
+    val actorAvatarUrl: String? = null,
+    val groupKey: String? = null
+)
+
+data class UnreadCountDto(
+    val count: Long = 0
 )
 
 // Request DTO for marking notifications as read

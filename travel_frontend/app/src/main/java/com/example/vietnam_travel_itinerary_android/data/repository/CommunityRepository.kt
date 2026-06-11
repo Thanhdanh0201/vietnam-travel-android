@@ -178,6 +178,13 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             comment_id = commentId,
             is_read = isRead ?: false,
             created_at = createdAt ?: "",
+            preview_text = previewText,
+            reaction_type = reactionType,
+            itinerary_id = itineraryId,
+            itinerary_title = itineraryTitle,
+            place_suggestion_id = placeSuggestionId,
+            actor_username = actorUsername,
+            group_key = groupKey,
             actor = actorName?.let { name ->
                 UserDto(
                     id = actorId ?: "",
@@ -527,14 +534,40 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     }
 
     // --- 4.10 Lấy Notifications ---
-    suspend fun getNotifications(userId: String, limit: Int = 30, offset: Int = 0): List<NotificationDto> = withContext(Dispatchers.IO) {
+    suspend fun getNotifications(
+        userId: String,
+        limit: Int = 30,
+        offset: Int = 0,
+        category: String? = null
+    ): List<NotificationDto> = withContext(Dispatchers.IO) {
         try {
             val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext emptyList()
-            val backendNotifs = api.getNotifications(token, limit, offset)
+            val backendNotifs = api.getNotifications(token, limit, offset, category)
             backendNotifs.map { it.toNotificationDto() }
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
+        }
+    }
+
+    suspend fun getUnreadNotificationCount(): Int = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext 0
+            api.getUnreadNotificationCount(token).count.toInt()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            0
+        }
+    }
+
+    suspend fun markNotificationAsRead(notifId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.markNotificationAsRead(token, notifId, NotificationPatchDto(isRead = true))
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 

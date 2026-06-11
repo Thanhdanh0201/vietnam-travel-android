@@ -38,6 +38,7 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 fun ProfileScreen(
     userId: String? = null,
     viewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    unreadCount: Int = 0,
     onBack: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
 ) {
@@ -88,6 +89,7 @@ fun ProfileScreen(
                 profile = uiState.profile!!,
                 isFollowLoading = uiState.isFollowLoading,
                 viewModel = viewModel,
+                unreadCount = unreadCount,
                 onBack = onBack,
                 onNavigate = onNavigate,
                 onToggleFollow = { viewModel.toggleFollow() },
@@ -105,6 +107,7 @@ private fun ProfileContent(
     profile: UserProfile,
     isFollowLoading: Boolean,
     viewModel: ProfileViewModel,
+    unreadCount: Int,
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
     onToggleFollow: () -> Unit,
@@ -126,6 +129,7 @@ private fun ProfileContent(
                 AppTopBar(
                     onSearchClick = { onNavigate("search") },
                     onNotificationClick = { onNavigate("notifications") },
+                    unreadCount = unreadCount,
                 )
             } else {
                 AppBackTopBar(
