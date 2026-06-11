@@ -14,6 +14,7 @@ import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRep
 import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileViewModel
+import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
@@ -73,6 +74,15 @@ object AppViewModelProvider {
         initializer {
             EditProfileViewModel(
                 repository = ProfileRepository(SupabaseObject.client),
+                supabase = SupabaseObject.client,
+            )
+        }
+
+        initializer {
+            NotificationViewModel(
+                repository = CommunityRepository(SupabaseObject.client),
+                profileRepository = ProfileRepository(SupabaseObject.client),
+                itineraryRepository = ItineraryRepository(SupabaseObject.client),
                 supabase = SupabaseObject.client,
             )
         }

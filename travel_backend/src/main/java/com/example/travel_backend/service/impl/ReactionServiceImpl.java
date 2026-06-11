@@ -5,7 +5,9 @@ import com.example.travel_backend.entity.PostReaction;
 import com.example.travel_backend.repository.PostReactionRepository;
 import com.example.travel_backend.repository.PostRepository;
 import com.example.travel_backend.repository.UserRepository;
+import com.example.travel_backend.service.NotificationTriggerService;
 import com.example.travel_backend.service.ReactionService;
+import com.example.travel_backend.entity.Post;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,9 @@ public class ReactionServiceImpl implements ReactionService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
+
     @Override
     @Transactional
     public void likePost(UUID userId, ReactionRequestDto request) {
@@ -35,6 +40,12 @@ public class ReactionServiceImpl implements ReactionService {
         reaction.setReactionType(request.getReactionType() != null ? request.getReactionType() : "like");
 
         postReactionRepository.save(reaction);
+
+        Post post = postRepository.findById(request.getPostId()).orElse(null);
+        if (post != null && post.getUser() != null) {
+            notificationTriggerService.notifyReaction(
+                    userId, post.getUser().getId(), request.getPostId(), reaction.getReactionType());
+        }
     }
 
     @Override

@@ -60,7 +60,8 @@ data class CreateItineraryItemRequest(
 data class CollaboratorDto(
     val email: String,
     val name: String,
-    val role: String
+    val role: String,
+    val status: String? = null
 )
 
 data class CityDto(

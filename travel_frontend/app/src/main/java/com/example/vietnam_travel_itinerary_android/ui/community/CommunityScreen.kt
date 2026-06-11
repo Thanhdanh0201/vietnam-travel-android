@@ -38,7 +38,8 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 fun CommunityScreen(
     onNavigate: (String) -> Unit = {},
     itineraryViewModel: com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel? = null,
-    viewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    viewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    unreadCount: Int = 0,
 ) {
     var postText by remember { mutableStateOf("") }
     val shareItineraryId by viewModel.shareItineraryId.collectAsState()
@@ -155,7 +156,8 @@ fun CommunityScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             AppTopBar(
                 onSearchClick = { onNavigate("search") },
-                onNotificationClick = { onNavigate("notifications") }
+                onNotificationClick = { onNavigate("notifications") },
+                unreadCount = unreadCount,
             )
             HorizontalDivider(color = Color(0xFFF1F5F9))
 

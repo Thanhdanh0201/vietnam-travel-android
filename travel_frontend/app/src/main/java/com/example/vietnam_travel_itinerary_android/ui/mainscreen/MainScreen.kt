@@ -32,6 +32,8 @@ import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewMo
 import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
+import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationScreen
+import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
 
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
@@ -40,11 +42,21 @@ private val mainTabRoutes: Set<String> by lazy {
 @Composable
 fun MainScreen(
     itineraryViewModel: ItineraryViewModel = viewModel(factory = AppViewModelProvider.Factory),
-    communityViewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    communityViewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    notificationViewModel: NotificationViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val bottomNavController = rememberNavController()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
 
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
+
+    LaunchedEffect(Unit) {
+        notificationViewModel.refreshAll()
+    }
+
+    LaunchedEffect(navBackStackEntry?.destination?.route) {
+        notificationViewModel.loadUnreadCount()
+    }
     val currentDestination = navBackStackEntry?.destination
     val currentRoute =
         bottomNavItems.firstOrNull { item ->
@@ -95,6 +107,7 @@ fun MainScreen(
         ) {
             composable("home") {
                 HomeScreen(
+                    unreadCount = unreadCount,
                     onNavigate = { route ->
                         if (route in mainTabRoutes) {
                             navigateToMainTab(route)
@@ -109,6 +122,7 @@ fun MainScreen(
                 CommunityScreen(
                     itineraryViewModel = itineraryViewModel,
                     viewModel = communityViewModel,
+                    unreadCount = unreadCount,
                     onNavigate = { route ->
                         when {
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
@@ -187,6 +201,7 @@ fun MainScreen(
                 val profileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
                 ProfileScreen(
                     viewModel = profileViewModel,
+                    unreadCount = unreadCount,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
                         when (route) {
@@ -226,6 +241,21 @@ fun MainScreen(
                 )
             }
 
+            composable("notifications") {
+                NotificationScreen(
+                    onBack = { bottomNavController.popBackStack() },
+                    onNavigate = { route ->
+                        when {
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route.startsWith("itinerary_detail/") -> bottomNavController.navigate(route)
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
+                        }
+                    },
+                    viewModel = notificationViewModel,
+                )
+            }
+
             composable(
                 route = "profile/{userId}",
                 arguments = listOf(
@@ -237,6 +267,7 @@ fun MainScreen(
                 val profileUserId = backStackEntry.arguments?.getString("userId")
                 ProfileScreen(
                     userId = profileUserId,
+                    unreadCount = unreadCount,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
                         when {

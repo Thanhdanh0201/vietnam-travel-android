@@ -5,6 +5,8 @@ import com.example.travel_backend.entity.Repost; // Import class Repost
 import com.example.travel_backend.repository.PostRepository;
 import com.example.travel_backend.repository.RepostRepository;
 import com.example.travel_backend.repository.UserRepository;
+import com.example.travel_backend.entity.Post;
+import com.example.travel_backend.service.NotificationTriggerService;
 import com.example.travel_backend.service.RepostService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,9 @@ public class RepostServiceImpl implements RepostService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
+
     @Override
     @Transactional
     public void createRepost(UUID userId, RepostRequestDto request) {
@@ -35,6 +40,11 @@ public class RepostServiceImpl implements RepostService {
         repost.setQuoteText(request.getQuoteText());
 
         repostRepository.save(repost);
+
+        Post post = postRepository.findById(request.getPostId()).orElse(null);
+        if (post != null && post.getUser() != null) {
+            notificationTriggerService.notifyRepost(userId, post.getUser().getId(), request.getPostId());
+        }
     }
 
     @Override

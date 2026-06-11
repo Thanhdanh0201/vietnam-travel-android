@@ -268,7 +268,7 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             try {
                 val token = getAuthToken()
                 if (token.isBlank()) throw Exception("Chưa đăng nhập")
-                val response = api.addCollaborator(token, itineraryId, CollaboratorDto(email, name, role))
+                val response = api.addCollaborator(token, itineraryId, CollaboratorDto(email, name, role, null))
                 Result.success(response)
             } catch (e: Exception) {
                 Result.failure(e)
@@ -281,6 +281,32 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
                 val token = getAuthToken()
                 if (token.isBlank()) throw Exception("Chưa đăng nhập")
                 api.removeCollaborator(token, itineraryId, email)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun acceptInvite(itineraryId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                val response = api.acceptItineraryInvite(token, itineraryId)
+                if (!response.isSuccessful) throw Exception("Accept invite failed")
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun declineInvite(itineraryId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                val response = api.declineItineraryInvite(token, itineraryId)
+                if (!response.isSuccessful) throw Exception("Decline invite failed")
                 Result.success(Unit)
             } catch (e: Exception) {
                 Result.failure(e)

@@ -11,6 +11,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public interface NotificationService {
-    public List<NotificationResponseDto> getNotifications(UUID userId, int limit, int offset);
-    public void markAllAsRead(UUID userId);
+    List<NotificationResponseDto> getNotifications(UUID userId, int limit, int offset, String category);
+    long getUnreadCount(UUID userId);
+    void markAsRead(UUID notifId, UUID userId);
+    void markAllAsRead(UUID userId);
 }
