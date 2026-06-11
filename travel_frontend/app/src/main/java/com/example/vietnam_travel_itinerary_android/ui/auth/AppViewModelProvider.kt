@@ -10,6 +10,10 @@ import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewMo
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
 import com.example.vietnam_travel_itinerary_android.ui.community.CommunityViewModel
 import com.example.vietnam_travel_itinerary_android.data.repository.CommunityRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
+import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileViewModel
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
@@ -47,7 +51,8 @@ object AppViewModelProvider {
 
         initializer {
             ItineraryViewModel(
-                placeRepo = PlaceRepository()
+                placeRepo = PlaceRepository(),
+                itineraryRepo = ItineraryRepository(SupabaseObject.client)
             )
         }
 
@@ -55,6 +60,20 @@ object AppViewModelProvider {
             CommunityViewModel(
                 repository = CommunityRepository(SupabaseObject.client),
                 supabase = SupabaseObject.client
+            )
+        }
+
+        initializer {
+            ProfileViewModel(
+                repository = ProfileRepository(SupabaseObject.client),
+                supabase = SupabaseObject.client,
+            )
+        }
+
+        initializer {
+            EditProfileViewModel(
+                repository = ProfileRepository(SupabaseObject.client),
+                supabase = SupabaseObject.client,
             )
         }
     }

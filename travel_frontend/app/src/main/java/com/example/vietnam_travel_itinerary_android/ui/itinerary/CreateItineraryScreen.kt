@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Edit
@@ -27,71 +26,123 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
-import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
+import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateItineraryScreen(
+    viewModel: ItineraryViewModel,
     onBackClick: () -> Unit = {},
-    onCreate: (Itinerary) -> Unit = {}
+    onCreate: (String) -> Unit = {}
 ) {
-    // Chọn thời gian (Mock Calendar Interactive)
-    var startDay by remember { mutableStateOf<Int?>(16) }
-    var endDay by remember { mutableStateOf<Int?>(20) }
-    
     // Tên chuyến đi
     var tripName by remember { mutableStateOf("") }
+
+    // Khoảng ngày được chọn thực tế
+    var startDateMillis by remember { mutableStateOf<Long?>(null) }
+    var endDateMillis by remember { mutableStateOf<Long?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    // Upload ảnh bìa lên Supabase
+    val context = LocalContext.current
+    var selectedImageUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var uploadedImageUrl by remember { mutableStateOf<String?>(null) }
+    var isUploadingImage by remember { mutableStateOf(false) }
+    var uploadError by remember { mutableStateOf<String?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        selectedImageUri = uri
+        uri?.let {
+            isUploadingImage = true
+            uploadError = null
+            try {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                inputStream?.close()
+                if (bytes != null) {
+                    val fileName = "cover_${System.currentTimeMillis()}.jpg"
+                    viewModel.uploadCover(
+                        bytes,
+                        fileName,
+                        onSuccess = { url ->
+                            uploadedImageUrl = url
+                            isUploadingImage = false
+                        },
+                        onFailure = { errorMsg ->
+                            uploadError = errorMsg
+                            isUploadingImage = false
+                        }
+                    )
+                } else {
+                    isUploadingImage = false
+                    uploadError = "Không thể đọc dữ liệu ảnh"
+                }
+            } catch (e: Exception) {
+                isUploadingImage = false
+                uploadError = "Lỗi: ${e.message}"
+            }
+        }
+    }
+
+    // Định dạng ngày hiển thị
+    val dateRangeStr = remember(startDateMillis, endDateMillis) {
+        if (startDateMillis != null && endDateMillis != null) {
+            val start = Instant.ofEpochMilli(startDateMillis!!).atZone(ZoneId.systemDefault()).toLocalDate()
+            val end = Instant.ofEpochMilli(endDateMillis!!).atZone(ZoneId.systemDefault()).toLocalDate()
+            val dmyFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            val dmFormatter = DateTimeFormatter.ofPattern("dd/MM")
+            if (start.year == end.year) {
+                "${start.format(dmFormatter)} - ${end.format(dmyFormatter)}"
+            } else {
+                "${start.format(dmyFormatter)} - ${end.format(dmyFormatter)}"
+            }
+        } else {
+            "Sắp xếp sau"
+        }
+    }
     
-    // Thành phố / Tỉnh
-    val provinceToDistricts = mapOf(
-        "Thừa Thiên Huế" to listOf("TP. Huế", "Hương Thủy", "Hương Trà", "Phú Vang", "Phú Lộc"),
-        "Đà Nẵng" to listOf("Hải Châu", "Sơn Trà", "Ngũ Hành Sơn", "Liên Chiểu", "Cẩm Lệ"),
-        "Quảng Nam" to listOf("Hội An", "Tam Kỳ", "Điện Bàn", "Đại Lộc", "Duy Xuyên"),
-        "Hà Nội" to listOf("Hoàn Kiếm", "Ba Đình", "Tây Hồ", "Đống Đa", "Hai Bà Trưng"),
-        "Hồ Chí Minh" to listOf("Quận 1", "Quận 3", "Quận 5", "Quận 10", "Phú Nhuận")
-    )
-    val provinces = provinceToDistricts.keys.toList()
-    var selectedProvince by remember { mutableStateOf(provinces[0]) }
-    
-    // Quận Huyện
-    var districts by remember { mutableStateOf(provinceToDistricts[selectedProvince] ?: listOf()) }
-    var selectedDistrict by remember { mutableStateOf(districts.firstOrNull() ?: "") }
+    val uiState by viewModel.uiState.collectAsState()
+    val provinces = uiState.provinces
+    var selectedProvinceName by remember { mutableStateOf("") }
+    var selectedProvinceCode by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+
+    LaunchedEffect(provinces) {
+        if (provinces.isNotEmpty() && selectedProvinceName.isEmpty()) {
+            val firstProv = provinces.first()
+            selectedProvinceName = firstProv.name
+            selectedProvinceCode = firstProv.code
+        }
+    }
+
+
+    if (showDatePicker) {
+        DateRangePickerDialog(
+            onDismiss = { showDatePicker = false },
+            onConfirm = { start, end ->
+                startDateMillis = start
+                endDateMillis = end
+            }
+        )
+    }
 
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
-        topBar = {
-            Surface(
-                color = Color(0xFFF8F6F6),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .statusBarsPadding(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        IconButton(onClick = onBackClick) {
-                            Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = VNRed)
-                        }
-                        Text(
-                            text = "Quay lại Lịch trình",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = VNRed
-                        )
-                    }
-                    AuthorAvatar(initials = "P", color = Color(0xFFF59E0B), size = 36)
-                }
-            }
-        },
+        topBar = { AppBackTopBar(onBackClick = onBackClick) },
         bottomBar = {
             Surface(
                 color = Color(0xFFF8F6F6),
@@ -99,19 +150,29 @@ fun CreateItineraryScreen(
             ) {
                 Button(
                     onClick = {
-                        val newItinerary = Itinerary(
-                            id = System.currentTimeMillis().toString(),
-                            title = tripName.ifBlank { "Lịch trình mới" },
-                            location = "$selectedDistrict, $selectedProvince",
-                            dateRange = if (startDay != null && endDay != null) "$startDay/12 - $endDay/12/2024" else "Sắp xếp sau",
-                            statusText = "SẮP DIỄN RA",
-                            statusSubText = "🕒 Mới tạo",
-                            isUpcoming = true,
-                            imageResId = android.R.drawable.ic_menu_gallery,
-                            participantImages = listOf(android.R.drawable.ic_menu_report_image)
+                        if (isSaving) return@Button
+                        isSaving = true
+                        viewModel.addItinerary(
+                            itinerary = Itinerary(
+                                id = "",
+                                title = tripName.ifBlank { "Lịch trình mới" },
+                                location = selectedProvinceName,
+                                dateRange = dateRangeStr,
+                                statusText = "SẮP DIỄN RA",
+                                statusSubText = "🕒 Mới tạo",
+                                isUpcoming = true,
+                                imageResId = android.R.drawable.ic_menu_gallery,
+                                participantImages = emptyList()
+                            ),
+                            coverUrl = uploadedImageUrl,
+                            onSuccess = { newId ->
+                                isSaving = false
+                                onCreate(newId)
+                            },
+                            onFailure = {
+                                isSaving = false
+                            }
                         )
-                        onCreate(newItinerary)
-                        onBackClick()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -119,11 +180,16 @@ fun CreateItineraryScreen(
                         .height(56.dp)
                         .navigationBarsPadding(),
                     colors = ButtonDefaults.buttonColors(containerColor = VNRed),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isSaving
                 ) {
-                    Text("BẮT ĐẦU LÊN LỊCH", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
+                    if (isSaving) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    } else {
+                        Text("BẮT ĐẦU LÊN LỊCH", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         }
@@ -180,7 +246,7 @@ fun CreateItineraryScreen(
                 )
             }
 
-            // Chọn thời gian (Mock Calendar Interactive)
+            // Chọn thời gian chuyến đi thực tế
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -198,118 +264,104 @@ fun CreateItineraryScreen(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = Color.White,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showDatePicker = true }
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = "Tháng 12, 2024",
+                                text = dateRangeStr,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 16.sp,
-                                color = SlateGray900
+                                color = if (startDateMillis != null) SlateGray900 else SlateGray400
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Outlined.KeyboardArrowLeft, contentDescription = null, tint = SlateGray400)
-                                Icon(Icons.Outlined.KeyboardArrowRight, contentDescription = null, tint = SlateGray400)
-                            }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        // Weekdays header
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            val daysOfWeek = listOf("T2" to SlateGray900, "T3" to SlateGray900, "T4" to SlateGray900, "T5" to SlateGray900, "T6" to SlateGray900, "T7" to VNRed, "CN" to VNRed)
-                            daysOfWeek.forEach { (day, color) ->
+                            if (startDateMillis != null && endDateMillis != null) {
+                                val start = Instant.ofEpochMilli(startDateMillis!!).atZone(ZoneId.systemDefault()).toLocalDate()
+                                val end = Instant.ofEpochMilli(endDateMillis!!).atZone(ZoneId.systemDefault()).toLocalDate()
+                                val daysCount = ChronoUnit.DAYS.between(start, end) + 1
                                 Text(
-                                    text = day,
+                                    text = "Chuyến đi kéo dài $daysCount ngày",
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = color,
-                                    modifier = Modifier.weight(1f),
-                                    textAlign = TextAlign.Center
+                                    color = VNRed,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            } else {
+                                Text(
+                                    text = "Bấm để chọn khoảng ngày đi",
+                                    fontSize = 12.sp,
+                                    color = SlateGray400
                                 )
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        // Calendar Grid Mock
-                        val days = (25..30).map { it.toString() to SlateGray300 } + 
-                                   (1..31).map { it.toString() to SlateGray900 } + 
-                                   (1..5).map { it.toString() to SlateGray300 }
-                        
-                        var dayIndex = 0
-                        for (row in 0..4) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                for (col in 0..6) {
-                                    if (dayIndex < days.size) {
-                                        val (dayStr, color) = days[dayIndex]
-                                        val isCurrentMonth = color == SlateGray900
-                                        val dayNum = dayStr.toIntOrNull() ?: 0
-                                        
-                                        val isSelectedRange = isCurrentMonth && startDay != null && endDay != null && dayNum in startDay!!..endDay!!
-                                        val isStart = isCurrentMonth && dayNum == startDay
-                                        val isEnd = isCurrentMonth && dayNum == endDay
-                                        val isSingleSelection = isStart && isEnd
-                                        
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(40.dp)
-                                                .clickable {
-                                                    if (isCurrentMonth) {
-                                                        if (startDay == null || (startDay != null && endDay != null)) {
-                                                            // Start new selection
-                                                            startDay = dayNum
-                                                            endDay = null
-                                                        } else if (dayNum >= startDay!!) {
-                                                            endDay = dayNum
-                                                        } else {
-                                                            startDay = dayNum
-                                                        }
-                                                    }
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            // Range background
-                                            if (isSelectedRange && !isStart && !isEnd) {
-                                                Box(modifier = Modifier.fillMaxSize().background(VNRed.copy(alpha = 0.1f)))
-                                            } else if (isStart && endDay != null && !isSingleSelection) {
-                                                Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterEnd).background(VNRed.copy(alpha = 0.1f)))
-                                            } else if (isEnd && startDay != null && !isSingleSelection) {
-                                                Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(0.5f).align(Alignment.CenterStart).background(VNRed.copy(alpha = 0.1f)))
-                                            }
-                                            
-                                            // Day circle
-                                            val isHighlighted = isStart || isEnd || (isCurrentMonth && startDay != null && endDay == null && dayNum == startDay)
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(36.dp)
-                                                    .clip(CircleShape)
-                                                    .background(if (isHighlighted) VNRed else Color.Transparent),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Text(
-                                                    text = dayStr,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Medium,
-                                                    color = if (isHighlighted) Color.White else color
-                                                )
-                                            }
-                                        }
-                                        dayIndex++
-                                    }
+                        IconButton(onClick = { showDatePicker = true }) {
+                            Icon(Icons.Outlined.Edit, contentDescription = "Edit Date", tint = VNRed)
+                        }
+                    }
+                }
+            }
+
+            // Chọn & Tải ảnh bìa (Supabase storage)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "ẢNH BÌA LỊCH TRÌNH (Tải lên Supabase)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = SlateGray500
+                )
+                
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clickable(enabled = !isUploadingImage) { imagePickerLauncher.launch("image/*") }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isUploadingImage) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                CircularProgressIndicator(color = VNRed, modifier = Modifier.size(32.dp))
+                                Text("Đang tải ảnh lên Supabase...", fontSize = 12.sp, color = SlateGray500)
+                            }
+                        } else if (uploadedImageUrl != null) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AsyncImage(
+                                    model = uploadedImageUrl,
+                                    contentDescription = "Cover Image",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
+                                )
+                                Surface(
+                                    color = Color.Black.copy(alpha = 0.5f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(8.dp)
+                                        .clickable { imagePickerLauncher.launch("image/*") }
+                                ) {
+                                    Text(
+                                        text = "Thay đổi ảnh",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Filled.Add, contentDescription = "Chọn ảnh", tint = SlateGray400, modifier = Modifier.size(28.dp))
+                                Text("Chọn ảnh bìa từ điện thoại của bạn", fontSize = 12.sp, color = SlateGray400)
+                                uploadError?.let {
+                                    Text(it, color = VNRed, fontSize = 11.sp)
                                 }
                             }
                         }
@@ -348,7 +400,7 @@ fun CreateItineraryScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(selectedProvince, color = SlateGray900, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                            Text(selectedProvinceName.ifBlank { "Chọn Tỉnh/Thành" }, color = SlateGray900, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                             Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = SlateGray500)
                         }
                     }
@@ -359,127 +411,13 @@ fun CreateItineraryScreen(
                     ) {
                         provinces.forEach { province ->
                             DropdownMenuItem(
-                                text = { Text(province) },
+                                text = { Text(province.name) },
                                 onClick = {
-                                    selectedProvince = province
+                                    selectedProvinceName = province.name
+                                    selectedProvinceCode = province.code
                                     expandedProvince = false
-                                    districts = provinceToDistricts[province] ?: listOf()
-                                    selectedDistrict = districts.firstOrNull() ?: ""
                                 }
                             )
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                var expandedDistrict by remember { mutableStateOf(false) }
-
-                Text(
-                    text = "Quận/Huyện/Thành phố thuộc tỉnh",
-                    fontSize = 12.sp,
-                    color = SlateGray600
-                )
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = SlateGray50.copy(alpha = 0.5f),
-                        border = borderStroke(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .clickable { expandedDistrict = true }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(selectedDistrict, color = SlateGray900, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = SlateGray500)
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = expandedDistrict,
-                        onDismissRequest = { expandedDistrict = false },
-                        modifier = Modifier.fillMaxWidth(0.9f).background(Color.White)
-                    ) {
-                        districts.forEach { district ->
-                            DropdownMenuItem(
-                                text = { Text(district) },
-                                onClick = {
-                                    selectedDistrict = district
-                                    expandedDistrict = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Mời bạn bè tham gia
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "MỜI BẠN BÈ THAM GIA",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = SlateGray500
-                    )
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = VNRed.copy(alpha = 0.1f),
-                        modifier = Modifier.clickable { }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(12.dp), tint = VNRed)
-                            Text("THÊM BẠN BÈ", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = VNRed)
-                        }
-                    }
-                }
-                
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // User Linh
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            AuthorAvatar(initials = "L", color = VNRed, size = 48)
-                            Text("Linh", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = SlateGray900)
-                        }
-                        // User Minh
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            AuthorAvatar(initials = "M", color = Color(0xFF3B82F6), size = 48)
-                            Text("Minh", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = SlateGray900)
-                        }
-                        // User Hà
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            AuthorAvatar(initials = "H", color = Color(0xFFF59E0B), size = 48)
-                            Text("Hà", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = SlateGray900)
-                        }
-                        // +2 Khác
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Box(
-                                modifier = Modifier.size(48.dp).clip(CircleShape).background(SlateGray100),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("+2", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
-                            }
-                            Text("Khác", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = SlateGray900)
                         }
                     }
                 }
@@ -490,5 +428,71 @@ fun CreateItineraryScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DateRangePickerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Long?, Long?) -> Unit
+) {
+    val dateRangePickerState = rememberDateRangePickerState()
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm(dateRangePickerState.selectedStartDateMillis, dateRangePickerState.selectedEndDateMillis)
+                    onDismiss()
+                }
+            ) {
+                Text("Chọn", color = VNRed, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy", color = SlateGray500)
+            }
+        },
+        colors = DatePickerDefaults.colors(containerColor = Color.White)
+    ) {
+        DateRangePicker(
+            state = dateRangePickerState,
+            modifier = Modifier.weight(1f),
+            showModeToggle = false,
+            colors = DatePickerDefaults.colors(
+                selectedDayContainerColor = VNRed,
+                todayContentColor = VNRed,
+                selectedDayContentColor = Color.White,
+                containerColor = Color.White
+            ),
+            title = {
+                Text(
+                    text = "Chọn thời gian chuyến đi",
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = SlateGray500
+                )
+            },
+            headline = {
+                val startText = dateRangePickerState.selectedStartDateMillis?.let {
+                    java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy", java.util.Locale.US))
+                } ?: "Bắt đầu"
+                val endText = dateRangePickerState.selectedEndDateMillis?.let {
+                    java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy", java.util.Locale.US))
+                } ?: "Kết thúc"
+                Text(
+                    text = "$startText - $endText",
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = SlateGray900,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        )
+    }
+}
+
 @Composable
 private fun borderStroke() = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF1F5F9))
+

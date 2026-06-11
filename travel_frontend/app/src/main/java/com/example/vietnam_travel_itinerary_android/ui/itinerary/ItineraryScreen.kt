@@ -20,8 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
-import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
-import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
+import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import com.example.vietnam_travel_itinerary_android.R
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,17 +31,28 @@ fun ItineraryScreen(
     onNotificationClick: () -> Unit = {},
     onCreateClick: () -> Unit = {},
     onEditClick: (String) -> Unit = {},
+    onShareClick: (String) -> Unit = {}
 ) {
-
-    // State cho Dialog tạo mới
-    var showDialog by remember { mutableStateOf(false) }
-    var title by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf("") }
 
     // State cho việc lọc danh sách
     var filter by remember { mutableStateOf("all") }
     val uiState by viewModel.uiState.collectAsState()
     val itineraries = uiState.itineraries
+
+    // State cho việc xóa lịch trình
+    var itineraryToDelete by remember { mutableStateOf<Itinerary?>(null) }
+
+    // Fetch itineraries when screen is shown
+    LaunchedEffect(Unit) {
+        viewModel.fetchItineraries()
+    }
+
+    // Fetch collaborators mỗi khi danh sách itinerary thay đổi (đảm bảo hiển thị participants)
+    LaunchedEffect(itineraries) {
+        itineraries.forEach { itinerary ->
+            viewModel.fetchCollaborators(itinerary.id)
+        }
+    }
 
     Scaffold(
         containerColor = Color(0xFFF8F6F6),
@@ -139,14 +149,15 @@ fun ItineraryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(filteredList) { itinerary ->
+                    val participants = uiState.participantsMap[itinerary.id] ?: emptyList()
                     ItineraryCard(
                         itinerary = itinerary,
+                        participants = participants,
+                        canDelete = itinerary.myRole == "OWNER",
                         onClick = onEditClick,
-                        // Old API version:
-// onDelete = { viewModel.deleteItinerary(itinerary) }
-
+                        onShareClick = onShareClick,
                         onDelete = {
-                            viewModel.deleteLocalItinerary(itinerary.id)
+                            itineraryToDelete = itinerary
                         }
                     )
                 }
@@ -154,59 +165,42 @@ fun ItineraryScreen(
         }
     }
 
-    // Dialog tạo lịch trình
-    if (showDialog) {
+    // Hộp thoại xác nhận xóa lịch trình
+    itineraryToDelete?.let { toDelete ->
         AlertDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { itineraryToDelete = null },
+            title = {
+                Text(
+                    text = "Xóa lịch trình",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = SlateGray900
+                )
+            },
+            text = {
+                Text(
+                    text = "Bạn có chắc chắn muốn xóa lịch trình \"${toDelete.title}\" không? Hành động này không thể hoàn tác.",
+                    fontSize = 14.sp,
+                    color = SlateGray600
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
-                        val newItinerary = Itinerary(
-                            id = System.currentTimeMillis().toString(),
-                            title = title,
-                            location = location,
-                            dateRange = "Chưa xác định",
-                            isUpcoming = true,
-                            imageResId = R.drawable.ic_launcher_background,
-                            statusText = "Sắp diễn ra",
-                            statusSubText = null,
-                            participantImages = emptyList()
-                        )
-                        // Old API version:
-// viewModel.createItinerary(newItinerary)
-
-                        viewModel.addLocalItinerary(newItinerary)
-                        title = ""
-                        location = ""
-                        showDialog = false
+                        viewModel.deleteItinerary(toDelete.id)
+                        itineraryToDelete = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = VNRed)
                 ) {
-                    Text("Lưu", color = Color.White)
+                    Text("Xóa", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Hủy")
+                TextButton(onClick = { itineraryToDelete = null }) {
+                    Text("Hủy", color = SlateGray500)
                 }
             },
-            title = { Text("Tạo lịch trình mới") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Tên lịch trình") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = location,
-                        onValueChange = { location = it },
-                        label = { Text("Địa điểm") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
+            containerColor = Color.White
         )
     }
 }

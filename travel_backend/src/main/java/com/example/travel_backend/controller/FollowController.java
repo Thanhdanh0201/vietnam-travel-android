@@ -20,7 +20,7 @@ public class FollowController {
     @Autowired
     private FollowService followService;
 
-    @PostMapping
+    @PostMapping("/{followingId}")
     public ResponseEntity<?> follow(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID followingId){
@@ -31,7 +31,7 @@ public class FollowController {
         return ResponseEntity.ok().build();
     }
 
-    @DeleteMapping
+    @DeleteMapping("/{followingId}")
     public ResponseEntity<?> unfollow(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable UUID followingId) {

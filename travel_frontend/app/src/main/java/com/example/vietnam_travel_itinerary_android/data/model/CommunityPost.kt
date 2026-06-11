@@ -19,9 +19,21 @@ data class EmbeddedPost(
     val originalAuthorName: String,
     val originalAuthorInitials: String,
     val originalAuthorColor: Long,
+    val originalAuthorAvatarUrl: String = "",
     val originalContent: String,
     val originalMedia: List<PostMedia> = emptyList(),
     val originalTimeAgo: String = ""
+)
+
+// ── Địa điểm đính kèm bài viết
+@Immutable
+data class PostPlace(
+    val id: String,
+    val name: String,
+    val lat: Double = 0.0,
+    val lng: Double = 0.0,
+    val imageUrl: String = "",
+    val provinceName: String = ""
 )
 
 // ── Tương ứng bảng: posts
@@ -31,6 +43,7 @@ data class CommunityPost(
     val id: String,
     val userId: String = "",
     val authorName: String,
+    val authorAvatarUrl: String = "",
     val authorAvatarInitials: String,
     val authorAvatarColor: Long,
     val timeAgo: String,
@@ -41,6 +54,8 @@ data class CommunityPost(
     val commentCount: Int = 0,
     val repostCount: Int = 0,                   // reposts COUNT
     val isLiked: Boolean = false,
+    val isSaved: Boolean = false,
+    val place: PostPlace? = null,               // Địa điểm đính kèm
     val linkedItinerary: LinkedItinerary? = null,
     val embeddedPost: EmbeddedPost? = null,     // Bài gốc nếu là repost/quote
     val comments: List<Comment> = emptyList()   // Mock comments (thực tế load lazy)

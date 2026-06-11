@@ -18,6 +18,7 @@ data class Comment(
     val userId: String = "",
     val parentCommentId: String? = null,   // null => top-level, có id => reply
     val authorName: String,
+    val authorAvatarUrl: String = "",
     val authorAvatarInitials: String,
     val authorAvatarColor: Long,
     val timeAgo: String,

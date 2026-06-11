@@ -47,17 +47,18 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     private fun formatTimeAgo(isoString: String?): String {
         if (isoString.isNullOrBlank()) return "vừa xong"
         return try {
-            val parsed = OffsetDateTime.parse(isoString)
-            val now = OffsetDateTime.now(parsed.offset)
-            val diff = Duration.between(parsed, now)
-            val seconds = diff.seconds
+            val parsed = java.time.OffsetDateTime.parse(isoString).toInstant()
+            val now = java.time.Instant.now()
+            val seconds = java.time.Duration.between(parsed, now).seconds.coerceAtLeast(0)
             when {
-                seconds < 6 -> "vừa xong"
-                seconds < 60 -> "$seconds giây trước"
+                seconds < 60 -> "vừa xong"
                 seconds < 3600 -> "${seconds / 60} phút trước"
                 seconds < 86400 -> "${seconds / 3600} giờ trước"
                 seconds < 604800 -> "${seconds / 86400} ngày trước"
-                else -> parsed.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                else -> {
+                    val localDateTime = java.time.LocalDateTime.ofInstant(parsed, java.time.ZoneId.systemDefault())
+                    localDateTime.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                }
             }
         } catch (e: Exception) {
             "vừa xong"
@@ -65,17 +66,24 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     }
 
     // Mapping DTOs to UI models
-    private fun PostResponseBackendDto.toCommunityPost(currentUserId: String? = null, likedPostIds: Set<String> = emptySet()): CommunityPost {
+    private fun PostResponseBackendDto.toCommunityPost(
+        currentUserId: String? = null,
+        likedPostIds: Set<String> = emptySet(),
+        savedPostIds: Set<String> = emptySet()
+    ): CommunityPost {
         val authorNameVal = author?.name ?: "Người dùng"
         val isLikedVal = likedPostIds.contains(id)
+        val isSavedVal = savedPostIds.contains(id)
         val postTypeVal = postType ?: "text"
         
         val embeddedVal = originalPost?.let { orig ->
+            val origAuthorName = orig.author?.name ?: "Người dùng"
             EmbeddedPost(
                 originalPostId = orig.id,
-                originalAuthorName = orig.author?.name ?: "Người dùng",
-                originalAuthorInitials = getInitials(orig.author?.name ?: "Người dùng"),
-                originalAuthorColor = getAvatarColor(orig.author?.name ?: "Người dùng"),
+                originalAuthorName = origAuthorName,
+                originalAuthorInitials = getInitials(origAuthorName),
+                originalAuthorColor = getAvatarColor(origAuthorName),
+                originalAuthorAvatarUrl = orig.author?.avatarUrl ?: "",
                 originalContent = orig.content ?: "",
                 originalMedia = orig.media?.map {
                     PostMedia(
@@ -107,10 +115,22 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             )
         }
 
+        val placeVal = place?.let {
+            PostPlace(
+                id = it.id,
+                name = it.name ?: "",
+                lat = it.lat ?: 0.0,
+                lng = it.lng ?: 0.0,
+                imageUrl = it.imageUrl ?: "",
+                provinceName = it.provinceName ?: ""
+            )
+        }
+
         return CommunityPost(
             id = id,
             userId = author?.id ?: "",
             authorName = authorNameVal,
+            authorAvatarUrl = author?.avatarUrl ?: "",
             authorAvatarInitials = getInitials(authorNameVal),
             authorAvatarColor = getAvatarColor(authorNameVal),
             timeAgo = formatTimeAgo(createdAt).uppercase(),
@@ -121,6 +141,8 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             commentCount = commentCount ?: 0,
             repostCount = repostCount ?: 0,
             isLiked = isLikedVal,
+            isSaved = isSavedVal,
+            place = placeVal,
             linkedItinerary = linkedItineraryVal,
             embeddedPost = embeddedVal
         )
@@ -134,6 +156,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             userId = authorId ?: "",
             parentCommentId = parentCommentId,
             authorName = authorNameVal,
+            authorAvatarUrl = authorAvatarUrl ?: "",
             authorAvatarInitials = getInitials(authorNameVal),
             authorAvatarColor = getAvatarColor(authorNameVal),
             timeAgo = formatTimeAgo(createdAt),
@@ -179,7 +202,15 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                 }
             } else emptySet()
 
-            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+            val savedPostIds = if (token?.isNotBlank() == true && postsDto.isNotEmpty()) {
+                try {
+                    api.checkSavedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds) }
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
@@ -199,7 +230,15 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                 }
             } else emptySet()
 
-            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds) }
+            val savedPostIds = if (postsDto.isNotEmpty()) {
+                try {
+                    api.checkSavedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds) }
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
@@ -219,7 +258,15 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                 }
             } else emptySet()
 
-            postDto.toCommunityPost(currentUserId, likedPostIds)
+            val savedPostIds = if (token?.isNotBlank() == true) {
+                try {
+                    api.checkSavedPosts(token, listOf(postId)).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postDto.toCommunityPost(currentUserId, likedPostIds, savedPostIds)
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
@@ -258,6 +305,17 @@ class CommunityRepository(private val supabase: SupabaseClient) {
 
         val createdPost = api.createPost(token, request)
         createdPost.toCommunityPost(userId)
+    }
+
+    // --- 4.2b Tìm kiếm địa điểm ---
+    suspend fun searchPlaces(query: String, limit: Int = 10): List<Place> = withContext(Dispatchers.IO) {
+        try {
+            val places = api.searchPlaces(query, limit)
+            places
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     // --- 4.3 Repost / Quote ---
@@ -317,6 +375,49 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    // --- 4.5b Lưu / Bỏ lưu bài đăng ---
+    suspend fun savePost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.savePost(token, postId)
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun unsavePost(userId: String, postId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            val response = api.unsavePost(token, postId)
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun getSavedPosts(currentUserId: String, limit: Int = 20, offset: Int = 0): List<CommunityPost> = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext emptyList()
+            val postsDto = api.getSavedPosts(token, limit, offset)
+
+            val likedPostIds = if (postsDto.isNotEmpty()) {
+                try {
+                    api.checkLikedPosts(token, postsDto.map { it.id }).toSet()
+                } catch (e: Exception) {
+                    emptySet()
+                }
+            } else emptySet()
+
+            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds = postsDto.map { it.id }.toSet()) }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
         }
     }
 

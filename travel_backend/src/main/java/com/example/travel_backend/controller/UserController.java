@@ -9,6 +9,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -24,11 +25,15 @@ public class UserController {
     }
 
     @PatchMapping("/me")
-    public ResponseEntity<UserProfileResponseDto> updateProfile(
+    public ResponseEntity<?> updateProfile(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody UpdateProfileRequestDto request) {
 
         UUID userId = UUID.fromString(jwt.getSubject());
-        return ResponseEntity.ok(userService.updateProfile(userId, request));
+        try {
+            return ResponseEntity.ok(userService.updateProfile(userId, request));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.example.vietnam_travel_itinerary_android.ui.community
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
@@ -15,6 +16,8 @@ import io.github.jan.supabase.realtime.RealtimeChannel
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.jsonPrimitive
@@ -45,6 +48,31 @@ class CommunityViewModel(
     private val _unreadNotificationsCount = MutableStateFlow(0)
     val unreadNotificationsCount: StateFlow<Int> = _unreadNotificationsCount.asStateFlow()
 
+    // ── Image & Place state cho CreatePostWidget
+    private val _selectedImages = MutableStateFlow<List<Uri>>(emptyList())
+    val selectedImages: StateFlow<List<Uri>> = _selectedImages.asStateFlow()
+
+    private val _shareItineraryId = MutableStateFlow<String?>(null)
+    val shareItineraryId: StateFlow<String?> = _shareItineraryId.asStateFlow()
+
+    fun setShareItineraryId(id: String?) {
+        _shareItineraryId.value = id
+    }
+
+    private val _selectedPlace = MutableStateFlow<PostPlace?>(null)
+    val selectedPlace: StateFlow<PostPlace?> = _selectedPlace.asStateFlow()
+
+    private val _searchPlaceResults = MutableStateFlow<List<Place>>(emptyList())
+    val searchPlaceResults: StateFlow<List<Place>> = _searchPlaceResults.asStateFlow()
+
+    private val _isSearchingPlaces = MutableStateFlow(false)
+    val isSearchingPlaces: StateFlow<Boolean> = _isSearchingPlaces.asStateFlow()
+
+    private val _isCreatingPost = MutableStateFlow(false)
+    val isCreatingPost: StateFlow<Boolean> = _isCreatingPost.asStateFlow()
+
+    private var searchJob: Job? = null
+
     val currentUserId: String
         get() = supabase.auth.currentUserOrNull()?.id ?: "00000000-0000-0000-0000-000000000000"
 
@@ -59,12 +87,22 @@ class CommunityViewModel(
                     is SessionStatus.Authenticated -> {
                         loadUserProfile()
                         loadFeed()
+                        try {
+                            supabase.realtime.connect()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                         subscribeToRealtimeFeed()
                         subscribeToRealtimeNotifications()
                     }
                     is SessionStatus.NotAuthenticated -> {
                         loadUserProfile()
                         loadFeed()
+                        try {
+                            supabase.realtime.connect()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                         subscribeToRealtimeFeed()
                         unsubscribeFromRealtimeNotifications()
                     }
@@ -212,23 +250,132 @@ class CommunityViewModel(
         }
     }
 
-    fun createPost(content: String, mediaUrls: List<String> = emptyList()) {
+    // ── Image management
+    fun addImages(uris: List<Uri>) {
+        _selectedImages.update { current ->
+            (current + uris).take(4) // Max 4 images
+        }
+    }
+
+    fun removeImage(index: Int) {
+        _selectedImages.update { current ->
+            current.toMutableList().apply {
+                if (index in indices) removeAt(index)
+            }
+        }
+    }
+
+    fun clearImages() {
+        _selectedImages.value = emptyList()
+    }
+
+    // ── Place management
+    fun selectPlace(place: Place) {
+        _selectedPlace.value = PostPlace(
+            id = place.id,
+            name = place.name,
+            lat = place.lat,
+            lng = place.lng,
+            imageUrl = place.imageUrl ?: "",
+            provinceName = place.provinces?.name ?: ""
+        )
+    }
+
+    fun clearPlace() {
+        _selectedPlace.value = null
+    }
+
+    // ── Place search with debounce
+    fun searchPlaces(query: String) {
+        searchJob?.cancel()
+        if (query.length < 2) {
+            _searchPlaceResults.value = emptyList()
+            _isSearchingPlaces.value = false
+            return
+        }
+        _isSearchingPlaces.value = true
+        searchJob = viewModelScope.launch {
+            delay(300) // Debounce 300ms
+            try {
+                val results = repository.searchPlaces(query)
+                _searchPlaceResults.value = results
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _searchPlaceResults.value = emptyList()
+            } finally {
+                _isSearchingPlaces.value = false
+            }
+        }
+    }
+
+    fun clearSearchResults() {
+        _searchPlaceResults.value = emptyList()
+    }
+
+    // ── Create post with image upload
+    fun createPost(
+        content: String,
+        mediaUris: List<Uri> = emptyList(),
+        itineraryId: String? = null,
+        placeId: String? = null,
+        contentResolver: android.content.ContentResolver? = null
+    ) {
+        _isCreatingPost.value = true
+        // Clear selection state immediately for responsive UI
+        // (mediaUris is already a snapshot passed by caller)
+        _selectedImages.value = emptyList()
+        _selectedPlace.value = null
+
         viewModelScope.launch {
             try {
+                // Upload images to Supabase Storage if any
+                val mediaUrls = mutableListOf<String>()
+                if (contentResolver != null && mediaUris.isNotEmpty()) {
+                    for (uri in mediaUris) {
+                        try {
+                            val inputStream = contentResolver.openInputStream(uri)
+                            val bytes = inputStream?.readBytes() ?: continue
+                            inputStream.close()
+                            val fileName = "img_${System.currentTimeMillis()}_${mediaUrls.size}.jpg"
+                            val publicUrl = repository.uploadMedia(bytes, fileName)
+                            mediaUrls.add(publicUrl)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            // Skip failed uploads
+                        }
+                    }
+                }
+
+                val postType = when {
+                    itineraryId != null -> "itinerary_share"
+                    else -> "text"
+                }
+
                 val newPost = repository.createPost(
                     userId = currentUserId,
                     content = content,
-                    postType = if (mediaUrls.isNotEmpty()) "image" else "text",
+                    postType = postType,
+                    itineraryId = itineraryId,
+                    placeId = placeId,
                     mediaUrls = mediaUrls
                 )
+
                 // Prepend locally (if realtime is laggy, we see it instantly)
                 _posts.update { current ->
                     if (current.any { it.id == newPost.id }) current
                     else listOf(newPost) + current
                 }
+            } catch (e: retrofit2.HttpException) {
+                val errorBody = e.response()?.errorBody()?.string()
+                e.printStackTrace()
+                println("CREATE POST ERROR: HTTP ${e.code()} — $errorBody")
+                _error.value = "Đăng bài thất bại (${e.code()}): ${errorBody?.take(200) ?: e.message()}"
             } catch (e: Exception) {
                 e.printStackTrace()
+                println("CREATE POST ERROR: ${e.javaClass.simpleName} — ${e.message}")
                 _error.value = "Đăng bài thất bại: ${e.message}"
+            } finally {
+                _isCreatingPost.value = false
             }
         }
     }
@@ -277,6 +424,42 @@ class CommunityViewModel(
                         if (it.id == postId) {
                             it.copy(isLiked = true, likeCount = it.likeCount + 1)
                         } else it
+                    }
+                }
+            }
+        }
+    }
+
+    fun savePost(postId: String) {
+        _posts.update { list ->
+            list.map {
+                if (it.id == postId) it.copy(isSaved = true) else it
+            }
+        }
+        viewModelScope.launch {
+            val success = repository.savePost(currentUserId, postId)
+            if (!success) {
+                _posts.update { list ->
+                    list.map {
+                        if (it.id == postId) it.copy(isSaved = false) else it
+                    }
+                }
+            }
+        }
+    }
+
+    fun unsavePost(postId: String) {
+        _posts.update { list ->
+            list.map {
+                if (it.id == postId) it.copy(isSaved = false) else it
+            }
+        }
+        viewModelScope.launch {
+            val success = repository.unsavePost(currentUserId, postId)
+            if (!success) {
+                _posts.update { list ->
+                    list.map {
+                        if (it.id == postId) it.copy(isSaved = true) else it
                     }
                 }
             }
@@ -443,6 +626,22 @@ class CommunityViewModel(
                         _posts.update { currentList ->
                             if (currentList.any { it.id == detailedPost.id }) currentList
                             else listOf(detailedPost) + currentList
+                        }
+                    }
+                }.launchIn(viewModelScope)
+
+                // Listen for Update events in posts table
+                val updateFlow = feedChannel!!.postgresChangeFlow<PostgresAction.Update>(schema = "public") {
+                    table = "posts"
+                }
+                updateFlow.onEach { action ->
+                    val updatedPostId = action.record["id"]?.jsonPrimitive?.content ?: return@onEach
+                    val detailedPost = repository.getPostDetails(updatedPostId, currentUserId)
+                    if (detailedPost != null) {
+                        _posts.update { currentList ->
+                            currentList.map { post ->
+                                if (post.id == detailedPost.id) detailedPost else post
+                            }
                         }
                     }
                 }.launchIn(viewModelScope)

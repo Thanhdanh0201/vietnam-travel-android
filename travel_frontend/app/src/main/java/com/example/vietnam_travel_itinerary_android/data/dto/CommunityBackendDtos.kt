@@ -26,6 +26,16 @@ data class ItineraryCompactDto(
     val description: String? = null
 )
 
+// Place compact info (returned inside PostResponseBackendDto)
+data class PlaceCompactBackendDto(
+    val id: String,
+    val name: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val imageUrl: String? = null,
+    val provinceName: String? = null
+)
+
 // Post response from Spring Boot backend
 data class PostResponseBackendDto(
     val id: String,
@@ -41,6 +51,7 @@ data class PostResponseBackendDto(
     val author: UserCompactDto? = null,
     val media: List<PostMediaBackendDto>? = null,
     val itinerary: ItineraryCompactDto? = null,
+    val place: PlaceCompactBackendDto? = null,
     val originalPost: PostResponseBackendDto? = null
 )
 
@@ -129,11 +140,23 @@ data class UserProfileResponseDto(
     val avatarUrl: String? = null,
     val coverUrl: String? = null,
     val bio: String? = null,
+    val username: String? = null,
+    val websiteUrl: String? = null,
     val explorerLevel: String? = null,
     val totalProvinces: Int? = 0,
+    val totalPlacesVisited: Int? = 0,
     val followerCount: Int? = 0,
     val followingCount: Int? = 0,
     val postCount: Int? = 0,
     val isVerified: Boolean? = false,
     val isPrivate: Boolean? = false
+)
+
+data class UpdateProfileRequest(
+    val name: String? = null,
+    val username: String? = null,
+    val bio: String? = null,
+    val avatarUrl: String? = null,
+    val coverUrl: String? = null,
+    val isPrivate: Boolean? = null
 )

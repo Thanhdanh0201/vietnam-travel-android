@@ -46,6 +46,12 @@ interface VietnamTravelApi {
     ): Response<UserSettingResponseDto>
 
     // ---- Places ----
+    @GET("api/places/search")
+    suspend fun searchPlaces(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 10
+    ): List<Place>
+
     @GET("api/places")
     suspend fun getPlaces(
         @Query("province_code") provinceCode: String? = null,
@@ -129,8 +135,33 @@ interface VietnamTravelApi {
     @GET("api/users/{id}")
     suspend fun getProfile(
         @Path("id") id: String,
-        @Header("Authorization") token: String
+        @Header("Authorization") token: String? = null
     ): UserProfileResponseDto
+
+    @PATCH("api/users/me")
+    suspend fun updateProfile(
+        @Header("Authorization") token: String,
+        @Body request: UpdateProfileRequest
+    ): UserProfileResponseDto
+
+    // ---- Follows ----
+    @POST("api/follows/{followingId}")
+    suspend fun followUser(
+        @Header("Authorization") token: String,
+        @Path("followingId") followingId: String
+    ): Response<ResponseBody>
+
+    @DELETE("api/follows/{followingId}")
+    suspend fun unfollowUser(
+        @Header("Authorization") token: String,
+        @Path("followingId") followingId: String
+    ): Response<ResponseBody>
+
+    @GET("api/follows/check/{userId}")
+    suspend fun checkIsFollowing(
+        @Header("Authorization") token: String,
+        @Path("userId") userId: String
+    ): Boolean
 
     // ---- Posts ----
     @GET("api/posts/public")
@@ -172,6 +203,31 @@ interface VietnamTravelApi {
         @Header("Authorization") token: String,
         @Query("id") postId: String
     ): Response<ResponseBody>
+
+    @POST("api/saved_posts")
+    suspend fun savePost(
+        @Header("Authorization") token: String,
+        @Query("post_id") postId: String
+    ): Response<ResponseBody>
+
+    @DELETE("api/saved_posts")
+    suspend fun unsavePost(
+        @Header("Authorization") token: String,
+        @Query("post_id") postId: String
+    ): Response<ResponseBody>
+
+    @GET("api/saved_posts/check-saved")
+    suspend fun checkSavedPosts(
+        @Header("Authorization") token: String,
+        @Query("post_ids") postIds: List<String>
+    ): List<String>
+
+    @GET("api/saved_posts")
+    suspend fun getSavedPosts(
+        @Header("Authorization") token: String,
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0
+    ): List<PostResponseBackendDto>
 
     @GET("api/posts/reactions/check-likes")
     suspend fun checkLikedPosts(
@@ -261,12 +317,90 @@ interface VietnamTravelApi {
     // ---- Itineraries ----
 
     @GET("api/itineraries")
+    suspend fun getPublicItinerariesByUser(
+        @Header("Authorization") token: String,
+        @Query("user_id") userId: String,
+        @Query("is_public") isPublic: Boolean = true,
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0,
+    ): List<ItineraryResponseDto>
+
+    @GET("api/itineraries")
     suspend fun getItineraries(): List<Itinerary>
 
     @PATCH("api/itineraries")
     suspend fun updateItinerary(
+        @Header("Authorization") token: String,
         @Query("id") id: String,
         @Body request: UpdateItineraryRequest
     ): Response<Unit>
+
+    @GET("api/itineraries/{id}")
+    suspend fun getItineraryById(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): ItineraryResponseDto
+
+    @GET("api/itineraries/me")
+    suspend fun getMyItineraries(
+        @Header("Authorization") token: String
+    ): List<ItineraryResponseDto>
+
+    @POST("api/itineraries")
+    suspend fun createItinerary(
+        @Header("Authorization") token: String,
+        @Body request: CreateItineraryRequest
+    ): ItineraryResponseDto
+
+    @DELETE("api/itineraries")
+    suspend fun deleteItinerary(
+        @Header("Authorization") token: String,
+        @Query("id") id: String
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("api/itineraries/{id}/items")
+    suspend fun getItineraryItems(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): List<ItineraryItemResponseDto>
+
+    @POST("api/itineraries/{id}/items")
+    suspend fun addItineraryItem(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: CreateItineraryItemRequest
+    ): ItineraryItemResponseDto
+
+    @DELETE("api/itineraries/{id}/items/{itemId}")
+    suspend fun deleteItineraryItem(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Path("itemId") itemId: String
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("api/itineraries/{id}/collaborators")
+    suspend fun getCollaborators(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): List<CollaboratorDto>
+
+    @POST("api/itineraries/{id}/collaborators")
+    suspend fun addCollaborator(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: CollaboratorDto
+    ): CollaboratorDto
+
+    @DELETE("api/itineraries/{id}/collaborators/{email}")
+    suspend fun removeCollaborator(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Path("email") email: String
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("api/provinces/{code}/cities")
+    suspend fun getCitiesByProvince(
+        @Path("code") code: String
+    ): List<CityDto>
 }
 

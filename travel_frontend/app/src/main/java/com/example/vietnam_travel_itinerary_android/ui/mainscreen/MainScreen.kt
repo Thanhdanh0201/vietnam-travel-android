@@ -8,6 +8,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -19,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.ui.community.CommunityScreen
+import com.example.vietnam_travel_itinerary_android.ui.community.CommunityViewModel
 import com.example.vietnam_travel_itinerary_android.ui.components.BottomNavBar
 import com.example.vietnam_travel_itinerary_android.ui.components.bottomNavItems
 import com.example.vietnam_travel_itinerary_android.ui.home.HomeScreen
@@ -26,7 +29,9 @@ import com.example.vietnam_travel_itinerary_android.ui.itinerary.CreateItinerary
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.EditItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
+import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
@@ -34,7 +39,8 @@ private val mainTabRoutes: Set<String> by lazy {
 
 @Composable
 fun MainScreen(
-    itineraryViewModel: ItineraryViewModel = viewModel(factory = AppViewModelProvider.Factory)
+    itineraryViewModel: ItineraryViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    communityViewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val bottomNavController = rememberNavController()
 
@@ -42,9 +48,9 @@ fun MainScreen(
     val currentDestination = navBackStackEntry?.destination
     val currentRoute =
         bottomNavItems.firstOrNull { item ->
-            currentDestination?.hierarchy?.any { it.route == item.route } == true
+            val destRoute = currentDestination?.route ?: ""
+            destRoute.substringBefore("?") == item.route
         }?.route
-            ?: currentDestination?.route?.takeIf { it in mainTabRoutes }
             ?: ""
 
     val uiState by itineraryViewModel.uiState.collectAsState()
@@ -52,6 +58,9 @@ fun MainScreen(
 
     fun navigateToMainTab(route: String) {
         if (route !in mainTabRoutes) return
+        if (route == "itinerary") {
+            itineraryViewModel.fetchItineraries()
+        }
         bottomNavController.navigate(route) {
             popUpTo(bottomNavController.graph.findStartDestination().id) {
                 saveState = true
@@ -61,7 +70,13 @@ fun MainScreen(
         }
     }
 
-    val showBottomBar = currentDestination?.route in mainTabRoutes
+    fun navigateToProfile(userId: String) {
+        bottomNavController.navigate("profile/$userId")
+    }
+
+    val showBottomBar = currentDestination?.route?.let { route ->
+        route.substringBefore("?") in mainTabRoutes
+    } ?: false
 
     Scaffold(
         bottomBar = {
@@ -81,15 +96,26 @@ fun MainScreen(
             composable("home") {
                 HomeScreen(
                     onNavigate = { route ->
-                        if (route in mainTabRoutes) navigateToMainTab(route)
+                        if (route in mainTabRoutes) {
+                            navigateToMainTab(route)
+                        } else {
+                            bottomNavController.navigate(route)
+                        }
                     }
                 )
             }
 
             composable("community") {
                 CommunityScreen(
+                    itineraryViewModel = itineraryViewModel,
+                    viewModel = communityViewModel,
                     onNavigate = { route ->
-                        if (route in mainTabRoutes) navigateToMainTab(route)
+                        when {
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route == "profile" -> navigateToMainTab("profile")
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
+                        }
                     }
                 )
             }
@@ -104,15 +130,22 @@ fun MainScreen(
                 ItineraryScreen(
                     viewModel = itineraryViewModel,
                     onCreateClick = { bottomNavController.navigate("create_itinerary") },
-                    onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") }
+                    onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") },
+                    onShareClick = { itineraryId ->
+                        communityViewModel.setShareItineraryId(itineraryId)
+                        navigateToMainTab("community")
+                    }
                 )
             }
 
             composable("create_itinerary") {
                 CreateItineraryScreen(
+                    viewModel = itineraryViewModel,
                     onBackClick = { bottomNavController.popBackStack() },
-                    onCreate = { newItinerary ->
-                        itineraryViewModel.addItinerary(newItinerary)
+                    onCreate = { newItineraryId ->
+                        bottomNavController.navigate("edit_itinerary/$newItineraryId") {
+                            popUpTo("create_itinerary") { inclusive = true }
+                        }
                     }
                 )
             }
@@ -132,12 +165,93 @@ fun MainScreen(
                 )
             }
 
+            composable(
+                route = "itinerary_detail/{itineraryId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("itineraryId") { type = androidx.navigation.NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val itineraryId = backStackEntry.arguments?.getString("itineraryId") ?: ""
+                LaunchedEffect(itineraryId) {
+                    itineraryViewModel.fetchItineraryDetail(itineraryId)
+                }
+                val itinerary = itinerariesState.find { it.id == itineraryId }
+                EditItineraryScreen(
+                    itinerary = itinerary,
+                    viewModel = itineraryViewModel,
+                    onBackClick = { bottomNavController.popBackStack() }
+                )
+            }
+
             composable("profile") {
+                val profileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
                 ProfileScreen(
+                    viewModel = profileViewModel,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
-                        if (route in mainTabRoutes) navigateToMainTab(route)
+                        when (route) {
+                            "edit_profile" -> bottomNavController.navigate("edit_profile")
+                            else -> {
+                                if (route.startsWith("profile/")) {
+                                    navigateToProfile(route.removePrefix("profile/"))
+                                } else if (route in mainTabRoutes) {
+                                    navigateToMainTab(route)
+                                } else {
+                                    bottomNavController.navigate(route)
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+
+            composable("edit_profile") { backStackEntry ->
+                val profileParentEntry = remember(backStackEntry) {
+                    try {
+                        bottomNavController.getBackStackEntry("profile")
+                    } catch (e: Exception) {
+                        backStackEntry
                     }
+                }
+                val profileViewModel: ProfileViewModel = viewModel(
+                    factory = AppViewModelProvider.Factory,
+                    viewModelStoreOwner = profileParentEntry,
+                )
+                EditProfileScreen(
+                    onBack = { bottomNavController.popBackStack() },
+                    onSaved = {
+                        profileViewModel.loadProfile()
+                        bottomNavController.popBackStack()
+                    },
+                )
+            }
+
+            composable(
+                route = "profile/{userId}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("userId") {
+                        type = androidx.navigation.NavType.StringType
+                    },
+                ),
+            ) { backStackEntry ->
+                val profileUserId = backStackEntry.arguments?.getString("userId")
+                ProfileScreen(
+                    userId = profileUserId,
+                    onBack = { bottomNavController.popBackStack() },
+                    onNavigate = { route ->
+                        when {
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route == "community" -> {
+                                bottomNavController.navigate("community") {
+                                    popUpTo("community?shareItineraryId={shareItineraryId}") {
+                                        inclusive = true
+                                    }
+                                }
+                            }
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
+                        }
+                    },
                 )
             }
         }

@@ -7,6 +7,7 @@ import com.example.travel_backend.dto.response.UserCompactDto;
 import com.example.travel_backend.entity.Post;
 import com.example.travel_backend.entity.PostMedia;
 import com.example.travel_backend.entity.User;
+import com.example.travel_backend.entity.SavedPost;
 import com.example.travel_backend.repository.*;
 import com.example.travel_backend.service.PostService;
 import jakarta.transaction.Transactional;
@@ -40,8 +41,12 @@ public class PostServiceImpl implements PostService {
     @Autowired
     private ItineraryRepository itineraryRepository;
 
+    @Autowired
+    private SavedPostRepository savedPostRepository;
+
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getUserPosts(UUID userId, int limit, int offset) {
         System.out.println("Fetching posts for user: " + userId + " | limit: " + limit + ", offset: " + offset);
 
@@ -55,6 +60,7 @@ public class PostServiceImpl implements PostService {
 
     // --- 4.1 Lấy Community Feed ---
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getPublicFeed(int limit, int offset) {
         System.out.println("Fetching public feed | limit: " + limit + ", offset: " + offset);
         Pageable pageable = PageRequest.of(offset / limit, limit);
@@ -63,6 +69,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<PostResponseDto> getFollowingFeed(UUID currentUserId, int limit, int offset) {
         System.out.println("Fetching following feed for user: " + currentUserId);
         Pageable pageable = PageRequest.of(offset / limit, limit);
@@ -97,7 +104,15 @@ public class PostServiceImpl implements PostService {
         post.setPostType(request.getPostType() != null ? request.getPostType() : "text");
         post.setVisibility(request.getVisibility() != null ? request.getVisibility() : "public");
 
-        if (request.getItineraryId() != null) post.setItinerary(itineraryRepository.getReferenceById(request.getItineraryId()));
+        if (request.getItineraryId() != null) {
+            com.example.travel_backend.entity.Itinerary itinerary = itineraryRepository.findById(request.getItineraryId()).orElse(null);
+            if (itinerary != null) {
+                post.setItinerary(itinerary);
+                itinerary.setIsPublic(true);
+                itinerary.setShareCount((itinerary.getShareCount() != null ? itinerary.getShareCount() : 0) + 1);
+                itineraryRepository.save(itinerary);
+            }
+        }
         if (request.getPlaceId() != null) post.setPlace(placeRepository.getReferenceById(request.getPlaceId()));
 
         // Set mặc định các chỉ số để tránh lỗi NullPointerException khi mapping
@@ -110,6 +125,10 @@ public class PostServiceImpl implements PostService {
         post.setUpdatedAt(java.time.OffsetDateTime.now());
 
         Post savedPost = postRepository.save(post);
+
+        // Refetch to ensure all lazy associations (user, place, province) are properly loaded
+        savedPost = postRepository.findById(savedPost.getId()).orElseThrow();
+
         List<PostMedia> savedMediaList = new ArrayList<>();
 
         // Luu Media
@@ -121,6 +140,7 @@ public class PostServiceImpl implements PostService {
                 media.setMediaType(mediaReq.getMediaType() != null ? mediaReq.getMediaType() : "image");
                 media.setThumbnailUrl(mediaReq.getThumbnailUrl());
                 media.setOrderIndex(mediaReq.getOrderIndex() != null ? mediaReq.getOrderIndex() : 0);
+                media.setCreatedAt(java.time.OffsetDateTime.now());
                 savedMediaList.add(postMediaRepository.save(media));
             }
         }
@@ -131,6 +151,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public PostResponseDto getPostById(UUID postId) {
         System.out.println("Fetching post by ID: " + postId);
         Post post = postRepository.findById(postId)
@@ -159,6 +180,38 @@ public class PostServiceImpl implements PostService {
         postRepository.delete(post);
     }
 
+    @Override
+    @Transactional
+    public void savePost(UUID userId, UUID postId) {
+        if (savedPostRepository.findByUserIdAndPostId(userId, postId).isPresent()) {
+            return;
+        }
+        SavedPost savedPost = new SavedPost();
+        savedPost.setUser(userRepository.getReferenceById(userId));
+        savedPost.setPost(postRepository.getReferenceById(postId));
+        savedPost.setCreatedAt(java.time.OffsetDateTime.now());
+        savedPostRepository.save(savedPost);
+    }
+
+    @Override
+    @Transactional
+    public void unsavePost(UUID userId, UUID postId) {
+        savedPostRepository.deleteByUserIdAndPostId(userId, postId);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<PostResponseDto> getSavedPosts(UUID userId, int limit, int offset) {
+        System.out.println("Fetching saved posts for user: " + userId + " | limit: " + limit + ", offset: " + offset);
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit);
+        Page<SavedPost> savedPostPage = savedPostRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        List<Post> posts = savedPostPage.getContent().stream()
+                .map(SavedPost::getPost)
+                .collect(Collectors.toList());
+        return mapPostPageToDtoList(posts);
+    }
+
 
     private PostResponseDto mapToPostDto(Post post) {
         PostResponseDto dto = new PostResponseDto();
@@ -181,6 +234,18 @@ public class PostServiceImpl implements PostService {
             itDto.setIsPublic(post.getItinerary().getIsPublic());
             itDto.setDescription(post.getItinerary().getDescription());
             dto.setItinerary(itDto);
+        }
+        if (post.getPlace() != null) {
+            PostResponseDto.PlaceCompactDto placeDto = new PostResponseDto.PlaceCompactDto();
+            placeDto.setId(post.getPlace().getId());
+            placeDto.setName(post.getPlace().getName());
+            placeDto.setLat(post.getPlace().getLat());
+            placeDto.setLng(post.getPlace().getLng());
+            placeDto.setImageUrl(post.getPlace().getImageUrl());
+            if (post.getPlace().getProvince() != null) {
+                placeDto.setProvinceName(post.getPlace().getProvince().getName());
+            }
+            dto.setPlace(placeDto);
         }
         if (post.getOriginalPost() != null) {
             PostResponseDto origDto = mapToPostDto(post.getOriginalPost());

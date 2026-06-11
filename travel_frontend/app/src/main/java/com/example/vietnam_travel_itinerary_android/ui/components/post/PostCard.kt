@@ -7,12 +7,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -27,6 +28,7 @@ import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
 import com.example.vietnam_travel_itinerary_android.data.model.EmbeddedPost
 import com.example.vietnam_travel_itinerary_android.data.model.LinkedItinerary
 import com.example.vietnam_travel_itinerary_android.data.model.PostMedia
+import com.example.vietnam_travel_itinerary_android.data.model.PostPlace
 import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.ItineraryCompactCard
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import coil3.compose.AsyncImage
@@ -42,9 +44,14 @@ import androidx.compose.ui.layout.ContentScale
 @Composable
 fun PostCard(
     post: CommunityPost,
+    currentUserId: String? = null,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
+    onSaveClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {},
     onItineraryClick: (String) -> Unit = {},
+    onPlaceClick: ((Double, Double, String) -> Unit)? = null,
+    onAuthorClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -54,7 +61,12 @@ fun PostCard(
         shadowElevation = 1.dp
     ) {
         Column(modifier = Modifier.border(1.dp, VNRed.copy(alpha = 0.05f), RoundedCornerShape(12.dp))) {
-            PostHeader(post)
+            PostHeader(
+                post = post,
+                showDeleteOption = currentUserId != null && post.userId == currentUserId,
+                onDeleteClick = onDeleteClick,
+                onAuthorClick = onAuthorClick
+            )
 
             // Caption (repost thuần thì content = "")
             if (post.content.isNotBlank()) {
@@ -63,6 +75,40 @@ fun PostCard(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
                 Spacer(Modifier.height(12.dp))
+            }
+
+            // Place badge
+            post.place?.let { place ->
+                val badgeModifier = if (onPlaceClick != null && place.lat != 0.0) {
+                    Modifier.clickable { onPlaceClick(place.lat, place.lng, place.name) }
+                } else Modifier
+                Row(
+                    modifier = badgeModifier
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Place,
+                        contentDescription = "Địa điểm",
+                        tint = VNRed,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        buildString {
+                            append(place.name)
+                            if (place.provinceName.isNotBlank()) {
+                                append(", ").append(place.provinceName)
+                            }
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = VNRed,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
             // Media (chỉ khi original)
@@ -93,8 +139,10 @@ fun PostCard(
                     commentCount = post.commentCount,
                     repostCount = post.repostCount,
                     isLiked = post.isLiked,
+                    isSaved = post.isSaved,
                     onLikeClick = onLikeClick,
-                    onCommentClick = onCommentClick
+                    onCommentClick = onCommentClick,
+                    onSaveClick = onSaveClick
                 )
             }
         }
@@ -103,14 +151,41 @@ fun PostCard(
 
 // ── Post Header: avatar + name + post type badge + time + more
 @Composable
-fun PostHeader(post: CommunityPost) {
+fun PostHeader(
+    post: CommunityPost,
+    showDeleteOption: Boolean = false,
+    onDeleteClick: () -> Unit = {},
+    onAuthorClick: (() -> Unit)? = null
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
-        AuthorAvatar(post.authorAvatarInitials, Color(post.authorAvatarColor), 40)
-        Column(modifier = Modifier.weight(1f)) {
+        Box(
+            modifier = Modifier
+                .then(
+                    if (onAuthorClick != null) Modifier.clickable(onClick = onAuthorClick)
+                    else Modifier
+                ),
+        ) {
+            AuthorAvatar(
+                initials = post.authorAvatarInitials,
+                color = Color(post.authorAvatarColor),
+                avatarUrl = post.authorAvatarUrl,
+                size = 40,
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (onAuthorClick != null) Modifier.clickable(onClick = onAuthorClick)
+                    else Modifier
+                ),
+        ) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
                     Text(post.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = SlateGray900)
@@ -122,7 +197,37 @@ fun PostHeader(post: CommunityPost) {
                 Text(post.timeAgo, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.sp, color = SlateGray400)
             }
         }
-        Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400, modifier = Modifier.size(20.dp))
+        
+        Box {
+            IconButton(
+                onClick = { if (showDeleteOption) showMenu = true },
+                modifier = Modifier.size(20.dp)
+            ) {
+                Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400)
+            }
+
+            if (showDeleteOption) {
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Xoá bài viết", color = Color.Red) },
+                        onClick = {
+                            showMenu = false
+                            onDeleteClick()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = "Xoá",
+                                tint = Color.Red
+                            )
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -142,12 +247,12 @@ fun EmbeddedPostCard(embedded: EmbeddedPost, modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(22.dp).clip(CircleShape).background(Color(embedded.originalAuthorColor)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(embedded.originalAuthorInitials, color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            }
+            AuthorAvatar(
+                initials = embedded.originalAuthorInitials,
+                color = Color(embedded.originalAuthorColor),
+                avatarUrl = embedded.originalAuthorAvatarUrl,
+                size = 22,
+            )
             Text(embedded.originalAuthorName, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlateGray900)
             Text("• ${embedded.originalTimeAgo}", fontSize = 10.sp, color = SlateGray400)
         }
@@ -238,8 +343,10 @@ fun PostActions(
     commentCount: Int,
     repostCount: Int,
     isLiked: Boolean,
+    isSaved: Boolean,
     onLikeClick: () -> Unit,
-    onCommentClick: () -> Unit
+    onCommentClick: () -> Unit,
+    onSaveClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         // Like
@@ -271,18 +378,49 @@ fun PostActions(
             if (repostCount > 0) Text(repostCount.toString(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SlateGray500)
         }
         Spacer(Modifier.weight(1f))
-        Icon(Icons.Outlined.BookmarkBorder, "Lưu", tint = SlateGray400, modifier = Modifier.size(17.dp))
+        Icon(
+            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+            contentDescription = "Lưu",
+            tint = if (isSaved) VNRed else SlateGray400,
+            modifier = Modifier
+                .size(17.dp)
+                .clickable { onSaveClick() }
+        )
     }
 }
 
-// ── Author Avatar — reusable circular avatar with initials
+// ── Author Avatar — image URL with initials fallback
 @Composable
-fun AuthorAvatar(initials: String, color: Color, size: Int, modifier: Modifier = Modifier) {
+fun AuthorAvatar(
+    initials: String,
+    color: Color,
+    size: Int,
+    avatarUrl: String = "",
+    modifier: Modifier = Modifier,
+) {
+    val url = avatarUrl.trim().takeIf { it.isNotBlank() }
     Box(
-        modifier = modifier.size(size.dp).clip(CircleShape).background(color),
-        contentAlignment = Alignment.Center
+        modifier = modifier
+            .size(size.dp)
+            .clip(CircleShape)
+            .then(if (url == null) Modifier.background(color) else Modifier),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = (size * 0.35f).sp)
+        if (url != null) {
+            AsyncImage(
+                model = url,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Text(
+                initials,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = (size * 0.35f).sp,
+            )
+        }
     }
 }
 

@@ -21,6 +21,7 @@ public class PostResponseDto {
     private UserCompactDto author;
     private List<PostMediaDto> media;
     private ItineraryCompactDto itinerary;
+    private PlaceCompactDto place;
     private PostResponseDto originalPost;
 
     @Data
@@ -29,5 +30,15 @@ public class PostResponseDto {
         private String title;
         private Boolean isPublic;
         private String description;
+    }
+
+    @Data
+    public static class PlaceCompactDto {
+        private UUID id;
+        private String name;
+        private Double lat;
+        private Double lng;
+        private String imageUrl;
+        private String provinceName;
     }
 }
