@@ -184,7 +184,8 @@ private fun ProfileContent(
                                     avatarInitials = profile.avatarInitials,
                                     avatarColor = profile.avatarColor,
                                     avatarUrl = profile.avatarUrl,
-                                    onPost = { onNavigate("create_post") },
+                                    isPlaceholder = true,
+                                    onPlaceholderClick = { onNavigate("community") },
                                 )
                             }
                         }
@@ -205,7 +206,8 @@ private fun ProfileContent(
                                     onDeleteClick = {
                                         postToDelete = post
                                     },
-                                    onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
+                                    onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") },
+                                    onNavigateToPost = { originalPostId -> onNavigate("post_detail/$originalPostId") }
                                 )
                             }
                         }
@@ -251,7 +253,8 @@ private fun ProfileContent(
                                     onDeleteClick = {
                                         postToDelete = post
                                     },
-                                    onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
+                                    onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") },
+                                    onNavigateToPost = { originalPostId -> onNavigate("post_detail/$originalPostId") }
                                 )
                             }
                         }

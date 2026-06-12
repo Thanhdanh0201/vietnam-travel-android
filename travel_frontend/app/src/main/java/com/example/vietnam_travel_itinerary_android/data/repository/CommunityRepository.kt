@@ -93,7 +93,8 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                         orderIndex = it.orderIndex ?: 0
                     )
                 } ?: emptyList(),
-                originalTimeAgo = formatTimeAgo(orig.createdAt)
+                originalTimeAgo = formatTimeAgo(orig.createdAt),
+                hasItinerary = orig.itinerary != null
             )
         }
 

@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -74,6 +75,9 @@ fun CommunityScreen(
     val isCreatingPost by viewModel.isCreatingPost.collectAsState()
     val context = LocalContext.current
     var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
+    var postToShare by remember { mutableStateOf<CommunityPost?>(null) }
+    var showShareDialog by remember { mutableStateOf(false) }
+    var quoteText by remember { mutableStateOf("") }
 
     // ── Photo Picker launcher
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -88,6 +92,7 @@ fun CommunityScreen(
 
     // ── Place Picker state
     var showPlacePicker by remember { mutableStateOf(false) }
+    var showItineraryPicker by remember { mutableStateOf(false) }
 
     LaunchedEffect(errorMsg) {
         errorMsg?.let {
@@ -116,6 +121,20 @@ fun CommunityScreen(
 
     // null = feed, non-null = PostDetailScreen
     var openedPost by remember { mutableStateOf<CommunityPost?>(null) }
+
+    val targetOpenedPostId by viewModel.openedPostId.collectAsState()
+
+    LaunchedEffect(targetOpenedPostId) {
+        targetOpenedPostId?.let { postId ->
+            if (openedPost?.id != postId) {
+                viewModel.fetchPostDetails(postId) { post ->
+                    openedPost = post
+                }
+            }
+        } ?: run {
+            openedPost = null
+        }
+    }
 
     // ── Place Picker Bottom Sheet
     if (showPlacePicker) {
@@ -146,7 +165,10 @@ fun CommunityScreen(
         PostDetailScreen(
             post = post,
             viewModel = viewModel,
-            onBack = { openedPost = null },
+            onBack = {
+                openedPost = null
+                viewModel.setOpenedPostId(null)
+            },
             onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
         )
         return@CommunityScreen
@@ -199,22 +221,13 @@ fun CommunityScreen(
                                 }
                             },
                             onRemoveImage = { index -> viewModel.removeImage(index) },
-                            selectedPlace = selectedPlace,
-                            onPlaceClick = { showPlacePicker = true },
-                            onRemovePlace = { viewModel.clearPlace() },
-                            onMapClick = {
-                                val place = selectedPlace
-                                if (place != null && place.lat != 0.0) {
-                                    openGoogleMaps(place.lat, place.lng, place.name)
-                                } else {
-                                    Toast.makeText(context, "Vui lòng chọn địa điểm trước", Toast.LENGTH_SHORT).show()
-                                }
+                            onItineraryClick = {
+                                showItineraryPicker = true
                             },
                             onPost = {
                                 if (postText.isNotBlank() || activeShareItineraryId != null || selectedImages.isNotEmpty()) {
                                     val currentText = postText
                                     val currentItineraryId = activeShareItineraryId
-                                    val currentPlaceId = selectedPlace?.id
                                     val currentImages = selectedImages.toList()
                                     // Clear UI immediately for responsive feel
                                     postText = ""
@@ -225,7 +238,7 @@ fun CommunityScreen(
                                         content = currentText,
                                         mediaUris = currentImages,
                                         itineraryId = currentItineraryId,
-                                        placeId = currentPlaceId,
+                                        placeId = null,
                                         contentResolver = context.contentResolver
                                     )
                                 }
@@ -285,6 +298,17 @@ fun CommunityScreen(
                                     onNavigate("profile/$authorId")
                                 }
                             },
+                            onShareClick = {
+                                postToShare = post
+                                quoteText = ""
+                                showShareDialog = true
+                            },
+                            onNavigateToPost = { originalPostId ->
+                                viewModel.fetchPostDetails(originalPostId) { originalPost ->
+                                    openedPost = originalPost
+                                    viewModel.setOpenedPostId(originalPostId)
+                                }
+                            }
                         )
                     }
                 }
@@ -311,6 +335,134 @@ fun CommunityScreen(
                         Text("Huỷ", color = SlateGray500)
                     }
                 }
+            )
+        }
+
+        if (showShareDialog && postToShare != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showShareDialog = false
+                    postToShare = null
+                },
+                title = {
+                    Text(
+                        text = "Chia sẻ bài viết",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = SlateGray900
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Bạn có muốn chia sẻ bài viết này lên bảng tin của mình?",
+                            fontSize = 14.sp,
+                            color = SlateGray600
+                        )
+                        OutlinedTextField(
+                            value = quoteText,
+                            onValueChange = { quoteText = it },
+                            placeholder = { Text("Viết suy nghĩ của bạn... (Tùy chọn)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = VNRed,
+                                cursorColor = VNRed
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val targetPost = postToShare
+                            if (targetPost != null) {
+                                viewModel.repostPost(
+                                    postId = targetPost.id,
+                                    quoteText = quoteText.takeIf { it.isNotBlank() }
+                                )
+                            }
+                            showShareDialog = false
+                            postToShare = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                    ) {
+                        Text("Chia sẻ", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showShareDialog = false
+                            postToShare = null
+                        }
+                    ) {
+                        Text("Hủy", color = SlateGray500)
+                    }
+                },
+                containerColor = Color.White
+            )
+        }
+
+        if (showItineraryPicker && itineraryViewModel != null) {
+            val uiStateVal by itineraryViewModel.uiState.collectAsState()
+            val userItineraries = uiStateVal.itineraries
+
+            // Fetch initially
+            LaunchedEffect(Unit) {
+                itineraryViewModel.fetchItineraries()
+            }
+
+            AlertDialog(
+                onDismissRequest = { showItineraryPicker = false },
+                title = {
+                    Text(
+                        text = "Chọn lịch trình đính kèm",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = SlateGray900
+                    )
+                },
+                text = {
+                    if (userItineraries.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Bạn chưa có lịch trình nào.", color = SlateGray500, fontSize = 14.sp)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(userItineraries) { itinerary ->
+                                Text(
+                                    text = itinerary.title,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = SlateGray800,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            activeShareItineraryId = itinerary.id
+                                            viewModel.setShareItineraryId(itinerary.id)
+                                            showItineraryPicker = false
+                                        }
+                                        .padding(vertical = 12.dp, horizontal = 8.dp)
+                                )
+                                HorizontalDivider(color = SlateGray50)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = { showItineraryPicker = false }) {
+                        Text("Hủy", color = SlateGray500)
+                    }
+                },
+                containerColor = Color.White
             )
         }
     }

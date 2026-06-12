@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -58,6 +59,8 @@ fun PostDetailScreen(
 
     var inputText by remember { mutableStateOf("") }
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
+    var showShareDialog by remember { mutableStateOf(false) }
+    var quoteText by remember { mutableStateOf("") }
     
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
@@ -197,7 +200,14 @@ fun PostDetailScreen(
                     }
 
                     // Embedded post
-                    post.embeddedPost?.let { EmbeddedPostCard(it) }
+                    post.embeddedPost?.let {
+                        EmbeddedPostCard(
+                            embedded = it,
+                            onNavigateToOriginal = { originalId ->
+                                viewModel.setOpenedPostId(originalId)
+                            }
+                        )
+                    }
 
                     // Linked itinerary
                     post.linkedItinerary?.let {
@@ -254,14 +264,19 @@ fun PostDetailScreen(
                             icon = Icons.Outlined.Share,
                             label = "Chia sẻ",
                             tint = SlateGray500,
-                            onClick = {}
+                            onClick = {
+                                quoteText = ""
+                                showShareDialog = true
+                            }
                         )
                         // Save
                         ActionButton(
-                            icon = Icons.Outlined.BookmarkBorder,
-                            label = "Lưu",
-                            tint = SlateGray500,
-                            onClick = {}
+                            icon = if (currentPost.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            label = if (currentPost.isSaved) "Đã lưu" else "Lưu",
+                            tint = if (currentPost.isSaved) VNRed else SlateGray500,
+                            onClick = {
+                                if (currentPost.isSaved) viewModel.unsavePost(currentPost.id) else viewModel.savePost(currentPost.id)
+                            }
                         )
                     }
                     HorizontalDivider(color = SlateGray100)
@@ -352,6 +367,66 @@ fun PostDetailScreen(
                     }
                 }
             }
+        }
+
+        if (showShareDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showShareDialog = false
+                },
+                title = {
+                    Text(
+                        text = "Chia sẻ bài viết",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = SlateGray900
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Bạn có muốn chia sẻ bài viết này lên bảng tin của mình?",
+                            fontSize = 14.sp,
+                            color = SlateGray600
+                        )
+                        OutlinedTextField(
+                            value = quoteText,
+                            onValueChange = { quoteText = it },
+                            placeholder = { Text("Viết suy nghĩ của bạn... (Tùy chọn)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = VNRed,
+                                cursorColor = VNRed
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.repostPost(
+                                postId = currentPost.id,
+                                quoteText = quoteText.takeIf { it.isNotBlank() }
+                            )
+                            showShareDialog = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                    ) {
+                        Text("Chia sẻ", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showShareDialog = false
+                        }
+                    ) {
+                        Text("Hủy", color = SlateGray500)
+                    }
+                },
+                containerColor = Color.White
+            )
         }
     }
 }

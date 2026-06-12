@@ -59,6 +59,13 @@ class CommunityViewModel(
         _shareItineraryId.value = id
     }
 
+    private val _openedPostId = MutableStateFlow<String?>(null)
+    val openedPostId: StateFlow<String?> = _openedPostId.asStateFlow()
+
+    fun setOpenedPostId(postId: String?) {
+        _openedPostId.value = postId
+    }
+
     private val _selectedPlace = MutableStateFlow<PostPlace?>(null)
     val selectedPlace: StateFlow<PostPlace?> = _selectedPlace.asStateFlow()
 
@@ -247,6 +254,19 @@ class CommunityViewModel(
         if (_isFollowingFilter.value != followingOnly) {
             _isFollowingFilter.value = followingOnly
             loadFeed()
+        }
+    }
+
+    fun fetchPostDetails(postId: String, onSuccess: (CommunityPost) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val post = repository.getPostDetails(postId, currentUserId)
+                if (post != null) {
+                    onSuccess(post)
+                }
+            } catch (e: Exception) {
+                _error.value = "Không thể tải chi tiết bài viết: ${e.localizedMessage}"
+            }
         }
     }
 
