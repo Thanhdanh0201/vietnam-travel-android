@@ -90,13 +90,18 @@ data class NotificationDto(
     val id: String,
     val user_id: String,
     val actor_id: String? = null,
-    val notif_type: String, // "like" | "comment" | "follow" | "repost" | "mention"
+    val notif_type: String,
     val post_id: String? = null,
     val comment_id: String? = null,
     val is_read: Boolean = false,
     val created_at: String,
-    
-    // Relation when querying table
+    val preview_text: String? = null,
+    val reaction_type: String? = null,
+    val itinerary_id: String? = null,
+    val itinerary_title: String? = null,
+    val place_suggestion_id: String? = null,
+    val actor_username: String? = null,
+    val group_key: String? = null,
     val actor: UserDto? = null
 )
 

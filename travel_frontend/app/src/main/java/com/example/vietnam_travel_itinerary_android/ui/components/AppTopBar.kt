@@ -1,6 +1,8 @@
 package com.example.vietnam_travel_itinerary_android.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -11,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +62,7 @@ fun AppTopBarLogo(modifier: Modifier = Modifier) {
 fun AppTopBar(
     onSearchClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
+    unreadCount: Int = 0,
 ) {
     Column {
         Surface(
@@ -76,6 +80,7 @@ fun AppTopBar(
                 AppTopBarActions(
                     onSearchClick = onSearchClick,
                     onNotificationClick = onNotificationClick,
+                    unreadCount = unreadCount,
                 )
             }
         }
@@ -88,6 +93,7 @@ fun AppBackTopBar(
     onBackClick: () -> Unit,
     onSearchClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
+    unreadCount: Int = 0,
     showActions: Boolean = false,
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
@@ -123,6 +129,7 @@ fun AppBackTopBar(
                     showActions -> AppTopBarActions(
                         onSearchClick = onSearchClick,
                         onNotificationClick = onNotificationClick,
+                        unreadCount = unreadCount,
                     )
                     trailingContent != null -> trailingContent()
                 }
@@ -136,21 +143,39 @@ fun AppBackTopBar(
 private fun AppTopBarActions(
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
+    unreadCount: Int = 0,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilledIconButton(
-            onClick = onNotificationClick,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = VNRed.copy(alpha = 0.1f),
-                contentColor = VNRed,
-            ),
-            modifier = Modifier.size(40.dp),
+        BadgedBox(
+            badge = {
+                if (unreadCount > 0) {
+                    Badge(
+                        containerColor = VNRed,
+                        contentColor = Color.White,
+                    ) {
+                        Text(
+                            text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            },
         ) {
-            Icon(
-                imageVector = Icons.Outlined.Notifications,
-                contentDescription = "Thông báo",
-                modifier = Modifier.size(22.dp),
-            )
+            FilledIconButton(
+                onClick = onNotificationClick,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = VNRed.copy(alpha = 0.1f),
+                    contentColor = VNRed,
+                ),
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Notifications,
+                    contentDescription = "Thông báo",
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
         FilledIconButton(
             onClick = onSearchClick,

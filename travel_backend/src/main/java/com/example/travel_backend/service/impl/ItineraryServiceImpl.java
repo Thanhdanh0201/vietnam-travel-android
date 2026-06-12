@@ -5,6 +5,7 @@ import com.example.travel_backend.dto.response.ItineraryResponseDto;
 import com.example.travel_backend.entity.Itinerary;
 import com.example.travel_backend.repository.ItineraryRepository;
 import com.example.travel_backend.service.ItineraryService;
+import com.example.travel_backend.service.NotificationTriggerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,9 @@ public class ItineraryServiceImpl {
 
     @Autowired
     private com.example.travel_backend.repository.ItineraryCollaboratorRepository collaboratorRepository;
+
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public List<ItineraryResponseDto> getPublicItineraries(UUID userId, int limit, int offset) {
@@ -68,7 +72,7 @@ public class ItineraryServiceImpl {
                     if (email == null || email.isBlank()) {
                         return false;
                     }
-                    return collaboratorRepository.findByItinerary_IdAndEmail(itinerary.getId(), email.trim())
+                    return collaboratorRepository.findAcceptedByItinerary_IdAndEmail(itinerary.getId(), email.trim())
                             .map(c -> "EDIT".equalsIgnoreCase(c.getRole()))
                             .orElse(false);
                 })
@@ -115,6 +119,7 @@ public class ItineraryServiceImpl {
 
         if (isModified) {
             itineraryRepository.save(itinerary);
+            notificationTriggerService.notifyItineraryUpdated(requesterId, itineraryId);
             System.out.println("Updated itinerary " + itineraryId + " successfully.");
         }
     }
@@ -219,7 +224,7 @@ public class ItineraryServiceImpl {
             if (user != null) {
                 String email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
                 if (!email.isEmpty()) {
-                    isCollaborator = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email).isPresent();
+                    isCollaborator = collaboratorRepository.findAcceptedByItinerary_IdAndEmail(itineraryId, email).isPresent();
                 }
             }
         }
@@ -326,7 +331,7 @@ public class ItineraryServiceImpl {
             role = "OWNER";
             isCollaborator = true;
         } else if (!email.isEmpty()) {
-            var collabOpt = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email);
+            var collabOpt = collaboratorRepository.findAcceptedByItinerary_IdAndEmail(itineraryId, email);
             if (collabOpt.isPresent()) {
                 role = collabOpt.get().getRole();
                 isCollaborator = true;

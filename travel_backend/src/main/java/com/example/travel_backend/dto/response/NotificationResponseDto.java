@@ -17,8 +17,14 @@ public class NotificationResponseDto {
     private UUID commentId;
     private UUID achievementId;
 
+    private UUID itineraryId;
+    private String itineraryTitle;
+    private UUID placeSuggestionId;
+
     // Thông tin Actor (người gây ra thông báo)
     private UUID actorId;
     private String actorName;
+    private String actorUsername;
     private String actorAvatarUrl;
+    private String groupKey;
 }

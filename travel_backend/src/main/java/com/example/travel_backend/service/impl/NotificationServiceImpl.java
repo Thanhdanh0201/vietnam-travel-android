@@ -11,28 +11,56 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
 
+    private static final Map<String, List<String>> CATEGORY_TYPES = Map.of(
+            "interaction", List.of("follow", "reaction", "comment", "comment_reaction", "repost", "mention"),
+            "travel", List.of("itinerary_invite", "itinerary_updated"),
+            "system", List.of("achievement", "place_suggestion_approved")
+    );
+
     @Autowired
     private NotificationRepository notificationRepository;
 
     @Override
-    public List<NotificationResponseDto> getNotifications(UUID userId, int limit, int offset) {
-        int page = offset / limit;
-        Page<Notification> notifPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(
-                userId, PageRequest.of(page, limit));
+    public List<NotificationResponseDto> getNotifications(UUID userId, int limit, int offset, String category) {
+        int page = offset / Math.max(limit, 1);
+        PageRequest pageable = PageRequest.of(page, limit);
+
+        Page<Notification> notifPage;
+        if (category != null && !category.isBlank() && !"all".equalsIgnoreCase(category)) {
+            List<String> types = CATEGORY_TYPES.get(category.toLowerCase());
+            if (types == null) {
+                notifPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+            } else {
+                notifPage = notificationRepository.findByUserIdAndTypeInOrderByCreatedAtDesc(userId, types, pageable);
+            }
+        } else {
+            notifPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        }
 
         return notifPage.getContent().stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
     @Override
+    public long getUnreadCount(UUID userId) {
+        return notificationRepository.countByUserIdAndIsReadFalse(userId);
+    }
+
+    @Override
+    @Transactional
+    public void markAsRead(UUID notifId, UUID userId) {
+        notificationRepository.markAsRead(notifId, userId);
+    }
+
+    @Override
     @Transactional
     public void markAllAsRead(UUID userId) {
-        System.out.println("Marking all notifications as read for user: " + userId);
         notificationRepository.markAllAsRead(userId);
     }
 
@@ -49,11 +77,29 @@ public class NotificationServiceImpl implements NotificationService {
         if (notif.getComment() != null) dto.setCommentId(notif.getComment().getId());
         dto.setAchievementId(notif.getAchievementId());
 
+        if (notif.getItinerary() != null) {
+            dto.setItineraryId(notif.getItinerary().getId());
+            dto.setItineraryTitle(notif.getItinerary().getTitle());
+        }
+        dto.setPlaceSuggestionId(notif.getPlaceSuggestionId());
+
         dto.setActorId(notif.getActor().getId());
-        // Bỏ comment 2 dòng dưới và dùng hàm lấy tên/avatar đúng chuẩn của Entity User của ông nhé:
         dto.setActorName(notif.getActor().getName());
+        dto.setActorUsername(notif.getActor().getUsername());
         dto.setActorAvatarUrl(notif.getActor().getAvatarUrl());
 
+        dto.setGroupKey(notif.getGroupKey() != null ? notif.getGroupKey() : computeGroupKey(notif));
         return dto;
+    }
+
+    private String computeGroupKey(Notification notif) {
+        if (notif.getPost() == null) return null;
+        String type = notif.getType();
+        UUID postId = notif.getPost().getId();
+        if ("reaction".equals(type) || "comment".equals(type) || "comment_reaction".equals(type)
+                || "repost".equals(type) || "mention".equals(type)) {
+            return type + ":" + postId;
+        }
+        return null;
     }
 }

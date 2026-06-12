@@ -2,6 +2,7 @@ package com.example.travel_backend.controller;
 
 import com.example.travel_backend.dto.request.UpdateItineraryDto;
 import com.example.travel_backend.dto.response.ItineraryResponseDto;
+import com.example.travel_backend.service.NotificationTriggerService;
 import com.example.travel_backend.service.impl.ItineraryServiceImpl;
 import com.example.travel_backend.repository.ItineraryCollaboratorRepository;
 import com.example.travel_backend.repository.ItineraryRepository;
@@ -11,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,10 +33,14 @@ public class ItineraryController {
     @Autowired
     private com.example.travel_backend.repository.UserRepository userRepository;
 
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
+
     public static class CollaboratorDto {
         private String email;
         private String name;
         private String role;
+        private String status;
 
         public CollaboratorDto() {}
 
@@ -44,12 +50,21 @@ public class ItineraryController {
             this.role = role;
         }
 
+        public CollaboratorDto(String email, String name, String role, String status) {
+            this.email = email;
+            this.name = name;
+            this.role = role;
+            this.status = status;
+        }
+
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
         public String getName() { return name; }
         public void setName(String name) { this.name = name; }
         public String getRole() { return role; }
         public void setRole(String role) { this.role = role; }
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
     }
 
 
@@ -168,7 +183,7 @@ public class ItineraryController {
             if (user != null) {
                 String email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
                 if (!email.isEmpty()) {
-                    isCollaborator = collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email).isPresent();
+                    isCollaborator = collaboratorRepository.findAcceptedByItinerary_IdAndEmail(itineraryId, email).isPresent();
                 }
             }
         }
@@ -179,7 +194,7 @@ public class ItineraryController {
 
         List<com.example.travel_backend.entity.ItineraryCollaborator> list = collaboratorRepository.findByItinerary_Id(itineraryId);
         List<CollaboratorDto> dtoList = list.stream()
-                .map(c -> new CollaboratorDto(c.getEmail(), c.getName(), c.getRole()))
+                .map(c -> new CollaboratorDto(c.getEmail(), c.getName(), c.getRole(), c.getStatus()))
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtoList);
     }
@@ -223,10 +238,84 @@ public class ItineraryController {
                 });
         collaborator.setName(displayName);
         collaborator.setRole(request.getRole() != null ? request.getRole().toUpperCase() : "VIEW");
+        collaborator.setStatus("pending");
+        collaborator.setInvitedBy(requesterId);
+        collaborator.setInvitedAt(OffsetDateTime.now());
+        collaborator.setRespondedAt(null);
 
         collaboratorRepository.save(collaborator);
 
-        return ResponseEntity.ok(new CollaboratorDto(collaborator.getEmail(), collaborator.getName(), collaborator.getRole()));
+        userRepository.findByEmail(collaborator.getEmail()).ifPresent(invitedUser ->
+                notificationTriggerService.notifyItineraryInvite(requesterId, invitedUser.getId(), itineraryId));
+
+        return ResponseEntity.ok(new CollaboratorDto(
+                collaborator.getEmail(),
+                collaborator.getName(),
+                collaborator.getRole(),
+                collaborator.getStatus()
+        ));
+    }
+
+    @PostMapping("/{id}/invites/accept")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> acceptInvite(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId) {
+
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+        com.example.travel_backend.entity.User user = userRepository.findById(requesterId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+        String email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
+        if (email.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "User email is missing");
+        }
+
+        com.example.travel_backend.entity.ItineraryCollaborator collaborator =
+                collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email)
+                        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.NOT_FOUND, "Invite not found"));
+
+        if (!"pending".equalsIgnoreCase(collaborator.getStatus())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Invite is already handled");
+        }
+        collaborator.setStatus("accepted");
+        collaborator.setRespondedAt(OffsetDateTime.now());
+        collaboratorRepository.save(collaborator);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/invites/decline")
+    @org.springframework.transaction.annotation.Transactional
+    public ResponseEntity<Void> declineInvite(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId) {
+
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+        com.example.travel_backend.entity.User user = userRepository.findById(requesterId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+        String email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
+        if (email.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "User email is missing");
+        }
+
+        com.example.travel_backend.entity.ItineraryCollaborator collaborator =
+                collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, email)
+                        .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.NOT_FOUND, "Invite not found"));
+
+        if (!"pending".equalsIgnoreCase(collaborator.getStatus())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Invite is already handled");
+        }
+        collaborator.setStatus("rejected");
+        collaborator.setRespondedAt(OffsetDateTime.now());
+        collaboratorRepository.save(collaborator);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}/collaborators/{email}")

@@ -8,6 +8,7 @@ import com.example.travel_backend.entity.User;
 import com.example.travel_backend.repository.FollowRepository;
 import com.example.travel_backend.repository.UserRepository;
 import com.example.travel_backend.service.FollowService;
+import com.example.travel_backend.service.NotificationTriggerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,9 @@ public class FollowServiceImpl implements FollowService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private NotificationTriggerService notificationTriggerService;
 
     @Override
     @Transactional
@@ -52,6 +56,7 @@ public class FollowServiceImpl implements FollowService {
         follow.setCreatedAt(OffsetDateTime.now());
 
         followRepository.save(follow);
+        notificationTriggerService.notifyFollow(followerId, followingId);
     }
 
     @Override
