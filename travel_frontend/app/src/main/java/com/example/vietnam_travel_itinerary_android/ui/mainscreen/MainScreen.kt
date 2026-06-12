@@ -204,16 +204,21 @@ fun MainScreen(
                     unreadCount = unreadCount,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
-                        when (route) {
-                            "edit_profile" -> bottomNavController.navigate("edit_profile")
+                        when {
+                            route == "edit_profile" -> bottomNavController.navigate("edit_profile")
+                            route.startsWith("post_detail/") -> {
+                                val postId = route.removePrefix("post_detail/")
+                                communityViewModel.setOpenedPostId(postId)
+                                navigateToMainTab("community")
+                            }
+                            route.startsWith("profile/") -> {
+                                navigateToProfile(route.removePrefix("profile/"))
+                            }
+                            route in mainTabRoutes -> {
+                                navigateToMainTab(route)
+                            }
                             else -> {
-                                if (route.startsWith("profile/")) {
-                                    navigateToProfile(route.removePrefix("profile/"))
-                                } else if (route in mainTabRoutes) {
-                                    navigateToMainTab(route)
-                                } else {
-                                    bottomNavController.navigate(route)
-                                }
+                                bottomNavController.navigate(route)
                             }
                         }
                     },
@@ -246,6 +251,11 @@ fun MainScreen(
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
                         when {
+                            route.startsWith("post_detail/") -> {
+                                val postId = route.removePrefix("post_detail/")
+                                communityViewModel.setOpenedPostId(postId)
+                                navigateToMainTab("community")
+                            }
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
                             route.startsWith("itinerary_detail/") -> bottomNavController.navigate(route)
                             route in mainTabRoutes -> navigateToMainTab(route)
@@ -271,6 +281,11 @@ fun MainScreen(
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
                         when {
+                            route.startsWith("post_detail/") -> {
+                                val postId = route.removePrefix("post_detail/")
+                                communityViewModel.setOpenedPostId(postId)
+                                navigateToMainTab("community")
+                            }
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
                             route == "community" -> {
                                 bottomNavController.navigate("community") {
