@@ -79,4 +79,14 @@ class PlaceRepository {
             Result.failure(e)
         }
     }
+    suspend fun searchPlaces(
+        query: String,
+        limit: Int = 10
+    ): Result<List<Place>> = withContext(Dispatchers.IO) {
+        try {
+            Result.success(api.searchPlaces(query, limit))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
