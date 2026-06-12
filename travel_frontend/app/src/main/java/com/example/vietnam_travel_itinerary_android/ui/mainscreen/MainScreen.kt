@@ -34,7 +34,7 @@ import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationScreen
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
-
+import com.example.vietnam_travel_itinerary_android.ui.search.SearchScreen
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
 }
@@ -138,6 +138,14 @@ fun MainScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Khám phá")
                 }
+            }
+
+            composable("search") {
+                SearchScreen(
+                    onBackClick = {
+                        bottomNavController.popBackStack()
+                    }
+                )
             }
 
             composable("itinerary") {
