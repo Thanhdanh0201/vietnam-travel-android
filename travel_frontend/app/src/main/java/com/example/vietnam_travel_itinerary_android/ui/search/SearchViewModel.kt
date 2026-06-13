@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 class SearchViewModel(
     private val placeRepository: PlaceRepository,
@@ -20,10 +22,12 @@ class SearchViewModel(
 
     val uiState: StateFlow<SearchUiState> =
         _uiState.asStateFlow()
+    private var searchJob: Job? = null
+
     fun search(query: String) {
-        _uiState.value = _uiState.value.copy(
-            query = query
-        )
+        _uiState.value = _uiState.value.copy(query = query)
+
+        searchJob?.cancel()
 
         if (query.isBlank()) {
             _uiState.value = _uiState.value.copy(
@@ -35,15 +39,13 @@ class SearchViewModel(
             return
         }
 
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                error = null
-            )
+        searchJob = viewModelScope.launch {
+            delay(300) // debounce
+
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
             try {
                 val placesResult = placeRepository.searchPlaces(query)
-
                 val itineraryResult = itineraryRepository.getItineraries()
 
                 val places = placesResult.getOrDefault(emptyList())

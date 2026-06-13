@@ -35,6 +35,8 @@ import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationScreen
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
 import com.example.vietnam_travel_itinerary_android.ui.search.SearchScreen
+import com.example.vietnam_travel_itinerary_android.ui.search.SearchViewModel
+
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
 }
@@ -141,9 +143,17 @@ fun MainScreen(
             }
 
             composable("search") {
+                val searchViewModel: SearchViewModel =
+                    viewModel(factory = AppViewModelProvider.Factory)
+
+                val state by searchViewModel.uiState.collectAsState()
+
                 SearchScreen(
-                    onBackClick = {
-                        bottomNavController.popBackStack()
+                    state = state,
+                    onQueryChange = { searchViewModel.search(it) },
+                    onBackClick = { bottomNavController.navigateUp() },
+                    onPlaceClick = { place ->
+                        bottomNavController.navigate("place_detail/${place.id}")
                     }
                 )
             }
