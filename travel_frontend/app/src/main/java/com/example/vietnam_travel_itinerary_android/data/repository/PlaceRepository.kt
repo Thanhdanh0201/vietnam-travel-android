@@ -9,6 +9,7 @@ import com.example.vietnam_travel_itinerary_android.data.model.TrendingPlace
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
+import android.util.Log
 
 class PlaceRepository {
     private val api = RetrofitInstance.api
@@ -26,13 +27,14 @@ class PlaceRepository {
     }
 
     /** Gợi ý trang chủ — GET /api/places/recommended?limit=N (rating DESC). */
-    suspend fun getRecommendedPlaces(limit: Int = 10): Result<List<Place>> = withContext(Dispatchers.IO) {
-        try {
-            Result.success(api.getRecommendedPlaces(limit = limit))
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getRecommendedPlaces(limit: Int = 10): Result<List<Place>> =
+        withContext(Dispatchers.IO) {
+            try {
+                Result.success(api.getRecommendedPlaces(limit = limit))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
         }
-    }
 
     suspend fun getTrendingPlaces(
         provinceCode: String? = null,
@@ -79,13 +81,18 @@ class PlaceRepository {
             Result.failure(e)
         }
     }
+
     suspend fun searchPlaces(
         query: String,
         limit: Int = 10
     ): Result<List<Place>> = withContext(Dispatchers.IO) {
         try {
-            Result.success(api.searchPlaces(query, limit))
+            val result = api.searchPlaces(query, limit)
+            println("SEARCH DEBUG: query=$query results=${result.size}")
+
+            Result.success(result)
         } catch (e: Exception) {
+            e.printStackTrace()
             Result.failure(e)
         }
     }

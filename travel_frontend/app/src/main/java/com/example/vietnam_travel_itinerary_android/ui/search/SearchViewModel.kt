@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 class SearchViewModel(
@@ -46,9 +48,13 @@ class SearchViewModel(
 
             try {
                 val placesResult = placeRepository.searchPlaces(query)
+                Log.d("SEARCH_DEBUG", "Searching for: $query")
+                Log.d("SEARCH_DEBUG", "Raw result: $placesResult")
                 val itineraryResult = itineraryRepository.getItineraries()
 
                 val places = placesResult.getOrDefault(emptyList())
+                Log.d("SEARCH_DEBUG", "Number of places: ${places.size}")
+                Log.d("SEARCH_DEBUG", "Places: $places")
 
                 val itineraries = itineraryResult
                     .getOrDefault(emptyList())
@@ -63,6 +69,8 @@ class SearchViewModel(
                 )
 
             } catch (e: Exception) {
+                Log.e("SEARCH_DEBUG", "Search failed", e)
+
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message ?: "Search failed"
