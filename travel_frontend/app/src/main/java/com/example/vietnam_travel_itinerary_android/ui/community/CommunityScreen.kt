@@ -29,6 +29,11 @@ import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.post.CreatePostWidget
 import com.example.vietnam_travel_itinerary_android.ui.components.post.PostCard
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
+import androidx.compose.ui.res.painterResource
+import coil3.compose.AsyncImage
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.layout.ContentScale
 
 // ============================================================
 // COMMUNITY SCREEN
@@ -93,6 +98,13 @@ fun CommunityScreen(
     // ── Place Picker state
     var showPlacePicker by remember { mutableStateOf(false) }
     var showItineraryPicker by remember { mutableStateOf(false) }
+    var initialShareItineraryId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(showItineraryPicker) {
+        if (showItineraryPicker) {
+            initialShareItineraryId = activeShareItineraryId
+        }
+    }
 
     LaunchedEffect(errorMsg) {
         errorMsg?.let {
@@ -414,7 +426,11 @@ fun CommunityScreen(
             }
 
             AlertDialog(
-                onDismissRequest = { showItineraryPicker = false },
+                onDismissRequest = {
+                    activeShareItineraryId = initialShareItineraryId
+                    viewModel.setShareItineraryId(initialShareItineraryId)
+                    showItineraryPicker = false
+                },
                 title = {
                     Text(
                         text = "Chọn lịch trình đính kèm",
@@ -434,31 +450,100 @@ fun CommunityScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             items(userItineraries) { itinerary ->
-                                Text(
-                                    text = itinerary.title,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = SlateGray800,
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
                                             activeShareItineraryId = itinerary.id
                                             viewModel.setShareItineraryId(itinerary.id)
-                                            showItineraryPicker = false
                                         }
-                                        .padding(vertical = 12.dp, horizontal = 8.dp)
-                                )
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    // ── Left: small image
+                                    Box(
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(SlateGray100)
+                                    ) {
+                                        if (!itinerary.coverUrl.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = itinerary.coverUrl,
+                                                contentDescription = itinerary.title,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        } else {
+                                            androidx.compose.foundation.Image(
+                                                painter = painterResource(id = itinerary.imageResId),
+                                                contentDescription = itinerary.title,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                    }
+
+                                    // ── Middle: Title & Info
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Text(
+                                            text = itinerary.title,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = SlateGray800,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = itinerary.location.ifBlank { "Chưa có địa điểm" },
+                                            fontSize = 11.sp,
+                                            color = SlateGray400,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+
+                                    // ── Right: RadioButton
+                                    RadioButton(
+                                        selected = activeShareItineraryId == itinerary.id,
+                                        onClick = {
+                                            activeShareItineraryId = itinerary.id
+                                            viewModel.setShareItineraryId(itinerary.id)
+                                        },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = VNRed,
+                                            unselectedColor = SlateGray300
+                                        )
+                                    )
+                                }
                                 HorizontalDivider(color = SlateGray50)
                             }
                         }
                     }
                 },
-                confirmButton = {},
+                confirmButton = {
+                    Button(
+                        onClick = { showItineraryPicker = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                    ) {
+                        Text("Xác nhận", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
                 dismissButton = {
-                    TextButton(onClick = { showItineraryPicker = false }) {
+                    TextButton(
+                        onClick = {
+                            activeShareItineraryId = initialShareItineraryId
+                            viewModel.setShareItineraryId(initialShareItineraryId)
+                            showItineraryPicker = false
+                        }
+                    ) {
                         Text("Hủy", color = SlateGray500)
                     }
                 },
