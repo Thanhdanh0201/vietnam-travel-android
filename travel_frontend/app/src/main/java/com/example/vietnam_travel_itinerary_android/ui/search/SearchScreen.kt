@@ -1,13 +1,16 @@
 package com.example.vietnam_travel_itinerary_android.ui.search
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import com.example.vietnam_travel_itinerary_android.ui.components.post.PostCard
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Place
@@ -15,13 +18,17 @@ import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
 import com.example.vietnam_travel_itinerary_android.ui.components.PlaceCard
+import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
 
 @Composable
 fun SearchScreen(
     state: SearchUiState,
+    currentUserId: String,
     onQueryChange: (String) -> Unit,
     onBackClick: () -> Unit,
-    onPlaceClick: (Place) -> Unit, // keep it but optional now
+    onPlaceClick: (Place) -> Unit,
+    onNavigate: (String) -> Unit,
+
 ) {
 
 
@@ -76,9 +83,7 @@ fun SearchScreen(
                 items(state.places) { place ->
                     PlaceCard(
                         place = place,
-                        onPlaceClick = { place ->
-                            println("clicked place: ${place.name}")
-                        }
+                        onPlaceClick = onPlaceClick
                     )
                 }
             }
@@ -119,11 +124,58 @@ fun SearchScreen(
                 }
 
                 items(state.posts) { post ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(post.authorName)
-                            Text(post.content)
+                    PostCard(
+                        post = post,
+                        currentUserId = currentUserId,
+                        onLikeClick = {},
+                        onCommentClick = {},
+                        onSaveClick = {},
+                        onDeleteClick = {},
+                        onItineraryClick = { itineraryId ->
+                            onNavigate("itinerary_detail/$itineraryId")
+                        },
+
+                        onAuthorClick = {
+                            val authorId = post.userId.takeIf { it.isNotBlank() } ?: return@PostCard
+
+                            if (authorId == currentUserId) {
+                                onNavigate("profile")
+                            } else {
+                                onNavigate("profile/$authorId")
+                            }
                         }
+                    )
+                }
+            }
+            //users
+            if (state.users.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Users",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                items(state.users) { user ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (user.id == currentUserId) {
+                                    onNavigate("profile")
+                                } else {
+                                    onNavigate("profile/${user.id}")
+                                }
+                            }
+                    ) {
+                        AuthorAvatar(
+                            initials = user.avatarInitials,
+                            color = Color(user.avatarColor),
+                            avatarUrl = user.avatarUrl,
+                            size = 40
+                        )
+
+                        Text(user.name)
                     }
                 }
             }
@@ -132,6 +184,7 @@ fun SearchScreen(
                 state.places.isEmpty() &&
                 state.posts.isEmpty() &&
                 state.itineraries.isEmpty() &&
+                state.users.isEmpty() &&
                 state.query.isNotBlank()
             ) {
                 item {

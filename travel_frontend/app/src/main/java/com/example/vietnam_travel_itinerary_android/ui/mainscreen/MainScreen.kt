@@ -156,11 +156,16 @@ fun MainScreen(
 
                 SearchScreen(
                     state = state,
+                    currentUserId = communityViewModel.currentUserId,
                     onQueryChange = { searchViewModel.search(it) },
                     onBackClick = { bottomNavController.navigateUp() },
                     onPlaceClick = { place ->
                         selectedPlace = place
+                    },
+                    onNavigate = { route ->
+                        bottomNavController.navigate(route)
                     }
+
                 )
             }
 

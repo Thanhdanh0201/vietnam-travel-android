@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
 import kotlinx.coroutines.Job
 import android.util.Log
+import com.example.vietnam_travel_itinerary_android.data.model.UserProfile
 import com.example.vietnam_travel_itinerary_android.data.repository.CommunityRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -39,6 +40,7 @@ class SearchViewModel(
                 places = emptyList(),
                 itineraries = emptyList(),
                 posts = emptyList(),
+                users = emptyList(),
                 isLoading = false,
                 error = null
             )
@@ -58,6 +60,22 @@ class SearchViewModel(
                 val postResult = communityRepository.getPublicFeed(
                     limit = 100
                 )
+
+                val users = postResult
+                    .map { post ->
+                        UserProfile(
+                            id = post.userId,
+                            name = post.authorName,
+                            avatarUrl = post.authorAvatarUrl,
+                            avatarInitials = post.authorAvatarInitials,
+                            avatarColor = post.authorAvatarColor,
+                            isVerified = false // use real value if your CommunityPost has it
+                        )
+                    }
+                    .distinctBy { it.id }
+                    .filter {
+                        it.name.contains(query, ignoreCase = true)
+                    }
 
                 val places = placesResult.getOrDefault(emptyList())
                 Log.d("SEARCH_DEBUG", "Number of places: ${places.size}")
@@ -101,6 +119,7 @@ class SearchViewModel(
                     places = places,
                     posts= posts,
                     itineraries = itineraries,
+                    users = users,
                     isLoading = false
                 )
 
