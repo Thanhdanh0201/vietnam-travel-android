@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
+import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
 import com.example.vietnam_travel_itinerary_android.ui.components.PlaceCard
 
 @Composable
@@ -75,7 +76,9 @@ fun SearchScreen(
                 items(state.places) { place ->
                     PlaceCard(
                         place = place,
-                        onPlaceClick = onPlaceClick
+                        onPlaceClick = { place ->
+                            println("clicked place: ${place.name}")
+                        }
                     )
                 }
             }
@@ -90,9 +93,36 @@ fun SearchScreen(
                 }
 
                 items(state.itineraries) { itinerary ->
+                    ItineraryCard(
+                        itinerary = itinerary,
+                        participants = emptyList(), // or real data if you have it
+                        canDelete = false, // search results usually shouldn't delete
+                        onClick = { id ->
+                            // navigate to itinerary detail
+                        },
+                        onShareClick = { id ->
+                            // share logic
+                        },
+                        onDelete = {
+                            // maybe no-op in search
+                        }
+                    )
+                }
+            }
+            //post
+            if (state.posts.isNotEmpty()) {
+                item {
+                    Text(
+                        text = "Posts",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                items(state.posts) { post ->
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(itinerary.title)
+                        Column(Modifier.padding(12.dp)) {
+                            Text(post.authorName)
+                            Text(post.content)
                         }
                     }
                 }
@@ -100,6 +130,7 @@ fun SearchScreen(
 
             if (!state.isLoading &&
                 state.places.isEmpty() &&
+                state.posts.isEmpty() &&
                 state.itineraries.isEmpty() &&
                 state.query.isNotBlank()
             ) {
@@ -107,6 +138,7 @@ fun SearchScreen(
                     Text("No results found")
                 }
             }
+
         }
     }
 }

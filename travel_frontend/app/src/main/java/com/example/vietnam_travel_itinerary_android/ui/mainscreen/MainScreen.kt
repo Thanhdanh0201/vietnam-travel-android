@@ -36,6 +36,11 @@ import com.example.vietnam_travel_itinerary_android.ui.notification.Notification
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
 import com.example.vietnam_travel_itinerary_android.ui.search.SearchScreen
 import com.example.vietnam_travel_itinerary_android.ui.search.SearchViewModel
+import com.example.vietnam_travel_itinerary_android.data.model.Place
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.example.vietnam_travel_itinerary_android.ui.components.introduction.PlaceIntroductionOverlay
 
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
@@ -69,6 +74,7 @@ fun MainScreen(
 
     val uiState by itineraryViewModel.uiState.collectAsState()
     val itinerariesState = uiState.itineraries
+    var selectedPlace by remember { mutableStateOf<Place?>(null) }
 
     fun navigateToMainTab(route: String) {
         if (route !in mainTabRoutes) return
@@ -153,7 +159,7 @@ fun MainScreen(
                     onQueryChange = { searchViewModel.search(it) },
                     onBackClick = { bottomNavController.navigateUp() },
                     onPlaceClick = { place ->
-                        bottomNavController.navigate("place_detail/${place.id}")
+                        selectedPlace = place
                     }
                 )
             }
@@ -303,6 +309,18 @@ fun MainScreen(
                     },
                 )
             }
+
         }
+        selectedPlace?.let { place ->
+            PlaceIntroductionOverlay(
+                place = place,
+                onDismiss = { selectedPlace = null },
+                onExplore = {
+                    selectedPlace = null
+                    navigateToMainTab("explore")
+                }
+            )
+        }
+
     }
 }

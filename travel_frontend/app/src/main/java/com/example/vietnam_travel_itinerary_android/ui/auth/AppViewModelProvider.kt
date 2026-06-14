@@ -91,7 +91,8 @@ object AppViewModelProvider {
         initializer {
             SearchViewModel(
                 placeRepository = PlaceRepository(),
-                itineraryRepository = ItineraryRepository(SupabaseObject.client)
+                itineraryRepository = ItineraryRepository(SupabaseObject.client),
+                communityRepository = CommunityRepository(SupabaseObject.client)
             )
         }
     }

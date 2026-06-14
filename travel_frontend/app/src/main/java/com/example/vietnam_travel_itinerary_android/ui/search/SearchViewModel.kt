@@ -10,14 +10,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
 import kotlinx.coroutines.Job
 import android.util.Log
+import com.example.vietnam_travel_itinerary_android.data.repository.CommunityRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 class SearchViewModel(
     private val placeRepository: PlaceRepository,
-    private val itineraryRepository: ItineraryRepository
+    private val itineraryRepository: ItineraryRepository,
+    private val communityRepository: CommunityRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -35,6 +38,7 @@ class SearchViewModel(
             _uiState.value = _uiState.value.copy(
                 places = emptyList(),
                 itineraries = emptyList(),
+                posts = emptyList(),
                 isLoading = false,
                 error = null
             )
@@ -51,6 +55,9 @@ class SearchViewModel(
                 Log.d("SEARCH_DEBUG", "Searching for: $query")
                 Log.d("SEARCH_DEBUG", "Raw result: $placesResult")
                 val itineraryResult = itineraryRepository.getItineraries()
+                val postResult = communityRepository.getPublicFeed(
+                    limit = 100
+                )
 
                 val places = placesResult.getOrDefault(emptyList())
                 Log.d("SEARCH_DEBUG", "Number of places: ${places.size}")
@@ -61,9 +68,38 @@ class SearchViewModel(
                     .filter {
                         it.title.contains(query, ignoreCase = true)
                     }
+                val posts = postResult
+                    .map { post ->
+
+                        val score = when {
+                            post.place?.name?.contains(query, true) == true -> 100
+
+                            post.linkedItinerary
+                                ?.title
+                                ?.contains(query, true) == true -> 80
+
+                            post.content.contains(query, true) -> 50
+
+                            post.authorName.contains(query, true) -> 30
+
+                            else -> 0
+                        }
+
+                        post to score
+                    }
+                    .filter {
+                        it.second > 0
+                    }
+                    .sortedByDescending {
+                        it.second
+                    }
+                    .map {
+                        it.first
+                    }
 
                 _uiState.value = _uiState.value.copy(
                     places = places,
+                    posts= posts,
                     itineraries = itineraries,
                     isLoading = false
                 )
