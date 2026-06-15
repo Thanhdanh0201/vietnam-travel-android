@@ -12,5 +12,13 @@ data class SearchUiState(
     val posts: List<CommunityPost> = emptyList(),
     val users: List<UserProfile> = emptyList(),
     val itineraries: List<Itinerary> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val selectedFilter: SearchFilter = SearchFilter.ALL
 )
+enum class SearchFilter(val title: String) {
+    ALL("Tất cả"),
+    PLACES("Địa điểm"),
+    ITINERARIES("Lịch trình"),
+    POSTS("Bài viết"),
+    USERS("Người dùng")
+}

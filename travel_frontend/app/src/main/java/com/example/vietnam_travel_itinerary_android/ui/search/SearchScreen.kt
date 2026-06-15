@@ -28,6 +28,7 @@ fun SearchScreen(
     onBackClick: () -> Unit,
     onPlaceClick: (Place) -> Unit,
     onNavigate: (String) -> Unit,
+    onFilterChange: (SearchFilter) -> Unit,
 
 ) {
 
@@ -64,6 +65,24 @@ fun SearchScreen(
                 modifier = Modifier.padding(12.dp)
             )
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SearchFilter.entries.forEach { filter ->
+                FilterChip(
+                    selected = state.selectedFilter == filter,
+                    onClick = {
+                        onFilterChange(filter)
+                    },
+                    label = {
+                        Text(filter.title)
+                    }
+                )
+            }
+        }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -72,7 +91,9 @@ fun SearchScreen(
         ) {
 
             // PLACES FIRST
-            if (state.places.isNotEmpty()) {
+            if ((state.selectedFilter == SearchFilter.ALL ||
+                        state.selectedFilter == SearchFilter.PLACES)
+                && state.places.isNotEmpty()) {
                 item {
                     Text(
                         text = "Places",
@@ -89,7 +110,9 @@ fun SearchScreen(
             }
 
             // ITINERARIES
-            if (state.itineraries.isNotEmpty()) {
+            if ((state.selectedFilter == SearchFilter.ALL ||
+                        state.selectedFilter == SearchFilter.ITINERARIES)
+                && state.itineraries.isNotEmpty()) {
                 item {
                     Text(
                         text = "Itineraries",
@@ -115,7 +138,9 @@ fun SearchScreen(
                 }
             }
             //post
-            if (state.posts.isNotEmpty()) {
+            if ((state.selectedFilter == SearchFilter.ALL ||
+                        state.selectedFilter == SearchFilter.POSTS)
+                && state.posts.isNotEmpty()) {
                 item {
                     Text(
                         text = "Posts",
@@ -148,7 +173,9 @@ fun SearchScreen(
                 }
             }
             //users
-            if (state.users.isNotEmpty()) {
+            if ((state.selectedFilter == SearchFilter.ALL ||
+                        state.selectedFilter == SearchFilter.USERS)
+                && state.users.isNotEmpty()) {
                 item {
                     Text(
                         text = "Users",

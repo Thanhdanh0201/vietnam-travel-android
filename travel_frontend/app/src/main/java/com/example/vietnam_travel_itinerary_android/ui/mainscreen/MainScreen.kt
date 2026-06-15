@@ -162,6 +162,9 @@ fun MainScreen(
                     onPlaceClick = { place ->
                         selectedPlace = place
                     },
+                    onFilterChange = {
+                        searchViewModel.setFilter(it)
+                    },
                     onNavigate = { route ->
                         bottomNavController.navigate(route)
                     }

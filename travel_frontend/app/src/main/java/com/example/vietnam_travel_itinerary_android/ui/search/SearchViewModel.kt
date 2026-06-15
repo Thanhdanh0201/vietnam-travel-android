@@ -29,6 +29,11 @@ class SearchViewModel(
     val uiState: StateFlow<SearchUiState> =
         _uiState.asStateFlow()
     private var searchJob: Job? = null
+    fun setFilter(filter: SearchFilter) {
+        _uiState.value = _uiState.value.copy(
+            selectedFilter = filter
+        )
+    }
 
     fun search(query: String) {
         _uiState.value = _uiState.value.copy(query = query)
