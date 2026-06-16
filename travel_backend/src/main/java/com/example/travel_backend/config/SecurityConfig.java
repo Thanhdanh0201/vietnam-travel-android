@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/comments_with_author").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/follows/*/followers").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/follows/*/following").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("admin")
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))

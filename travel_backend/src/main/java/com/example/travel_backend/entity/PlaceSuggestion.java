@@ -13,8 +13,9 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "reports")
-public class Report {
+@Table(name = "place_suggestions")
+public class PlaceSuggestion {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
@@ -22,40 +23,46 @@ public class Report {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "reporter_id", nullable = false)
-    private User reporter;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @Column(name = "reason", nullable = false, length = Integer.MAX_VALUE)
-    private String reason;
+    @Column(name = "name", nullable = false, length = Integer.MAX_VALUE)
+    private String name;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "province_id")
+    private Province province;
+
+    @Column(name = "lat")
+    private Double lat;
+
+    @Column(name = "lng")
+    private Double lng;
+
+    @Column(name = "type", length = Integer.MAX_VALUE)
+    private String type;
 
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
-    @JoinColumn(name = "reported_post_id")
-    private Post reportedPost;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
-    @JoinColumn(name = "reported_comment_id")
-    private Comment reportedComment;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
-    @JoinColumn(name = "reported_user_id")
-    private User reportedUser;
+    @Column(name = "image_url", length = Integer.MAX_VALUE)
+    private String imageUrl;
 
     @ColumnDefault("'pending'")
     @Column(name = "status", length = Integer.MAX_VALUE)
     private String status = "pending";
 
+    @Column(name = "admin_note", length = Integer.MAX_VALUE)
+    private String adminNote;
+
     @Column(name = "reviewed_at")
     private OffsetDateTime reviewedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
 
     @ColumnDefault("now()")
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
-
-
 }

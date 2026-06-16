@@ -69,6 +69,7 @@ public class UserServiceImpl implements UserService {
         dto.setPostCount(user.getPostCount());
         dto.setIsVerified(user.getIsVerified());
         dto.setIsPrivate(user.getIsPrivate());
+        dto.setRole(user.getRole());
         return dto;
     }
 
