@@ -34,6 +34,7 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 fun HomeScreen(
     onNavigate: (String) -> Unit = {},
     unreadCount: Int = 0,
+    onMenuClick: (() -> Unit)? = null,
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -68,6 +69,7 @@ fun HomeScreen(
                     onSeeAllPlaces = { onNavigate("places") },
                     onFavoriteWeatherCityChange = viewModel::setFavoriteWeatherCity,
                     onExploreClick = { onNavigate("explore") },
+                    onMenuClick = onMenuClick,
                 )
             }
         }
@@ -110,6 +112,7 @@ private fun HomeContent(
     onSeeAllPlaces: () -> Unit,
     onFavoriteWeatherCityChange: (String) -> Unit,
     onExploreClick: () -> Unit,
+    onMenuClick: (() -> Unit)? = null,
 ) {
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -128,6 +131,7 @@ private fun HomeContent(
                 onSearchClick = onSearchClick,
                 onNotificationClick = onNotificationClick,
                 unreadCount = unreadCount,
+                onMenuClick = onMenuClick,
             )
         }
 

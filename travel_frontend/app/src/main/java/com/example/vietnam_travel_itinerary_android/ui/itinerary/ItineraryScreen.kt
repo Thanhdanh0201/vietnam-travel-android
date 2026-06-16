@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +32,8 @@ fun ItineraryScreen(
     onNotificationClick: () -> Unit = {},
     onCreateClick: () -> Unit = {},
     onEditClick: (String) -> Unit = {},
-    onShareClick: (String) -> Unit = {}
+    onShareClick: (String) -> Unit = {},
+    onMenuClick: (() -> Unit)? = null,
 ) {
 
     // State cho việc lọc danh sách
@@ -60,7 +62,8 @@ fun ItineraryScreen(
             Column {
                 AppTopBar(
                     onSearchClick = onSearchClick,
-                    onNotificationClick = onNotificationClick
+                    onNotificationClick = onNotificationClick,
+                    onMenuClick = onMenuClick,
                 )
                 HorizontalDivider(color = Color(0xFFF1F5F9))
             }
@@ -143,6 +146,11 @@ fun ItineraryScreen(
             }
 
             // Danh sách lịch trình
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 88.dp),
@@ -161,6 +169,7 @@ fun ItineraryScreen(
                         }
                     )
                 }
+            }
             }
         }
     }

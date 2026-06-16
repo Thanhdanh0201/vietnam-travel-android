@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +49,8 @@ fun PostDetailScreen(
     post: CommunityPost,
     viewModel: CommunityViewModel,
     onBack: () -> Unit = {},
-    onItineraryClick: (String) -> Unit = {}
+    onItineraryClick: (String) -> Unit = {},
+    highlightCommentId: String? = null,
 ) {
     val allComments by viewModel.comments.collectAsState()
     val currentUserProfile by viewModel.currentUserProfile.collectAsState()
@@ -60,6 +62,8 @@ fun PostDetailScreen(
     var inputText by remember { mutableStateOf("") }
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var commentToReport by remember { mutableStateOf<Comment?>(null) }
+    val reportContext = LocalContext.current
     var quoteText by remember { mutableStateOf("") }
     
     val keyboard = LocalSoftwareKeyboardController.current
@@ -68,6 +72,16 @@ fun PostDetailScreen(
     // Fetch comments from Supabase initially
     LaunchedEffect(post.id) {
         viewModel.loadComments(post.id)
+    }
+
+    LaunchedEffect(highlightCommentId, allComments) {
+        val targetId = highlightCommentId ?: return@LaunchedEffect
+        val commentIndex = allComments.indexOfFirst { comment ->
+            comment.id == targetId || comment.replies.any { it.id == targetId }
+        }
+        if (commentIndex >= 0) {
+            listState.animateScrollToItem(index = 2 + commentIndex)
+        }
     }
 
     Scaffold(
@@ -347,26 +361,51 @@ fun PostDetailScreen(
                 items(allComments, key = { it.id }) { comment ->
                     ThreadCommentItem(
                         comment = comment,
+                        isHighlighted = comment.id == highlightCommentId,
                         onReply = { replyingTo = comment },
                         onLike = {
                             if (comment.isLiked) viewModel.unlikeComment(comment.id)
                             else viewModel.likeComment(comment.id)
-                        }
+                        },
+                        onReport = if (comment.userId != viewModel.currentUserId) {
+                            { commentToReport = comment }
+                        } else null,
                     )
                     // Nested replies (indented)
                     comment.replies.forEach { reply ->
                         ThreadCommentItem(
                             comment = reply,
                             isReply = true,
+                            isHighlighted = reply.id == highlightCommentId,
                             onReply = { replyingTo = comment },
                             onLike = {
                                 if (reply.isLiked) viewModel.unlikeComment(reply.id)
                                 else viewModel.likeComment(reply.id)
-                            }
+                            },
+                            onReport = if (reply.userId != viewModel.currentUserId) {
+                                { commentToReport = reply }
+                            } else null,
                         )
                     }
                 }
             }
+        }
+
+        commentToReport?.let { comment ->
+            ReportBottomSheet(
+                target = ReportTarget.COMMENT,
+                onDismiss = { commentToReport = null },
+                onSubmit = { reason, description ->
+                    viewModel.reportPostOrComment(
+                        reason = reason,
+                        reportedPostId = null,
+                        reportedCommentId = comment.id,
+                        description = description,
+                    )
+                    commentToReport = null
+                    android.widget.Toast.makeText(reportContext, "Đã gửi báo cáo. Cảm ơn bạn!", android.widget.Toast.LENGTH_SHORT).show()
+                },
+            )
         }
 
         if (showShareDialog) {
@@ -533,16 +572,19 @@ private fun CommentInputBar(
 fun ThreadCommentItem(
     comment: Comment,
     isReply: Boolean = false,
+    isHighlighted: Boolean = false,
     onReply: () -> Unit,
-    onLike: () -> Unit
+    onLike: () -> Unit,
+    onReport: (() -> Unit)? = null,
 ) {
     var liked by remember(comment.id) { mutableStateOf(comment.isLiked) }
     var likeCount by remember(comment.id) { mutableIntStateOf(comment.reactionCount) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(if (isHighlighted) VNRed.copy(alpha = 0.08f) else Color.White)
     ) {
         Row(
             modifier = Modifier
@@ -597,10 +639,31 @@ fun ThreadCommentItem(
                         )
                         Text(comment.timeAgo, fontSize = 11.sp, color = SlateGray400)
                     }
-                    Icon(
-                        Icons.Default.MoreHoriz, null,
-                        tint = SlateGray400, modifier = Modifier.size(16.dp)
-                    )
+                    if (onReport != null) {
+                        Box {
+                            Icon(
+                                Icons.Default.MoreHoriz, null,
+                                tint = SlateGray400,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { showMenu = true },
+                            )
+                            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("Báo cáo") },
+                                    onClick = {
+                                        showMenu = false
+                                        onReport()
+                                    },
+                                )
+                            }
+                        }
+                    } else {
+                        Icon(
+                            Icons.Default.MoreHoriz, null,
+                            tint = SlateGray400, modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
 
                 // Content (no bubble — Threads style)

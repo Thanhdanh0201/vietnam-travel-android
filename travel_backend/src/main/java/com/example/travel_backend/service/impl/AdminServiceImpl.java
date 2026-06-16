@@ -199,14 +199,23 @@ public class AdminServiceImpl implements AdminService {
         if (r.getReportedPost() != null) {
             dto.setReportedPostId(r.getReportedPost().getId());
             dto.setReportedPostContent(r.getReportedPost().getContent());
-            if (r.getReportedPost().getUser() != null)
+            if (r.getReportedPost().getUser() != null) {
+                dto.setReportedPostAuthorId(r.getReportedPost().getUser().getId());
                 dto.setReportedPostAuthorName(r.getReportedPost().getUser().getName());
+                dto.setReportedPostAuthorAvatar(r.getReportedPost().getUser().getAvatarUrl());
+            }
         }
         if (r.getReportedComment() != null) {
             dto.setReportedCommentId(r.getReportedComment().getId());
             dto.setReportedCommentContent(r.getReportedComment().getContent());
-            if (r.getReportedComment().getUser() != null)
+            if (r.getReportedComment().getPost() != null) {
+                dto.setReportedCommentPostId(r.getReportedComment().getPost().getId());
+            }
+            if (r.getReportedComment().getUser() != null) {
+                dto.setReportedCommentAuthorId(r.getReportedComment().getUser().getId());
                 dto.setReportedCommentAuthorName(r.getReportedComment().getUser().getName());
+                dto.setReportedCommentAuthorAvatar(r.getReportedComment().getUser().getAvatarUrl());
+            }
         }
         if (r.getReportedUser() != null) {
             dto.setReportedUserId(r.getReportedUser().getId());

@@ -11,8 +11,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +48,7 @@ fun CommunityScreen(
     itineraryViewModel: com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel? = null,
     viewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory),
     unreadCount: Int = 0,
+    onMenuClick: (() -> Unit)? = null,
 ) {
     var postText by remember { mutableStateOf("") }
     val shareItineraryId by viewModel.shareItineraryId.collectAsState()
@@ -72,6 +75,27 @@ fun CommunityScreen(
     val posts by viewModel.posts.collectAsState()
     val currentUserProfile by viewModel.currentUserProfile.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+    val hasMore by viewModel.hasMore.collectAsState()
+    val listState = rememberLazyListState()
+
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            if (!hasMore || isLoadingMore || isLoading || isRefreshing) return@derivedStateOf false
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            if (totalItems == 0) return@derivedStateOf false
+            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisibleIndex >= totalItems - 3
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) {
+            viewModel.loadMore()
+        }
+    }
     val errorMsg by viewModel.error.collectAsState()
     val selectedImages by viewModel.selectedImages.collectAsState()
     val selectedPlace by viewModel.selectedPlace.collectAsState()
@@ -82,6 +106,7 @@ fun CommunityScreen(
     var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
     var postToShare by remember { mutableStateOf<CommunityPost?>(null) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var postToReport by remember { mutableStateOf<CommunityPost?>(null) }
     var quoteText by remember { mutableStateOf("") }
 
     // ── Photo Picker launcher
@@ -135,6 +160,7 @@ fun CommunityScreen(
     var openedPost by remember { mutableStateOf<CommunityPost?>(null) }
 
     val targetOpenedPostId by viewModel.openedPostId.collectAsState()
+    val highlightCommentId by viewModel.highlightCommentId.collectAsState()
 
     LaunchedEffect(targetOpenedPostId) {
         targetOpenedPostId?.let { postId ->
@@ -177,6 +203,7 @@ fun CommunityScreen(
         PostDetailScreen(
             post = post,
             viewModel = viewModel,
+            highlightCommentId = highlightCommentId,
             onBack = {
                 openedPost = null
                 viewModel.setOpenedPostId(null)
@@ -192,10 +219,11 @@ fun CommunityScreen(
                 onSearchClick = { onNavigate("search") },
                 onNotificationClick = { onNavigate("notifications") },
                 unreadCount = unreadCount,
+                onMenuClick = onMenuClick,
             )
             HorizontalDivider(color = Color(0xFFF1F5F9))
 
-            if (isLoading && posts.isEmpty()) {
+            if (isLoading && posts.isEmpty() && !isRefreshing) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -203,7 +231,13 @@ fun CommunityScreen(
                     CircularProgressIndicator(color = VNRed)
                 }
             } else {
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.refresh() },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier.fillMaxSize().background(Color(0xFFF8F6F6)),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -298,6 +332,9 @@ fun CommunityScreen(
                             onDeleteClick = {
                                 postToDelete = post
                             },
+                            onReportClick = {
+                                postToReport = post
+                            },
                             onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") },
                             onPlaceClick = { lat, lng, name ->
                                 openGoogleMaps(lat, lng, name)
@@ -323,6 +360,30 @@ fun CommunityScreen(
                             }
                         )
                     }
+                    if (isLoadingMore) {
+                        item(contentType = "loading_more") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                CircularProgressIndicator(
+                                    color = VNRed,
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = "Đang tải thêm...",
+                                    fontSize = 13.sp,
+                                    color = SlateGray500,
+                                )
+                            }
+                        }
+                    }
+                }
                 }
             }
         }
@@ -347,6 +408,23 @@ fun CommunityScreen(
                         Text("Huỷ", color = SlateGray500)
                     }
                 }
+            )
+        }
+
+        postToReport?.let { post ->
+            ReportBottomSheet(
+                target = ReportTarget.POST,
+                onDismiss = { postToReport = null },
+                onSubmit = { reason, description ->
+                    viewModel.reportPostOrComment(
+                        reason = reason,
+                        reportedPostId = post.id,
+                        reportedCommentId = null,
+                        description = description,
+                    )
+                    postToReport = null
+                    android.widget.Toast.makeText(context, "Đã gửi báo cáo. Cảm ơn bạn!", android.widget.Toast.LENGTH_SHORT).show()
+                },
             )
         }
 

@@ -21,11 +21,16 @@ public class AdminReportResponseDto {
     // Reported content (one of the three will be non-null)
     private UUID reportedPostId;
     private String reportedPostContent;
+    private UUID reportedPostAuthorId;
     private String reportedPostAuthorName;
+    private String reportedPostAuthorAvatar;
 
     private UUID reportedCommentId;
+    private UUID reportedCommentPostId;
     private String reportedCommentContent;
+    private UUID reportedCommentAuthorId;
     private String reportedCommentAuthorName;
+    private String reportedCommentAuthorAvatar;
 
     private UUID reportedUserId;
     private String reportedUserName;

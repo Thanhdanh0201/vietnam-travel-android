@@ -36,6 +36,18 @@ class CommunityViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    private val _hasMore = MutableStateFlow(true)
+    val hasMore: StateFlow<Boolean> = _hasMore.asStateFlow()
+
+    private val pageSize = 20
+    private var currentOffset = 0
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
@@ -62,8 +74,18 @@ class CommunityViewModel(
     private val _openedPostId = MutableStateFlow<String?>(null)
     val openedPostId: StateFlow<String?> = _openedPostId.asStateFlow()
 
+    private val _highlightCommentId = MutableStateFlow<String?>(null)
+    val highlightCommentId: StateFlow<String?> = _highlightCommentId.asStateFlow()
+
     fun setOpenedPostId(postId: String?) {
         _openedPostId.value = postId
+        if (postId == null) {
+            _highlightCommentId.value = null
+        }
+    }
+
+    fun setHighlightCommentId(commentId: String?) {
+        _highlightCommentId.value = commentId
     }
 
     private val _selectedPlace = MutableStateFlow<PostPlace?>(null)
@@ -231,22 +253,73 @@ class CommunityViewModel(
     }
 
     fun loadFeed() {
+        if (_isLoading.value) return
         _isLoading.value = true
         _error.value = null
         viewModelScope.launch {
             try {
-                val list = if (_isFollowingFilter.value) {
-                    repository.getFollowingFeed(currentUserId)
-                } else {
-                    repository.getPublicFeed(currentUserId)
-                }
-                _posts.value = list
+                reloadFeedFromStart()
             } catch (e: Exception) {
                 e.printStackTrace()
                 _error.value = "Không thể tải bảng tin: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
+        }
+    }
+
+    fun refresh() {
+        if (_isRefreshing.value || _isLoading.value) return
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _error.value = null
+            try {
+                reloadFeedFromStart()
+                loadUserProfile()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _error.value = "Không thể làm mới bảng tin: ${e.message}"
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
+    private suspend fun reloadFeedFromStart() {
+        currentOffset = 0
+        _hasMore.value = true
+        val list = fetchFeedPage(offset = 0)
+        currentOffset = list.size
+        _hasMore.value = list.size >= pageSize
+        _posts.value = list
+    }
+
+    fun loadMore() {
+        if (_isLoadingMore.value || _isLoading.value || !_hasMore.value) return
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            try {
+                val list = fetchFeedPage(offset = currentOffset)
+                currentOffset += list.size
+                _hasMore.value = list.size >= pageSize
+                _posts.update { current ->
+                    val existingIds = current.map { it.id }.toSet()
+                    current + list.filter { it.id !in existingIds }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _error.value = "Không thể tải thêm bài viết: ${e.message}"
+            } finally {
+                _isLoadingMore.value = false
+            }
+        }
+    }
+
+    private suspend fun fetchFeedPage(offset: Int): List<CommunityPost> {
+        return if (_isFollowingFilter.value) {
+            repository.getFollowingFeed(currentUserId, limit = pageSize, offset = offset)
+        } else {
+            repository.getPublicFeed(currentUserId, limit = pageSize, offset = offset)
         }
     }
 
@@ -622,9 +695,15 @@ class CommunityViewModel(
         }
     }
 
-    fun reportPostOrComment(reason: String, reportedPostId: String?, reportedCommentId: String?, description: String?) {
+    fun reportPostOrComment(
+        reason: String,
+        reportedPostId: String?,
+        reportedCommentId: String?,
+        description: String?,
+        reportedUserId: String? = null,
+    ) {
         viewModelScope.launch {
-            repository.report(currentUserId, reason, reportedPostId, reportedCommentId, description)
+            repository.report(currentUserId, reason, reportedPostId, reportedCommentId, reportedUserId, description)
         }
     }
 
