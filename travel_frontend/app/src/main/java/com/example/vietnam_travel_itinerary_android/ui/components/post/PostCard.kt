@@ -50,6 +50,7 @@ fun PostCard(
     onSaveClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
+    onReportClick: (() -> Unit)? = null,
     onItineraryClick: (String) -> Unit = {},
     onPlaceClick: ((Double, Double, String) -> Unit)? = null,
     onAuthorClick: (() -> Unit)? = null,
@@ -63,10 +64,12 @@ fun PostCard(
         shadowElevation = 1.dp
     ) {
         Column(modifier = Modifier.border(1.dp, VNRed.copy(alpha = 0.05f), RoundedCornerShape(12.dp))) {
+            val isOwnPost = currentUserId != null && post.userId == currentUserId
             PostHeader(
                 post = post,
-                showDeleteOption = currentUserId != null && post.userId == currentUserId,
+                showDeleteOption = isOwnPost,
                 onDeleteClick = onDeleteClick,
+                onReportClick = if (!isOwnPost) onReportClick else null,
                 onAuthorClick = onAuthorClick
             )
 
@@ -164,9 +167,11 @@ fun PostHeader(
     post: CommunityPost,
     showDeleteOption: Boolean = false,
     onDeleteClick: () -> Unit = {},
+    onReportClick: (() -> Unit)? = null,
     onAuthorClick: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val hasMenu = showDeleteOption || onReportClick != null
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -209,31 +214,49 @@ fun PostHeader(
         
         Box {
             IconButton(
-                onClick = { if (showDeleteOption) showMenu = true },
+                onClick = { if (hasMenu) showMenu = true },
                 modifier = Modifier.size(20.dp)
             ) {
                 Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400)
             }
 
-            if (showDeleteOption) {
+            if (hasMenu) {
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Xoá bài viết", color = Color.Red) },
-                        onClick = {
-                            showMenu = false
-                            onDeleteClick()
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = "Xoá",
-                                tint = Color.Red
-                            )
-                        }
-                    )
+                    if (showDeleteOption) {
+                        DropdownMenuItem(
+                            text = { Text("Xoá bài viết", color = Color.Red) },
+                            onClick = {
+                                showMenu = false
+                                onDeleteClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Xoá",
+                                    tint = Color.Red
+                                )
+                            }
+                        )
+                    }
+                    if (onReportClick != null) {
+                        DropdownMenuItem(
+                            text = { Text("Báo cáo") },
+                            onClick = {
+                                showMenu = false
+                                onReportClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Flag,
+                                    contentDescription = "Báo cáo",
+                                    tint = SlateGray400
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

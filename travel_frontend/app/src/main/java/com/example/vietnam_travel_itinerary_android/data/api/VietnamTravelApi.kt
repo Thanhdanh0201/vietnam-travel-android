@@ -327,6 +327,84 @@ interface VietnamTravelApi {
         @Body request: ReportRequest
     ): Response<ResponseBody>
 
+    // ---- Place Suggestions (user) ----
+    @POST("api/place-suggestions")
+    suspend fun createPlaceSuggestion(
+        @Header("Authorization") token: String,
+        @Body request: PlaceSuggestionRequest
+    ): PlaceSuggestionResponse
+
+    @GET("api/place-suggestions/my")
+    suspend fun getMyPlaceSuggestions(
+        @Header("Authorization") token: String,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
+    ): PageDto<PlaceSuggestionResponse>
+
+    // ---- Admin: Place Suggestions ----
+    @GET("api/admin/place-suggestions")
+    suspend fun adminGetPlaceSuggestions(
+        @Header("Authorization") token: String,
+        @Query("status") status: String? = null,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
+    ): PageDto<PlaceSuggestionResponse>
+
+    @PATCH("api/admin/place-suggestions/{id}/approve")
+    suspend fun adminApproveSuggestion(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<ResponseBody>
+
+    @PATCH("api/admin/place-suggestions/{id}/reject")
+    suspend fun adminRejectSuggestion(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: RejectSuggestionRequest
+    ): Response<ResponseBody>
+
+    // ---- Admin: Reports ----
+    @GET("api/admin/reports")
+    suspend fun adminGetReports(
+        @Header("Authorization") token: String,
+        @Query("status") status: String? = null,
+        @Query("page") page: Int = 0,
+        @Query("size") size: Int = 20
+    ): PageDto<AdminReportResponse>
+
+    @PATCH("api/admin/reports/{id}")
+    suspend fun adminResolveReport(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: ResolveReportRequest
+    ): Response<ResponseBody>
+
+    @DELETE("api/admin/reports/{id}/post")
+    suspend fun adminDeleteReportedPost(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<ResponseBody>
+
+    @DELETE("api/admin/reports/{id}/comment")
+    suspend fun adminDeleteReportedComment(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<ResponseBody>
+
+    // ---- Admin: Users ----
+    @POST("api/admin/users/{id}/ban")
+    suspend fun adminBanUser(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: BanUserRequest
+    ): Response<ResponseBody>
+
+    @POST("api/admin/users/{id}/unban")
+    suspend fun adminUnbanUser(
+        @Header("Authorization") token: String,
+        @Path("id") id: String
+    ): Response<ResponseBody>
+
     // ---- Itineraries ----
 
     @GET("api/itineraries")

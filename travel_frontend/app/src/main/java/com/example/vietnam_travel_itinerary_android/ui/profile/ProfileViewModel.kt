@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vietnam_travel_itinerary_android.data.model.UserProfile
 import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
+import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,12 +20,18 @@ class ProfileViewModel(
 
     data class ProfileUiState(
         val isLoading: Boolean = true,
+        val isRefreshing: Boolean = false,
         val profile: UserProfile? = null,
         val error: String? = null,
         val isFollowLoading: Boolean = false,
     )
 
-    private val _uiState = MutableStateFlow(ProfileUiState())
+    private val _uiState = MutableStateFlow(
+        ProfileUiState(
+            isLoading = UserSessionCache.get() == null,
+            profile = UserSessionCache.get(),
+        ),
+    )
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     val currentUserId: String?
@@ -40,7 +47,13 @@ class ProfileViewModel(
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, error = null) }
+        val cachedProfile = UserSessionCache.get()
+        if (cachedProfile != null && cachedProfile.id == targetUserId) {
+            _uiState.update { it.copy(isLoading = false, profile = cachedProfile, error = null) }
+        } else {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+        }
+
         viewModelScope.launch {
             try {
                 val profile = repository.getProfile(targetUserId, currentUserId)
@@ -51,6 +64,24 @@ class ProfileViewModel(
                     isLoading = false,
                     error = "Không thể tải hồ sơ: ${e.message}",
                 )
+            }
+        }
+    }
+
+    fun refresh(userId: String? = null) {
+        val targetUserId = userId ?: currentUserId
+        if (targetUserId.isNullOrBlank() || _uiState.value.isRefreshing || _uiState.value.isLoading) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            try {
+                val profile = repository.getProfile(targetUserId, currentUserId)
+                _uiState.update { it.copy(profile = profile) }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _uiState.update { it.copy(error = "Không thể làm mới hồ sơ: ${e.message}") }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
             }
         }
     }
@@ -242,6 +273,13 @@ class ProfileViewModel(
             if (!success) {
                 loadProfile(profile.id)
             }
+        }
+    }
+
+    fun reportUser(reason: String, description: String?) {
+        val targetId = _uiState.value.profile?.id ?: return
+        viewModelScope.launch {
+            repository.reportUser(targetId, reason, description)
         }
     }
 

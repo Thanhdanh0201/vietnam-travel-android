@@ -24,6 +24,7 @@ data class UserProfile(
     // Flags
     val isVerified: Boolean = false,        // is_verified
     val isPrivate: Boolean = false,         // is_private
+    val role: String = "user",              // role (user | admin)
 
     // Timestamps
     val createdAt: String = "",             // created_at

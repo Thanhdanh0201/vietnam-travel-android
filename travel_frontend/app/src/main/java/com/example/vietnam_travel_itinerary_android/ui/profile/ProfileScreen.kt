@@ -8,16 +8,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.widget.Toast
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -26,6 +30,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
+import com.example.vietnam_travel_itinerary_android.ui.community.ReportBottomSheet
+import com.example.vietnam_travel_itinerary_android.ui.community.ReportTarget
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.AppTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.ItineraryCompactCard
@@ -41,6 +47,7 @@ fun ProfileScreen(
     unreadCount: Int = 0,
     onBack: () -> Unit = {},
     onNavigate: (String) -> Unit = {},
+    onMenuClick: (() -> Unit)? = null,
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -88,10 +95,13 @@ fun ProfileScreen(
             ProfileContent(
                 profile = uiState.profile!!,
                 isFollowLoading = uiState.isFollowLoading,
+                isRefreshing = uiState.isRefreshing,
                 viewModel = viewModel,
                 unreadCount = unreadCount,
                 onBack = onBack,
                 onNavigate = onNavigate,
+                onMenuClick = onMenuClick,
+                onRefresh = { viewModel.refresh(userId) },
                 onToggleFollow = { viewModel.toggleFollow() },
                 onLikePost = { postId, liked ->
                     if (liked) viewModel.unlikePost(postId) else viewModel.likePost(postId)
@@ -106,12 +116,15 @@ fun ProfileScreen(
 private fun ProfileContent(
     profile: UserProfile,
     isFollowLoading: Boolean,
+    isRefreshing: Boolean,
     viewModel: ProfileViewModel,
     unreadCount: Int,
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
+    onRefresh: () -> Unit,
     onToggleFollow: () -> Unit,
     onLikePost: (postId: String, liked: Boolean) -> Unit,
+    onMenuClick: (() -> Unit)? = null,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = remember(profile.isOwnProfile) {
@@ -122,6 +135,21 @@ private fun ProfileContent(
         }
     }
     var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
+    var showProfileMenu by remember { mutableStateOf(false) }
+    var showReportSheet by remember { mutableStateOf(false) }
+    val reportContext = LocalContext.current
+
+    if (showReportSheet) {
+        ReportBottomSheet(
+            target = ReportTarget.USER,
+            onDismiss = { showReportSheet = false },
+            onSubmit = { reason, description ->
+                viewModel.reportUser(reason, description)
+                showReportSheet = false
+                Toast.makeText(reportContext, "Đã gửi báo cáo. Cảm ơn bạn!", Toast.LENGTH_SHORT).show()
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -130,27 +158,56 @@ private fun ProfileContent(
                     onSearchClick = { onNavigate("search") },
                     onNotificationClick = { onNavigate("notifications") },
                     unreadCount = unreadCount,
+                    onMenuClick = onMenuClick,
                 )
             } else {
                 AppBackTopBar(
                     onBackClick = onBack,
                     trailingContent = {
-                        ProfileAvatar(
-                            avatarUrl = profile.avatarUrl,
-                            initials = profile.avatarInitials,
-                            color = Color(profile.avatarColor),
-                            size = 32,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ProfileAvatar(
+                                avatarUrl = profile.avatarUrl,
+                                initials = profile.avatarInitials,
+                                color = Color(profile.avatarColor),
+                                size = 32,
+                            )
+                            Box {
+                                IconButton(onClick = { showProfileMenu = true }) {
+                                    Icon(
+                                        Icons.Default.MoreVert,
+                                        contentDescription = "Tùy chọn",
+                                        tint = VNRed,
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showProfileMenu,
+                                    onDismissRequest = { showProfileMenu = false },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Báo cáo người dùng") },
+                                        onClick = {
+                                            showProfileMenu = false
+                                            showReportSheet = true
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     },
                 )
             }
         },
         containerColor = Color(0xFFF8F6F6),
     ) { padding ->
-        LazyColumn(
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
+        ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 100.dp),
         ) {
             item {
@@ -261,6 +318,7 @@ private fun ProfileContent(
                     }
                 }
             }
+        }
         }
 
         postToDelete?.let { post ->

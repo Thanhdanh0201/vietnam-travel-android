@@ -6,6 +6,7 @@ import com.example.vietnam_travel_itinerary_android.data.dto.PostResponseBackend
 import com.example.vietnam_travel_itinerary_android.data.dto.UpdateProfileRequest
 import com.example.vietnam_travel_itinerary_android.data.dto.UserProfileResponseDto
 import com.example.vietnam_travel_itinerary_android.data.model.*
+import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.storage.storage
@@ -21,6 +22,21 @@ class ProfileRepository(
     private val communityRepository: CommunityRepository = CommunityRepository(supabase),
 ) {
     private val api = RetrofitInstance.api
+
+    suspend fun loadSessionProfile(): UserProfile = withContext(Dispatchers.IO) {
+        val currentUserId = supabase.auth.currentUserOrNull()?.id
+            ?: throw IllegalStateException("Not authenticated")
+        val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
+            ?: throw IllegalStateException("Not authenticated")
+        val profileDto = fetchProfileDto(currentUserId, token)
+        profileDto.toUserProfile(
+            currentUserId = currentUserId,
+            isFollowing = false,
+            posts = emptyList(),
+        ).also { profile ->
+            UserSessionCache.set(profile)
+        }
+    }
 
     suspend fun getProfile(userId: String, currentUserId: String?): UserProfile = withContext(Dispatchers.IO) {
         val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
@@ -70,7 +86,11 @@ class ProfileRepository(
             posts = posts,
             savedPosts = savedPosts,
             publicItineraries = itineraries,
-        )
+        ).also { profile ->
+            if (profile.isOwnProfile) {
+                UserSessionCache.set(profile)
+            }
+        }
     }
 
     suspend fun followUser(targetUserId: String): Boolean = withContext(Dispatchers.IO) {
@@ -150,6 +170,18 @@ class ProfileRepository(
 
     suspend fun deletePost(postId: String): Boolean =
         communityRepository.deletePost(postId)
+
+    suspend fun reportUser(reportedUserId: String, reason: String, description: String?): Boolean {
+        val reporterId = supabase.auth.currentUserOrNull()?.id ?: return false
+        return communityRepository.report(
+            userId = reporterId,
+            reason = reason,
+            reportedPostId = null,
+            reportedCommentId = null,
+            reportedUserId = reportedUserId,
+            description = description,
+        )
+    }
 
 
     private suspend fun fetchProfileDto(userId: String, token: String?): UserProfileResponseDto {
@@ -291,6 +323,7 @@ class ProfileRepository(
             postCount = postCount ?: 0,
             isVerified = isVerified ?: false,
             isPrivate = isPrivate ?: false,
+            role = role ?: "user",
             avatarInitials = getInitials(displayName),
             avatarColor = getAvatarColor(displayName),
             isOwnProfile = currentUserId != null && id == currentUserId,

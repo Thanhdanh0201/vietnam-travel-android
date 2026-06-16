@@ -40,7 +40,8 @@ class ItineraryViewModel(
         val placesError: String? = null,
         val provinces: List<com.example.vietnam_travel_itinerary_android.data.model.Province> = emptyList(),
         val cities: List<String> = emptyList(),
-        val isLoadingProvinces: Boolean = false
+        val isLoadingProvinces: Boolean = false,
+        val isRefreshing: Boolean = false,
     )
 
     private val _uiState = MutableStateFlow(ItineraryUiState())
@@ -189,6 +190,25 @@ class ItineraryViewModel(
                     // fallback to mock data already loaded
                     println(it.message)
                 }
+        }
+    }
+
+    fun refresh() {
+        if (_uiState.value.isRefreshing) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            try {
+                itineraryRepo.getItineraries()
+                    .onSuccess { itineraries ->
+                        _uiState.update { it.copy(itineraries = itineraries) }
+                        itineraries.forEach { fetchCollaborators(it.id) }
+                    }
+                    .onFailure {
+                        it.printStackTrace()
+                    }
+            } finally {
+                _uiState.update { it.copy(isRefreshing = false) }
+            }
         }
     }
 

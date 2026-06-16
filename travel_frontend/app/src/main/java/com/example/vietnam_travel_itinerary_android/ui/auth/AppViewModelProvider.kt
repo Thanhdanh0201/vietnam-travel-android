@@ -12,9 +12,14 @@ import com.example.vietnam_travel_itinerary_android.ui.community.CommunityViewMo
 import com.example.vietnam_travel_itinerary_android.data.repository.CommunityRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.AdminRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.PlaceSuggestionRepository
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
+import com.example.vietnam_travel_itinerary_android.ui.suggestion.PlaceSuggestionViewModel
+import com.example.vietnam_travel_itinerary_android.ui.admin.AdminPlaceSuggestionsViewModel
+import com.example.vietnam_travel_itinerary_android.ui.admin.AdminReportsViewModel
 
 object AppViewModelProvider {
     val Factory = viewModelFactory {
@@ -34,7 +39,8 @@ object AppViewModelProvider {
 
         initializer {
             LoginViewModel(
-                supabase = SupabaseObject.client
+                supabase = SupabaseObject.client,
+                profileRepository = ProfileRepository(SupabaseObject.client),
             )
         }
 
@@ -84,6 +90,24 @@ object AppViewModelProvider {
                 profileRepository = ProfileRepository(SupabaseObject.client),
                 itineraryRepository = ItineraryRepository(SupabaseObject.client),
                 supabase = SupabaseObject.client,
+            )
+        }
+
+        initializer {
+            PlaceSuggestionViewModel(
+                repository = PlaceSuggestionRepository(SupabaseObject.client)
+            )
+        }
+
+        initializer {
+            AdminPlaceSuggestionsViewModel(
+                repository = AdminRepository(SupabaseObject.client)
+            )
+        }
+
+        initializer {
+            AdminReportsViewModel(
+                repository = AdminRepository(SupabaseObject.client)
             )
         }
     }
