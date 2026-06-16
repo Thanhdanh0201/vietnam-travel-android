@@ -93,7 +93,8 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                         orderIndex = it.orderIndex ?: 0
                     )
                 } ?: emptyList(),
-                originalTimeAgo = formatTimeAgo(orig.createdAt)
+                originalTimeAgo = formatTimeAgo(orig.createdAt),
+                hasItinerary = orig.itinerary != null
             )
         }
 
@@ -515,6 +516,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         reason: String,
         reportedPostId: String?,
         reportedCommentId: String?,
+        reportedUserId: String? = null,
         description: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -523,6 +525,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
                 reason = reason,
                 reportedPostId = reportedPostId,
                 reportedCommentId = reportedCommentId,
+                reportedUserId = reportedUserId,
                 description = description
             )
             val response = api.report(token, request)

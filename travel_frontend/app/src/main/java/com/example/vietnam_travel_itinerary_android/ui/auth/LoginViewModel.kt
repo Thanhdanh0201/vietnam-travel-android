@@ -2,7 +2,8 @@ package com.example.vietnam_travel_itinerary_android.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.vietnam_travel_itinerary_android.SupabaseObject
+import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
+import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
@@ -14,7 +15,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class LoginViewModel(
-    private val supabase: SupabaseClient // THÊM DÒNG NÀY
+    private val supabase: SupabaseClient,
+    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
 
     data class LoginUiState(
@@ -91,12 +93,18 @@ class LoginViewModel(
         viewModelScope.launch {
             try {
                 // GỌI SUPABASE THỰC TẾ
-                SupabaseObject.client.auth.signInWith(Email) {
+                supabase.auth.signInWith(Email) {
                     email = state.email
                     password = state.password
                 }
 
-                // Nếu không văng catch nghĩa là login thành công
+                delay(300)
+                try {
+                    profileRepository.loadSessionProfile()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 _uiState.update { it.copy(isLoading = false, loginSuccess = true) }
             } catch (e: Exception) {
                 _uiState.update {

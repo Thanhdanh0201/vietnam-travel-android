@@ -48,10 +48,13 @@ fun PostCard(
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onSaveClick: () -> Unit = {},
+    onShareClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {},
+    onReportClick: (() -> Unit)? = null,
     onItineraryClick: (String) -> Unit = {},
     onPlaceClick: ((Double, Double, String) -> Unit)? = null,
     onAuthorClick: (() -> Unit)? = null,
+    onNavigateToPost: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -61,10 +64,12 @@ fun PostCard(
         shadowElevation = 1.dp
     ) {
         Column(modifier = Modifier.border(1.dp, VNRed.copy(alpha = 0.05f), RoundedCornerShape(12.dp))) {
+            val isOwnPost = currentUserId != null && post.userId == currentUserId
             PostHeader(
                 post = post,
-                showDeleteOption = currentUserId != null && post.userId == currentUserId,
+                showDeleteOption = isOwnPost,
                 onDeleteClick = onDeleteClick,
+                onReportClick = if (!isOwnPost) onReportClick else null,
                 onAuthorClick = onAuthorClick
             )
 
@@ -119,7 +124,13 @@ fun PostCard(
 
             // Embedded post (repost / quote)
             post.embeddedPost?.let {
-                EmbeddedPostCard(it, modifier = Modifier.padding(horizontal = 16.dp))
+                EmbeddedPostCard(
+                    embedded = it,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    onNavigateToOriginal = { originalId ->
+                        onNavigateToPost?.invoke(originalId)
+                    }
+                )
                 Spacer(Modifier.height(12.dp))
             }
 
@@ -142,6 +153,7 @@ fun PostCard(
                     isSaved = post.isSaved,
                     onLikeClick = onLikeClick,
                     onCommentClick = onCommentClick,
+                    onShareClick = onShareClick,
                     onSaveClick = onSaveClick
                 )
             }
@@ -155,9 +167,11 @@ fun PostHeader(
     post: CommunityPost,
     showDeleteOption: Boolean = false,
     onDeleteClick: () -> Unit = {},
+    onReportClick: (() -> Unit)? = null,
     onAuthorClick: (() -> Unit)? = null
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val hasMenu = showDeleteOption || onReportClick != null
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -200,31 +214,49 @@ fun PostHeader(
         
         Box {
             IconButton(
-                onClick = { if (showDeleteOption) showMenu = true },
+                onClick = { if (hasMenu) showMenu = true },
                 modifier = Modifier.size(20.dp)
             ) {
                 Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400)
             }
 
-            if (showDeleteOption) {
+            if (hasMenu) {
                 DropdownMenu(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Xoá bài viết", color = Color.Red) },
-                        onClick = {
-                            showMenu = false
-                            onDeleteClick()
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = "Xoá",
-                                tint = Color.Red
-                            )
-                        }
-                    )
+                    if (showDeleteOption) {
+                        DropdownMenuItem(
+                            text = { Text("Xoá bài viết", color = Color.Red) },
+                            onClick = {
+                                showMenu = false
+                                onDeleteClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Delete,
+                                    contentDescription = "Xoá",
+                                    tint = Color.Red
+                                )
+                            }
+                        )
+                    }
+                    if (onReportClick != null) {
+                        DropdownMenuItem(
+                            text = { Text("Báo cáo") },
+                            onClick = {
+                                showMenu = false
+                                onReportClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Flag,
+                                    contentDescription = "Báo cáo",
+                                    tint = SlateGray400
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -233,13 +265,20 @@ fun PostHeader(
 
 // ── Embedded original post (repost / quote)
 @Composable
-fun EmbeddedPostCard(embedded: EmbeddedPost, modifier: Modifier = Modifier) {
+fun EmbeddedPostCard(
+    embedded: EmbeddedPost,
+    modifier: Modifier = Modifier,
+    onNavigateToOriginal: (String) -> Unit = {}
+) {
     val redColor = VNRed
+    val isTextOnly = embedded.originalMedia.isEmpty() && !embedded.hasItinerary
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(SlateGray50)
+            .clickable { onNavigateToOriginal(embedded.originalPostId) }
             .drawBehind {
                 drawLine(color = redColor, start = Offset(0f, 0f), end = Offset(0f, size.height), strokeWidth = 4.dp.toPx())
             }
@@ -256,14 +295,29 @@ fun EmbeddedPostCard(embedded: EmbeddedPost, modifier: Modifier = Modifier) {
             Text(embedded.originalAuthorName, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = SlateGray900)
             Text("• ${embedded.originalTimeAgo}", fontSize = 10.sp, color = SlateGray400)
         }
-        Text(
-            embedded.originalContent, fontSize = 13.sp, lineHeight = 19.sp, color = SlateGray700,
-            maxLines = 3, overflow = TextOverflow.Ellipsis
-        )
-        if (embedded.originalMedia.isNotEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(6.dp))) {
-                ImagePlaceholderBox(embedded.originalMedia[0].mediaUrl, Modifier.fillMaxSize())
+
+        if (isTextOnly) {
+            if (embedded.originalContent.isNotBlank()) {
+                Text(
+                    text = embedded.originalContent,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    color = SlateGray700,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
+        } else {
+            val labelText = when {
+                embedded.hasItinerary -> "Đã chia sẻ một lịch trình"
+                else -> "Đã chia sẻ một ảnh"
+            }
+            Text(
+                text = labelText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = SlateGray500
+            )
         }
     }
 }
@@ -346,6 +400,7 @@ fun PostActions(
     isSaved: Boolean,
     onLikeClick: () -> Unit,
     onCommentClick: () -> Unit,
+    onShareClick: () -> Unit,
     onSaveClick: () -> Unit
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -373,7 +428,11 @@ fun PostActions(
         }
         Spacer(Modifier.width(20.dp))
         // Repost
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.clickable(onClick = onShareClick),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Icon(Icons.Outlined.Share, "Chia sẻ", tint = SlateGray500, modifier = Modifier.size(17.dp))
             if (repostCount > 0) Text(repostCount.toString(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SlateGray500)
         }

@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -210,63 +211,55 @@ fun EditItineraryScreen(
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .width(6.dp)
-                            .height(28.dp)
-                            .clip(CircleShape)
-                            .background(VNRed),
-                    )
                     Text(
-                        text = itinerary?.title ?: "Kỳ nghỉ của tôi",
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 22.sp,
+                        text = itinerary.title,
+                        fontFamily = PlayfairDisplay,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 36.sp,
+                        lineHeight = 40.sp,
+                        letterSpacing = (-0.5).sp,
                         color = SlateGray900,
+                        textAlign = TextAlign.Center,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = monthYearText,
+                            fontFamily = BeVietnamPro,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = Color(0xFF1E293B),
+                        )
+                        Surface(
+                            color = VNRed.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.CalendarMonth,
+                                contentDescription = "Lịch",
+                                tint = VNRed,
+                                modifier = Modifier.padding(8.dp),
+                            )
+                        }
+                    }
                 }
             }
 
-            // Tháng & Lịch chọn ngày nằm ngang
+            // Lịch chọn ngày nằm ngang
             item {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(6.dp)
-                                    .height(24.dp)
-                                    .clip(CircleShape)
-                                    .background(VNRed)
-                            )
-                            Text(
-                                text = monthYearText,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 18.sp,
-                                color = SlateGray900
-                            )
-                        }
-                        Icon(Icons.Outlined.CalendarMonth, contentDescription = "Lịch", tint = VNRed)
-                    }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {

@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
@@ -63,6 +64,7 @@ fun AppTopBar(
     onSearchClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
     unreadCount: Int = 0,
+    onMenuClick: (() -> Unit)? = null,
 ) {
     Column {
         Surface(
@@ -72,11 +74,27 @@ fun AppTopBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = 8.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                AppTopBarLogo()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    if (onMenuClick != null) {
+                        IconButton(onClick = onMenuClick) {
+                            Icon(
+                                imageVector = Icons.Filled.Menu,
+                                contentDescription = "Menu",
+                                tint = VNRed,
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    AppTopBarLogo()
+                }
                 AppTopBarActions(
                     onSearchClick = onSearchClick,
                     onNotificationClick = onNotificationClick,

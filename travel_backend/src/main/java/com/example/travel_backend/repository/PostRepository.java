@@ -22,4 +22,8 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     // Dung cho API: /api/posts/following (4.1 Feed following only)
     @Query("SELECT p FROM Post p WHERE p.user.id IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) ORDER BY p.createdAt DESC")
     Page<Post> findFollowingPosts(@Param("userId") UUID userId, Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("DELETE FROM Post p WHERE p.user.id = :userId AND p.originalPost.id = :originalPostId")
+    void deleteRepostPost(@Param("userId") UUID userId, @Param("originalPostId") UUID originalPostId);
 }

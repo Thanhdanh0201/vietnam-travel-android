@@ -3,13 +3,17 @@ package com.example.vietnam_travel_itinerary_android.ui.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -19,9 +23,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.vietnam_travel_itinerary_android.ui.admin.AdminPlaceSuggestionsScreen
+import com.example.vietnam_travel_itinerary_android.ui.admin.AdminReportsScreen
 import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.ui.community.CommunityScreen
 import com.example.vietnam_travel_itinerary_android.ui.community.CommunityViewModel
+import com.example.vietnam_travel_itinerary_android.ui.components.AppNavigationDrawer
 import com.example.vietnam_travel_itinerary_android.ui.components.BottomNavBar
 import com.example.vietnam_travel_itinerary_android.ui.components.bottomNavItems
 import com.example.vietnam_travel_itinerary_android.ui.home.HomeScreen
@@ -32,6 +39,8 @@ import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewMo
 import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
+import com.example.vietnam_travel_itinerary_android.ui.suggestion.MyPlaceSuggestionsScreen
+import com.example.vietnam_travel_itinerary_android.ui.suggestion.SubmitPlaceSuggestionScreen
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationScreen
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
 import com.example.vietnam_travel_itinerary_android.ui.search.SearchScreen
@@ -41,6 +50,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.example.vietnam_travel_itinerary_android.ui.components.introduction.PlaceIntroductionOverlay
+import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
+import kotlinx.coroutines.launch
 
 private val mainTabRoutes: Set<String> by lazy {
     bottomNavItems.map { it.route }.toSet()
@@ -51,14 +62,19 @@ fun MainScreen(
     itineraryViewModel: ItineraryViewModel = viewModel(factory = AppViewModelProvider.Factory),
     communityViewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory),
     notificationViewModel: NotificationViewModel = viewModel(factory = AppViewModelProvider.Factory),
+    sessionProfileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val bottomNavController = rememberNavController()
     val unreadCount by notificationViewModel.unreadCount.collectAsState()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val sessionState by sessionProfileViewModel.uiState.collectAsState()
 
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
 
     LaunchedEffect(Unit) {
         notificationViewModel.refreshAll()
+        sessionProfileViewModel.loadProfile()
     }
 
     LaunchedEffect(navBackStackEntry?.destination?.route) {
@@ -90,14 +106,64 @@ fun MainScreen(
         }
     }
 
+    fun popToMainTabRoot() {
+        val startId = bottomNavController.graph.findStartDestination().id
+        var safety = 0
+        while (safety++ < 20) {
+            val current = bottomNavController.currentBackStackEntry
+                ?.destination
+                ?.route
+                ?.substringBefore("?")
+            if (current == null || current in mainTabRoutes) break
+            if (!bottomNavController.popBackStack()) break
+        }
+        if (bottomNavController.currentBackStackEntry == null) {
+            bottomNavController.navigate("home") {
+                popUpTo(startId) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
+
     fun navigateToProfile(userId: String) {
         bottomNavController.navigate("profile/$userId")
     }
+
+    val isAdmin = (sessionState.profile?.role ?: UserSessionCache.get()?.role) == "admin"
+
+    fun navigateFromDrawer(route: String) {
+        scope.launch { drawerState.close() }
+        if (route.startsWith("admin_") && !isAdmin) {
+            popToMainTabRoot()
+            navigateToMainTab("home")
+            return
+        }
+        if (route in mainTabRoutes) {
+            popToMainTabRoot()
+            navigateToMainTab(route)
+        } else {
+            bottomNavController.navigate(route) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
 
     val showBottomBar = currentDestination?.route?.let { route ->
         route.substringBefore("?") in mainTabRoutes
     } ?: false
 
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            AppNavigationDrawer(
+                profile = sessionState.profile ?: UserSessionCache.get(),
+                currentRoute = currentDestination?.route?.substringBefore("?") ?: "home",
+                onDestination = { route -> navigateFromDrawer(route) },
+            )
+        },
+    ) {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
@@ -116,6 +182,7 @@ fun MainScreen(
             composable("home") {
                 HomeScreen(
                     unreadCount = unreadCount,
+                    onMenuClick = openDrawer,
                     onNavigate = { route ->
                         if (route in mainTabRoutes) {
                             navigateToMainTab(route)
@@ -131,6 +198,7 @@ fun MainScreen(
                     itineraryViewModel = itineraryViewModel,
                     viewModel = communityViewModel,
                     unreadCount = unreadCount,
+                    onMenuClick = openDrawer,
                     onNavigate = { route ->
                         when {
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
@@ -175,6 +243,7 @@ fun MainScreen(
             composable("itinerary") {
                 ItineraryScreen(
                     viewModel = itineraryViewModel,
+                    onMenuClick = openDrawer,
                     onCreateClick = { bottomNavController.navigate("create_itinerary") },
                     onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") },
                     onShareClick = { itineraryId ->
@@ -234,18 +303,24 @@ fun MainScreen(
                 ProfileScreen(
                     viewModel = profileViewModel,
                     unreadCount = unreadCount,
+                    onMenuClick = openDrawer,
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
-                        when (route) {
-                            "edit_profile" -> bottomNavController.navigate("edit_profile")
+                        when {
+                            route == "edit_profile" -> bottomNavController.navigate("edit_profile")
+                            route.startsWith("post_detail/") -> {
+                                val postId = route.removePrefix("post_detail/")
+                                communityViewModel.setOpenedPostId(postId)
+                                navigateToMainTab("community")
+                            }
+                            route.startsWith("profile/") -> {
+                                navigateToProfile(route.removePrefix("profile/"))
+                            }
+                            route in mainTabRoutes -> {
+                                navigateToMainTab(route)
+                            }
                             else -> {
-                                if (route.startsWith("profile/")) {
-                                    navigateToProfile(route.removePrefix("profile/"))
-                                } else if (route in mainTabRoutes) {
-                                    navigateToMainTab(route)
-                                } else {
-                                    bottomNavController.navigate(route)
-                                }
+                                bottomNavController.navigate(route)
                             }
                         }
                     },
@@ -278,6 +353,11 @@ fun MainScreen(
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
                         when {
+                            route.startsWith("post_detail/") -> {
+                                val postId = route.removePrefix("post_detail/")
+                                communityViewModel.setOpenedPostId(postId)
+                                navigateToMainTab("community")
+                            }
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
                             route.startsWith("itinerary_detail/") -> bottomNavController.navigate(route)
                             route in mainTabRoutes -> navigateToMainTab(route)
@@ -303,6 +383,11 @@ fun MainScreen(
                     onBack = { bottomNavController.popBackStack() },
                     onNavigate = { route ->
                         when {
+                            route.startsWith("post_detail/") -> {
+                                val postId = route.removePrefix("post_detail/")
+                                communityViewModel.setOpenedPostId(postId)
+                                navigateToMainTab("community")
+                            }
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
                             route == "community" -> {
                                 bottomNavController.navigate("community") {
@@ -318,6 +403,38 @@ fun MainScreen(
                 )
             }
 
+
+            composable("my_place_suggestions") {
+                MyPlaceSuggestionsScreen(
+                    onMenuClick = openDrawer,
+                    onAddNew = { bottomNavController.navigate("submit_place_suggestion") },
+                )
+            }
+
+            composable("submit_place_suggestion") {
+                SubmitPlaceSuggestionScreen(
+                    onBack = { bottomNavController.popBackStack() },
+                    onSubmitted = { bottomNavController.popBackStack() },
+                )
+            }
+
+            composable("admin_place_suggestions") {
+                AdminPlaceSuggestionsScreen(
+                    onMenuClick = openDrawer,
+                )
+            }
+
+            composable("admin_reports") {
+                AdminReportsScreen(
+                    onMenuClick = openDrawer,
+                    onOpenProfile = { userId -> navigateToProfile(userId) },
+                    onOpenPost = { postId, commentId ->
+                        communityViewModel.setHighlightCommentId(commentId)
+                        communityViewModel.setOpenedPostId(postId)
+                        navigateToMainTab("community")
+                    },
+                )
+            }
         }
         selectedPlace?.let { place ->
             PlaceIntroductionOverlay(
@@ -330,5 +447,6 @@ fun MainScreen(
             )
         }
 
+    }
     }
 }

@@ -48,14 +48,21 @@ fun CreatePostWidget(
     selectedImages: List<Uri> = emptyList(),
     onImageClick: () -> Unit = {},
     onRemoveImage: (Int) -> Unit = {},
-    selectedPlace: PostPlace? = null,
-    onPlaceClick: () -> Unit = {},
-    onRemovePlace: () -> Unit = {},
-    onMapClick: () -> Unit = {},
-    onPost: () -> Unit = {}
+    onItineraryClick: () -> Unit = {},
+    onPost: () -> Unit = {},
+    isPlaceholder: Boolean = false,
+    onPlaceholderClick: () -> Unit = {}
 ) {
+    val containerModifier = if (isPlaceholder) {
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onPlaceholderClick)
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = containerModifier,
         shape = RoundedCornerShape(12.dp),
         color = Color.White,
         shadowElevation = 1.dp,
@@ -84,18 +91,20 @@ fun CreatePostWidget(
                         if (text.isEmpty()) {
                             Text("Có gì mới?", color = Color(0xFF6B7280), fontSize = 14.sp)
                         }
-                        BasicTextField(
-                            value = text,
-                            onValueChange = onTextChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = TextStyle(fontSize = 14.sp, color = SlateGray900),
-                            cursorBrush = SolidColor(VNRed),
-                            maxLines = 5
-                        )
+                        if (!isPlaceholder) {
+                            BasicTextField(
+                                value = text,
+                                onValueChange = onTextChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                textStyle = TextStyle(fontSize = 14.sp, color = SlateGray900),
+                                cursorBrush = SolidColor(VNRed),
+                                maxLines = 5
+                            )
+                        }
                     }
 
                     // ── Selected images preview
-                    if (selectedImages.isNotEmpty()) {
+                    if (selectedImages.isNotEmpty() && !isPlaceholder) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -155,57 +164,7 @@ fun CreatePostWidget(
                         }
                     }
 
-                    // ── Selected place chip
-                    if (selectedPlace != null) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            color = VNRed.copy(alpha = 0.06f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, VNRed.copy(alpha = 0.12f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    Icons.Outlined.Place,
-                                    contentDescription = null,
-                                    tint = VNRed,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        selectedPlace.name,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 12.sp,
-                                        color = VNRed,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    if (selectedPlace.provinceName.isNotBlank()) {
-                                        Text(
-                                            selectedPlace.provinceName,
-                                            fontSize = 10.sp,
-                                            color = SlateGray500
-                                        )
-                                    }
-                                }
-                                Icon(
-                                    Icons.Outlined.Close,
-                                    contentDescription = "Bỏ địa điểm",
-                                    tint = SlateGray400,
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable(onClick = onRemovePlace)
-                                )
-                            }
-                        }
-                    }
-
-                    if (linkedItinerary != null) {
+                    if (linkedItinerary != null && !isPlaceholder) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -247,27 +206,20 @@ fun CreatePostWidget(
                                 tint = if (selectedImages.isNotEmpty()) VNRed else SlateGray400,
                                 modifier = Modifier
                                     .size(18.dp)
-                                    .clickable(onClick = onImageClick)
+                                    .let { if (isPlaceholder) it else it.clickable(onClick = onImageClick) }
                             )
                             Icon(
-                                Icons.Outlined.Place, "Địa điểm",
-                                tint = if (selectedPlace != null) VNRed else SlateGray400,
+                                Icons.Outlined.DateRange, "Chọn lịch trình",
+                                tint = if (linkedItinerary != null) VNRed else SlateGray400,
                                 modifier = Modifier
                                     .size(18.dp)
-                                    .clickable(onClick = onPlaceClick)
-                            )
-                            Icon(
-                                Icons.Outlined.Map, "Bản đồ",
-                                tint = if (selectedPlace != null) VNRed else SlateGray400,
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .clickable(onClick = onMapClick)
+                                    .let { if (isPlaceholder) it else it.clickable(onClick = onItineraryClick) }
                             )
                         }
                         Button(
-                            onClick = onPost,
+                            onClick = if (isPlaceholder) onPlaceholderClick else onPost,
                             shape = CircleShape,
-                            enabled = text.isNotBlank() || linkedItinerary != null || selectedImages.isNotEmpty(),
+                            enabled = isPlaceholder || text.isNotBlank() || linkedItinerary != null || selectedImages.isNotEmpty(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VNRed,
                                 disabledContainerColor = SlateGray200

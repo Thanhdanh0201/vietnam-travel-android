@@ -22,7 +22,8 @@ data class EmbeddedPost(
     val originalAuthorAvatarUrl: String = "",
     val originalContent: String,
     val originalMedia: List<PostMedia> = emptyList(),
-    val originalTimeAgo: String = ""
+    val originalTimeAgo: String = "",
+    val hasItinerary: Boolean = false
 )
 
 // ── Địa điểm đính kèm bài viết

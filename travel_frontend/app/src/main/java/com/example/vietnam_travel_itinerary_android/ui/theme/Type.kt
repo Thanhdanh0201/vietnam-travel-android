@@ -17,6 +17,10 @@ val BeVietnamPro = FontFamily(
     Font(R.font.be_vietnam_pro_extrabold, FontWeight.ExtraBold),
 )
 
+val PlayfairDisplay = FontFamily(
+    Font(R.font.playfair_display_bold, FontWeight.Bold),
+)
+
 val Typography = Typography(
     // Display
     displayLarge = TextStyle(

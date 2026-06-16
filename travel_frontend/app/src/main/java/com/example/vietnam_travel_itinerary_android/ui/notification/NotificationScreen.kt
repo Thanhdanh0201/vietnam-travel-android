@@ -366,7 +366,7 @@ private fun navigateFromNotification(notif: NotificationUiModel, onNavigate: (St
         NotificationType.FOLLOW -> notif.actorId?.let { onNavigate("profile/$it") }
         NotificationType.ITINERARY_INVITE, NotificationType.ITINERARY_UPDATED ->
             notif.itineraryId?.let { onNavigate("itinerary_detail/$it") }
-        NotificationType.PLACE_SUGGESTION_APPROVED -> Unit
+        NotificationType.PLACE_SUGGESTION_APPROVED -> onNavigate("my_place_suggestions")
         else -> notif.postId?.let { /* post detail handled in community */ onNavigate("community") }
     }
 }

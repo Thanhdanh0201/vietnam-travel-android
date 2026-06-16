@@ -20,4 +20,5 @@ public class UserProfileResponseDto {
     private Integer postCount;
     private Boolean isVerified;
     private Boolean isPrivate;
+    private String role;
 }

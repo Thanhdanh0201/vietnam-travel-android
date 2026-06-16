@@ -139,6 +139,7 @@ data class ReportRequest(
     val reason: String,
     val reportedPostId: String? = null,
     val reportedCommentId: String? = null,
+    val reportedUserId: String? = null,
     val description: String? = null
 )
 
@@ -158,7 +159,8 @@ data class UserProfileResponseDto(
     val followingCount: Int? = 0,
     val postCount: Int? = 0,
     val isVerified: Boolean? = false,
-    val isPrivate: Boolean? = false
+    val isPrivate: Boolean? = false,
+    val role: String? = "user"
 )
 
 data class UpdateProfileRequest(

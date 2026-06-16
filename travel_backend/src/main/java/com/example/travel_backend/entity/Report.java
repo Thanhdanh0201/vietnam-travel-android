@@ -48,7 +48,7 @@ public class Report {
 
     @ColumnDefault("'pending'")
     @Column(name = "status", length = Integer.MAX_VALUE)
-    private String status;
+    private String status = "pending";
 
     @Column(name = "reviewed_at")
     private OffsetDateTime reviewedAt;
