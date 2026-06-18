@@ -2,6 +2,7 @@ package com.example.travel_backend.repository;
 
 import com.example.travel_backend.entity.Event;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -37,8 +38,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
             Pageable pageable
     );
 
-    /** Toàn bộ lễ hội, sắp xếp theo ngày bắt đầu. */
+    /** Toàn bộ lễ hội, sắp xếp theo ngày bắt đầu tăng dần. */
     @EntityGraph(attributePaths = {"province", "place"})
-    @Query("SELECT e FROM Event e ORDER BY e.startDate ASC")
-    List<Event> findAllOrderedByStartDate(Pageable pageable);
+    List<Event> findAllByOrderByStartDateAsc(Pageable pageable);
 }

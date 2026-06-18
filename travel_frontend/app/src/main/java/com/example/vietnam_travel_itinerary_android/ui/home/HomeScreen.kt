@@ -69,7 +69,6 @@ fun HomeScreen(
                     onSeeAllPlaces = { onNavigate("places") },
                     onSeeAllEvents = { onNavigate("events") },
                     onFavoriteWeatherCityChange = viewModel::setFavoriteWeatherCity,
-                    onExploreClick = { onNavigate("explore") },
                     onMenuClick = onMenuClick,
                 )
             }
@@ -78,10 +77,7 @@ fun HomeScreen(
             PlaceIntroductionOverlay(
                 place = place,
                 onDismiss = { selectedPlace = null },
-                onExplore = {
-                    selectedPlace = null
-                    onNavigate("explore")
-                },
+                onExplore = { selectedPlace = null },
             )
         }
         selectedEvent?.let { event ->
@@ -113,7 +109,6 @@ private fun HomeContent(
     onSeeAllPlaces: () -> Unit,
     onSeeAllEvents: () -> Unit = {},
     onFavoriteWeatherCityChange: (String) -> Unit,
-    onExploreClick: () -> Unit,
     onMenuClick: (() -> Unit)? = null,
 ) {
     PullToRefreshBox(
@@ -151,7 +146,7 @@ private fun HomeContent(
         // ===== FEATURED BANNER (auto vuốt ngang) =====
         item {
             FeaturedBanner(
-                onExploreClick = { onExploreClick() },
+                modifier = Modifier.padding(vertical = 6.dp),
             )
         }
 

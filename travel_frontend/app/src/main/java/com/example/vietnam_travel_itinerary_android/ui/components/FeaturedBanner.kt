@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,16 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -96,7 +89,6 @@ private val BannerSubtitleHeight = 44.dp
 @Composable
 fun FeaturedBanner(
     items: List<FeaturedBannerItem> = FeaturedBannerDefaults.slides,
-    onExploreClick: (FeaturedBannerItem) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (items.isEmpty()) return
@@ -125,7 +117,6 @@ fun FeaturedBanner(
         ) { page ->
             FeaturedBannerSlide(
                 item = items[page],
-                onExploreClick = { onExploreClick(items[page]) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
@@ -156,7 +147,6 @@ fun FeaturedBanner(
 @Composable
 private fun FeaturedBannerSlide(
     item: FeaturedBannerItem,
-    onExploreClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -244,29 +234,6 @@ private fun FeaturedBannerSlide(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                onClick = onExploreClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = VNRed,
-                ),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    text = "Khám phá ngay",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
         }
     }
 }

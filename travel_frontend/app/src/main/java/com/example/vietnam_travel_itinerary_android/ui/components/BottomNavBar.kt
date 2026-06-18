@@ -49,7 +49,6 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem("Trang chủ", Icons.Filled.Home, Icons.Outlined.Home, "home"),
     BottomNavItem("Cộng đồng", Icons.Filled.Groups, Icons.Outlined.Groups, "community"),
-    BottomNavItem("", Icons.Filled.Star, Icons.Filled.Star, "explore"),  // Center FAB - Logo
     BottomNavItem("Lịch trình", Icons.AutoMirrored.Filled.EventNote, Icons.AutoMirrored.Outlined.EventNote, "itinerary"),
     BottomNavItem("Cá nhân", Icons.Filled.Person, Icons.Outlined.Person, "profile"),
 )
@@ -104,82 +103,77 @@ fun BottomNavBar(
                 ) {
                     bottomNavItems.forEachIndexed { index, item ->
                         if (index == 2) {
-                            // Center spacer for FAB
+                            // Center spacer for logo FAB
                             Spacer(modifier = Modifier.width(64.dp))
-                        } else {
-                            // Regular nav item
-                            val isSelected = currentRoute == item.route
-                            val animatedColor by animateColorAsState(
-                                targetValue = if (isSelected) VNRed else SlateGray500,
-                                animationSpec = spring(stiffness = Spring.StiffnessLow),
-                                label = "navColor"
-                            )
-                            val animatedScale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.05f else 1f,
-                                animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                                label = "navScale"
-                            )
+                        }
+                        val isSelected = currentRoute == item.route
+                        val animatedColor by animateColorAsState(
+                            targetValue = if (isSelected) VNRed else SlateGray500,
+                            animationSpec = spring(stiffness = Spring.StiffnessLow),
+                            label = "navColor"
+                        )
+                        val animatedScale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.05f else 1f,
+                            animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                            label = "navScale"
+                        )
 
-                            Column(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .scale(animatedScale)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) { onItemClick(item.route) },
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label,
-                                    modifier = Modifier.size(24.dp),
-                                    tint = animatedColor
-                                )
-                                Spacer(modifier = Modifier.height(3.dp))
-                                Text(
-                                    text = item.label.uppercase(),
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = animatedColor,
-                                    letterSpacing = 1.sp,
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 1
-                                )
-                            }
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .scale(animatedScale)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { onItemClick(item.route) },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(24.dp),
+                                tint = animatedColor
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = item.label.uppercase(),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = animatedColor,
+                                letterSpacing = 1.sp,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
             }
         }
 
-        // Elevated Center FAB (Logo button)
+        // Logo giữa bottom bar — chỉ trang trí, không điều hướng
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .offset(y = (-20).dp),
             contentAlignment = Alignment.Center
         ) {
-            FloatingActionButton(
-                onClick = { onItemClick("explore") },
-                containerColor = VNRed,
-                contentColor = Color.White,
-                shape = CircleShape,
+            Surface(
                 modifier = Modifier
                     .size(60.dp)
                     .shadow(12.dp, CircleShape)
                     .border(3.dp, Color.White, CircleShape),
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 8.dp,
-                    pressedElevation = 12.dp
-                )
+                shape = CircleShape,
+                color = VNRed,
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Star,
-                    contentDescription = "Khám phá",
-                    modifier = Modifier.size(28.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Star,
+                        contentDescription = "Vietnam Travel",
+                        modifier = Modifier.size(28.dp),
+                        tint = Color.White,
+                    )
+                }
             }
         }
     }

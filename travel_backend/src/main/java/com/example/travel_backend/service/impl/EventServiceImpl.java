@@ -6,6 +6,7 @@ import com.example.travel_backend.mapper.EventMapper;
 import com.example.travel_backend.repository.EventRepository;
 import com.example.travel_backend.service.EventService;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,7 +47,11 @@ public class EventServiceImpl implements EventService {
         int page = lim > 0 ? offset / lim : 0;
         LocalDate today = LocalDate.now(VN);
         LocalDate windowEnd = today.plusMonths(m);
-        return eventRepository.findUpcomingInWindow(today, windowEnd, PageRequest.of(page, lim))
+        return eventRepository.findUpcomingInWindow(
+                today,
+                windowEnd,
+                PageRequest.of(page, lim, Sort.by(Sort.Direction.ASC, "startDate"))
+        )
                 .stream()
                 .map(EventMapper::toDto)
                 .collect(Collectors.toList());
@@ -57,7 +62,9 @@ public class EventServiceImpl implements EventService {
     public List<EventDto> getAllEventsPaged(int limit, int offset) {
         int lim = Math.min(Math.max(limit, 1), 100);
         int page = lim > 0 ? offset / lim : 0;
-        return eventRepository.findAllOrderedByStartDate(PageRequest.of(page, lim))
+        return eventRepository.findAllByOrderByStartDateAsc(
+                PageRequest.of(page, lim, Sort.by(Sort.Direction.ASC, "startDate"))
+        )
                 .stream()
                 .map(EventMapper::toDto)
                 .collect(Collectors.toList());

@@ -2,7 +2,6 @@ package com.example.vietnam_travel_itinerary_android.ui.auth
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,11 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import com.example.vietnam_travel_itinerary_android.R
 import androidx.compose.ui.platform.LocalFocusManager
@@ -51,8 +47,6 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.*
 
 // ============================================================
 // Login Screen - Figma Design Implementation
-// Matches: "Đăng nhập - Mặc định (Google only)"
-// and:     "Đăng nhập - Lỗi Mật khẩu (Google only)"
 // ============================================================
 
 @Composable
@@ -126,7 +120,6 @@ fun LoginScreen(
                             focusManager.clearFocus()
                             viewModel.onLoginClick()
                         },
-                        onGoogleSignInClick = viewModel::onGoogleSignInClick,
                         onForgotPasswordClick = onNavigateToForgotPassword,
                         focusManager = focusManager,
                         modifier = Modifier
@@ -275,7 +268,6 @@ private fun FormSection(
     onPasswordChange: (String) -> Unit,
     onTogglePasswordVisibility: () -> Unit,
     onLoginClick: () -> Unit,
-    onGoogleSignInClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     focusManager: androidx.compose.ui.focus.FocusManager,
     modifier: Modifier = Modifier
@@ -368,11 +360,6 @@ private fun FormSection(
         LoginButton(
             onClick = onLoginClick,
             isLoading = uiState.isLoading
-        )
-
-        // Social Login Section
-        SocialLoginSection(
-            onGoogleClick = onGoogleSignInClick
         )
     }
 }
@@ -589,145 +576,6 @@ private fun LoginButton(
             fontSize = 16.sp,
             lineHeight = 24.sp,
             textAlign = TextAlign.Center
-        )
-    }
-}
-
-// ============================================================
-// Social Login Section
-// padding-top: 8dp, gap: 16dp
-// Divider text: "HOẶC ĐĂNG NHẬP BẰNG" — 12sp Medium, #9CA3AF, letter-spacing 1.2sp
-// Google button: border 1px #E5E7EB, border-radius 12dp, height 46dp
-// ============================================================
-
-@Composable
-private fun SocialLoginSection(
-    onGoogleClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Divider text: "HOẶC ĐĂNG NHẬP BẰNG"
-        Text(
-            text = "HOẶC ĐĂNG NHẬP BẰNG",
-            fontFamily = BeVietnamPro,
-            fontWeight = FontWeight.Medium,
-            fontSize = 12.sp,
-            lineHeight = 16.sp,
-            letterSpacing = 1.2.sp,
-            color = Color(0xFF9CA3AF),
-            textAlign = TextAlign.Center
-        )
-
-        // Google Sign-In Button
-        OutlinedButton(
-            onClick = onGoogleClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp),
-            shape = RoundedCornerShape(12.dp),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp, Color(0xFFE5E7EB)
-            ),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Color.White,
-                contentColor = Color(0xFF374151)
-            ),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Google multi-color G icon — 20x20
-                GoogleIcon(modifier = Modifier.size(20.dp))
-
-                // "Google" — 14sp SemiBold, #374151
-                Text(
-                    text = "Google",
-                    fontFamily = BeVietnamPro,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    color = Color(0xFF374151),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
-}
-
-// ============================================================
-// Google Icon (Multicolor G)
-// Colors: Blue #4285F4, Green #34A853, Yellow #FBBC05, Red #EA4335
-// ============================================================
-
-@Composable
-private fun GoogleIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val width = size.width
-        val height = size.height
-        val centerX = width / 2
-        val centerY = height / 2
-        val radius = width * 0.45f
-
-        // Blue arc (right + top-right)
-        drawArc(
-            color = Color(0xFF4285F4),
-            startAngle = -45f,
-            sweepAngle = -135f,
-            useCenter = true,
-            size = Size(radius * 2, radius * 2),
-            topLeft = Offset(centerX - radius, centerY - radius)
-        )
-
-        // Green arc (bottom-right)
-        drawArc(
-            color = Color(0xFF34A853),
-            startAngle = 90f,
-            sweepAngle = -135f,
-            useCenter = true,
-            size = Size(radius * 2, radius * 2),
-            topLeft = Offset(centerX - radius, centerY - radius)
-        )
-
-        // Yellow arc (bottom-left)
-        drawArc(
-            color = Color(0xFFFBBC05),
-            startAngle = 135f,
-            sweepAngle = 90f,
-            useCenter = true,
-            size = Size(radius * 2, radius * 2),
-            topLeft = Offset(centerX - radius, centerY - radius)
-        )
-
-        // Red arc (top-left)
-        drawArc(
-            color = Color(0xFFEA4335),
-            startAngle = -45f,
-            sweepAngle = 90f,
-            useCenter = true,
-            size = Size(radius * 2, radius * 2),
-            topLeft = Offset(centerX - radius, centerY - radius)
-        )
-
-        // White center circle to create "G" shape
-        drawCircle(
-            color = Color.White,
-            radius = radius * 0.55f,
-            center = Offset(centerX, centerY)
-        )
-
-        // Blue horizontal bar (right side of G)
-        drawRect(
-            color = Color(0xFF4285F4),
-            topLeft = Offset(centerX, centerY - radius * 0.15f),
-            size = Size(radius, radius * 0.3f)
         )
     }
 }

@@ -217,11 +217,6 @@ fun MainScreen(
                 )
             }
 
-            composable("explore") {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Khám phá")
-                }
-            }
 
             composable("places") {
                 val allPlacesViewModel: AllPlacesViewModel =
@@ -473,10 +468,7 @@ fun MainScreen(
             PlaceIntroductionOverlay(
                 place = place,
                 onDismiss = { selectedPlace = null },
-                onExplore = {
-                    selectedPlace = null
-                    navigateToMainTab("explore")
-                }
+                onExplore = { selectedPlace = null },
             )
         }
         selectedEvent?.let { event ->

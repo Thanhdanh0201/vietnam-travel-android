@@ -30,6 +30,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/provinces/**").permitAll()
                         .requestMatchers(new RegexRequestMatcher("^/api/places$", "GET")).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/places/**").permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/api/events$", "GET")).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()

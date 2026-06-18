@@ -117,30 +117,6 @@ class LoginViewModel(
         }
     }
 
-    fun onGoogleSignInClick() {
-        // TODO: Implement Google Sign-In
-        _uiState.update { it.copy(isLoading = true) }
-
-        viewModelScope.launch {
-            try {
-                delay(1000) // Simulate
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        loginSuccess = true
-                    )
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        generalError = "Đăng nhập Google thất bại."
-                    )
-                }
-            }
-        }
-    }
-
     fun resetLoginSuccess() {
         _uiState.update { it.copy(loginSuccess = false) }
     }
