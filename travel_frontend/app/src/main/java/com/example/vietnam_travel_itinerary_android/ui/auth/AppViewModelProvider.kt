@@ -14,10 +14,14 @@ import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRep
 import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.AdminRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceSuggestionRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.SearchRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.EventRepository
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
 import com.example.vietnam_travel_itinerary_android.ui.search.SearchViewModel
+import com.example.vietnam_travel_itinerary_android.ui.places.AllPlacesViewModel
+import com.example.vietnam_travel_itinerary_android.ui.events.AllEventsViewModel
 import com.example.vietnam_travel_itinerary_android.ui.suggestion.PlaceSuggestionViewModel
 import com.example.vietnam_travel_itinerary_android.ui.admin.AdminPlaceSuggestionsViewModel
 import com.example.vietnam_travel_itinerary_android.ui.admin.AdminReportsViewModel
@@ -98,7 +102,8 @@ object AppViewModelProvider {
             SearchViewModel(
                 placeRepository = PlaceRepository(),
                 itineraryRepository = ItineraryRepository(SupabaseObject.client),
-                communityRepository = CommunityRepository(SupabaseObject.client)
+                communityRepository = CommunityRepository(SupabaseObject.client),
+                searchRepository = SearchRepository(SupabaseObject.client)
             )
         }
 
@@ -117,6 +122,18 @@ object AppViewModelProvider {
         initializer {
             AdminReportsViewModel(
                 repository = AdminRepository(SupabaseObject.client)
+            )
+        }
+
+        initializer {
+            AllPlacesViewModel(
+                placeRepository = PlaceRepository()
+            )
+        }
+
+        initializer {
+            AllEventsViewModel(
+                eventRepository = EventRepository()
             )
         }
     }

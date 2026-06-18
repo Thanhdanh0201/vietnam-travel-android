@@ -6,6 +6,7 @@ import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.SearchRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,7 +22,8 @@ import kotlinx.coroutines.delay
 class SearchViewModel(
     private val placeRepository: PlaceRepository,
     private val itineraryRepository: ItineraryRepository,
-    private val communityRepository: CommunityRepository
+    private val communityRepository: CommunityRepository,
+    private val searchRepository: SearchRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -29,6 +31,26 @@ class SearchViewModel(
     val uiState: StateFlow<SearchUiState> =
         _uiState.asStateFlow()
     private var searchJob: Job? = null
+
+    init {
+        loadTrending()
+    }
+
+    private fun loadTrending() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isTrendingLoading = true)
+            val keywords = searchRepository.getTrending()
+            _uiState.value = _uiState.value.copy(
+                trendingKeywords = keywords,
+                isTrendingLoading = false
+            )
+        }
+    }
+
+    fun onTrendingClick(keyword: String) {
+        search(keyword)
+    }
+
     fun setFilter(filter: SearchFilter) {
         _uiState.value = _uiState.value.copy(
             selectedFilter = filter
@@ -122,12 +144,17 @@ class SearchViewModel(
 
                 _uiState.value = _uiState.value.copy(
                     places = places,
-                    posts= posts,
+                    posts = posts,
                     itineraries = itineraries,
                     users = users,
                     isLoading = false
                 )
 
+                // Log keyword in background — không block UI
+                launch { searchRepository.logKeyword(query) }
+
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("SEARCH_DEBUG", "Search failed", e)
 

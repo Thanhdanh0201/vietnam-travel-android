@@ -209,25 +209,28 @@ public class PlaceServiceImpl implements PlaceService {
     @Override
     @Transactional(readOnly = true)
     public List<PlaceResponse> getPlaces(String provinceCode, String type, int limit) {
-        System.out.println("Get places");
-        PageRequest pageRequest = PageRequest.of(0, limit);
+        return getPlacesPaged(provinceCode, type, limit, 0);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlaceResponse> getPlacesPaged(String provinceCode, String type, int limit, int offset) {
+        int page = limit > 0 ? offset / limit : 0;
+        Sort ratingSort = Sort.by(
+                Sort.Order.desc("rating"),
+                Sort.Order.desc("reviewCount"),
+                Sort.Order.asc("name")
+        );
+        PageRequest pageRequest = PageRequest.of(page, limit, ratingSort);
         List<Place> places;
         if (provinceCode != null && type != null) {
-            places = placeRepository.findByProvince_CodeAndType(provinceCode, type, pageRequest);
+            places = placeRepository.findByProvince_CodeAndType(provinceCode, type,
+                    PageRequest.of(page, limit));
         } else if (provinceCode != null) {
-            places = placeRepository.findByProvince_Code(provinceCode, pageRequest);
+            places = placeRepository.findByProvince_Code(provinceCode,
+                    PageRequest.of(page, limit));
         } else {
-            // Gợi ý trang chủ: rating cao nhất trước (bảng places.rating)
-            PageRequest byRating = PageRequest.of(
-                    0,
-                    limit,
-                    Sort.by(
-                            Sort.Order.desc("rating"),
-                            Sort.Order.desc("reviewCount"),
-                            Sort.Order.asc("name")
-                    )
-            );
-            places = placeRepository.findAll(byRating).getContent();
+            places = placeRepository.findAll(pageRequest).getContent();
         }
         return places.stream().map(this::mapToPlaceResponse).collect(Collectors.toList());
     }
@@ -285,6 +288,7 @@ public class PlaceServiceImpl implements PlaceService {
         response.setRating(place.getRating());
         response.setReview_count(place.getReviewCount());
         response.setImage_url(place.getImageUrl());
+        response.setDescription(place.getDescription());
 
         ProvinceDto provinceDto = new ProvinceDto();
         if (place.getProvince() != null) {
@@ -305,9 +309,8 @@ public class PlaceServiceImpl implements PlaceService {
     @Override
     @Transactional(readOnly = true)
     public List<PlaceResponse> searchPlaces(String query, int limit) {
-        System.out.println("Search places by name: " + query);
         PageRequest pageRequest = PageRequest.of(0, limit);
-        return placeRepository.findByNameContainingIgnoreCase(query, pageRequest)
+        return placeRepository.searchByNameOrProvince(query, pageRequest)
                 .getContent()
                 .stream()
                 .map(this::mapToPlaceResponse)

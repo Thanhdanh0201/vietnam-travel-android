@@ -17,10 +17,11 @@ class PlaceRepository {
     suspend fun getPlaces(
         provinceCode: String? = null,
         type: String? = null,
-        limit: Int = 20
+        limit: Int = 20,
+        offset: Int = 0
     ): Result<List<Place>> = withContext(Dispatchers.IO) {
         try {
-            Result.success(api.getPlaces(provinceCode, type, limit))
+            Result.success(api.getPlaces(provinceCode, type, limit, offset))
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -39,6 +39,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/comments_with_author").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/follows/*/followers").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/follows/*/following").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/search/trending").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/search/log").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("admin")
                         .anyRequest().authenticated()
                 )

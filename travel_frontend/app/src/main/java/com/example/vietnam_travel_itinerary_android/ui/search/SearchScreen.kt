@@ -1,25 +1,36 @@
 package com.example.vietnam_travel_itinerary_android.ui.search
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.*
 import com.example.vietnam_travel_itinerary_android.ui.components.post.PostCard
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
 import com.example.vietnam_travel_itinerary_android.ui.components.PlaceCard
+import com.example.vietnam_travel_itinerary_android.ui.components.PlaceSearchCard
 import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
+import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     state: SearchUiState,
@@ -29,59 +40,51 @@ fun SearchScreen(
     onPlaceClick: (Place) -> Unit,
     onNavigate: (String) -> Unit,
     onFilterChange: (SearchFilter) -> Unit,
-
+    onTrendingClick: (String) -> Unit = {},
 ) {
-
-
     Column(modifier = Modifier.fillMaxSize()) {
-
         AppBackTopBar(
             onBackClick = onBackClick,
             showActions = false
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = state.query,
             onValueChange = { onQueryChange(it) },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            placeholder = { Text("Search places, itineraries...") },
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            placeholder = { Text("Tìm kiếm địa điểm, lịch trình...") },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             singleLine = true
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (state.isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
 
         state.error?.let {
             Text(
                 text = it,
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+
+        val selectedTabIndex = SearchFilter.entries.indexOfFirst { it == state.selectedFilter }.coerceAtLeast(0)
+        ScrollableTabRow(
+            selectedTabIndex = selectedTabIndex,
+            containerColor = MaterialTheme.colorScheme.background,
+            contentColor = VNRed,
+            edgePadding = 16.dp,
         ) {
-            SearchFilter.entries.forEach { filter ->
-                FilterChip(
-                    selected = state.selectedFilter == filter,
-                    onClick = {
-                        onFilterChange(filter)
-                    },
-                    label = {
-                        Text(filter.title)
-                    }
+            SearchFilter.entries.forEachIndexed { index, filter ->
+                Tab(
+                    selected = selectedTabIndex == index,
+                    onClick = { onFilterChange(filter) },
+                    text = { Text(filter.title, fontWeight = FontWeight.SemiBold) },
                 )
             }
+        }
+
+        if (state.isLoading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
 
         LazyColumn(
@@ -89,6 +92,53 @@ fun SearchScreen(
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
+            // TRENDING KEYWORDS — hiện khi chưa nhập từ khoá
+            if (state.query.isBlank()) {
+                if (state.isTrendingLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = VNRed, modifier = Modifier.size(24.dp))
+                        }
+                    }
+                } else if (state.trendingKeywords.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.Whatshot,
+                                    contentDescription = null,
+                                    tint = VNRed,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    "Tìm kiếm phổ biến",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                state.trendingKeywords.forEach { keyword ->
+                                    SuggestionChip(
+                                        onClick = { onTrendingClick(keyword) },
+                                        label = { Text(keyword, fontSize = 13.sp) }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                return@LazyColumn
+            }
 
             // PLACES FIRST
             if ((state.selectedFilter == SearchFilter.ALL ||
@@ -102,7 +152,7 @@ fun SearchScreen(
                 }
 
                 items(state.places) { place ->
-                    PlaceCard(
+                    PlaceSearchCard(
                         place = place,
                         onPlaceClick = onPlaceClick
                     )

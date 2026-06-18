@@ -36,4 +36,9 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
             @Param("windowEnd") LocalDate windowEnd,
             Pageable pageable
     );
+
+    /** Toàn bộ lễ hội, sắp xếp theo ngày bắt đầu. */
+    @EntityGraph(attributePaths = {"province", "place"})
+    @Query("SELECT e FROM Event e ORDER BY e.startDate ASC")
+    List<Event> findAllOrderedByStartDate(Pageable pageable);
 }

@@ -18,6 +18,16 @@ public interface PlaceRepository extends JpaRepository<Place, UUID> {
     List<Place> findByProvince_CodeAndType(String code, String type, Pageable pageable);
     Page<Place> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
+    @Query("""
+            SELECT p FROM Place p
+            LEFT JOIN p.province pr
+            LEFT JOIN p.city c
+            WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(pr.name) LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            """)
+    Page<Place> searchByNameOrProvince(@Param("query") String query, Pageable pageable);
+
     /**
      * Điểm gần tọa độ GPS nhất (Haversine, mét) — dùng cho thời tiết theo vị trí thực.
      */

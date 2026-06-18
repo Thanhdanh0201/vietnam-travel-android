@@ -67,6 +67,7 @@ fun HomeScreen(
                     onNotificationClick = { onNavigate("notifications") },
                     unreadCount = unreadCount,
                     onSeeAllPlaces = { onNavigate("places") },
+                    onSeeAllEvents = { onNavigate("events") },
                     onFavoriteWeatherCityChange = viewModel::setFavoriteWeatherCity,
                     onExploreClick = { onNavigate("explore") },
                     onMenuClick = onMenuClick,
@@ -110,6 +111,7 @@ private fun HomeContent(
     onNotificationClick: () -> Unit,
     unreadCount: Int = 0,
     onSeeAllPlaces: () -> Unit,
+    onSeeAllEvents: () -> Unit = {},
     onFavoriteWeatherCityChange: (String) -> Unit,
     onExploreClick: () -> Unit,
     onMenuClick: (() -> Unit)? = null,
@@ -185,6 +187,7 @@ private fun HomeContent(
                 eventsFetched = uiState.eventsFetched,
                 eventsLoadFailed = uiState.eventsLoadFailed,
                 onEventClick = onEventClick,
+                onSeeAllClick = onSeeAllEvents,
             )
         }
         }
@@ -270,6 +273,7 @@ private fun FestivalsSection(
     eventsFetched: Boolean,
     eventsLoadFailed: Boolean,
     onEventClick: (Event) -> Unit,
+    onSeeAllClick: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -280,7 +284,11 @@ private fun FestivalsSection(
             modifier = Modifier.padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            SectionHeader(title = "Lễ hội sắp tới")
+            SectionHeader(
+                title = "Lễ hội sắp tới",
+                showSeeAll = true,
+                onSeeAllClick = onSeeAllClick
+            )
 
             when {
                 !eventsFetched && events.isEmpty() -> {

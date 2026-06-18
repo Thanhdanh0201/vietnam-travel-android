@@ -13,6 +13,7 @@ public class PlaceResponse {
     private Float rating;
     private Integer review_count;
     private String image_url;
+    private String description;
     private ProvinceDto provinces;
     private CityDto cities;
 }

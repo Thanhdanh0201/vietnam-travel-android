@@ -13,7 +13,9 @@ data class SearchUiState(
     val users: List<UserProfile> = emptyList(),
     val itineraries: List<Itinerary> = emptyList(),
     val error: String? = null,
-    val selectedFilter: SearchFilter = SearchFilter.ALL
+    val selectedFilter: SearchFilter = SearchFilter.ALL,
+    val trendingKeywords: List<String> = emptyList(),
+    val isTrendingLoading: Boolean = false,
 )
 enum class SearchFilter(val title: String) {
     ALL("Tất cả"),
