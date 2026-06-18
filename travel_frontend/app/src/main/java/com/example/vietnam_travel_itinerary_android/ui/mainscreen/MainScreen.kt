@@ -43,6 +43,19 @@ import com.example.vietnam_travel_itinerary_android.ui.suggestion.MyPlaceSuggest
 import com.example.vietnam_travel_itinerary_android.ui.suggestion.SubmitPlaceSuggestionScreen
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationScreen
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
+import com.example.vietnam_travel_itinerary_android.ui.search.SearchScreen
+import com.example.vietnam_travel_itinerary_android.ui.search.SearchViewModel
+import com.example.vietnam_travel_itinerary_android.ui.places.AllPlacesScreen
+import com.example.vietnam_travel_itinerary_android.ui.places.AllPlacesViewModel
+import com.example.vietnam_travel_itinerary_android.ui.events.AllEventsScreen
+import com.example.vietnam_travel_itinerary_android.ui.events.AllEventsViewModel
+import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.data.model.Event
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.example.vietnam_travel_itinerary_android.ui.components.introduction.PlaceIntroductionOverlay
+import com.example.vietnam_travel_itinerary_android.ui.components.introduction.FestivalIntroductionOverlay
 import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
 import kotlinx.coroutines.launch
 
@@ -83,6 +96,8 @@ fun MainScreen(
 
     val uiState by itineraryViewModel.uiState.collectAsState()
     val itinerariesState = uiState.itineraries
+    var selectedPlace by remember { mutableStateOf<Place?>(null) }
+    var selectedEvent by remember { mutableStateOf<Event?>(null) }
 
     fun navigateToMainTab(route: String) {
         if (route !in mainTabRoutes) return
@@ -206,6 +221,56 @@ fun MainScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Khám phá")
                 }
+            }
+
+            composable("places") {
+                val allPlacesViewModel: AllPlacesViewModel =
+                    viewModel(factory = AppViewModelProvider.Factory)
+                val state by allPlacesViewModel.uiState.collectAsState()
+                AllPlacesScreen(
+                    state = state,
+                    onBackClick = { bottomNavController.navigateUp() },
+                    onPlaceClick = { place -> selectedPlace = place },
+                    onLoadMore = { allPlacesViewModel.loadMore() }
+                )
+            }
+
+            composable("events") {
+                val allEventsViewModel: AllEventsViewModel =
+                    viewModel(factory = AppViewModelProvider.Factory)
+                val state by allEventsViewModel.uiState.collectAsState()
+                AllEventsScreen(
+                    state = state,
+                    onBackClick = { bottomNavController.navigateUp() },
+                    onEventClick = { event -> selectedEvent = event },
+                    onLoadMore = { allEventsViewModel.loadMore() }
+                )
+            }
+
+            composable("search") {
+                val searchViewModel: SearchViewModel =
+                    viewModel(factory = AppViewModelProvider.Factory)
+
+                val state by searchViewModel.uiState.collectAsState()
+
+                SearchScreen(
+                    state = state,
+                    currentUserId = communityViewModel.currentUserId,
+                    onQueryChange = { searchViewModel.search(it) },
+                    onBackClick = { bottomNavController.navigateUp() },
+                    onPlaceClick = { place ->
+                        selectedPlace = place
+                    },
+                    onFilterChange = {
+                        searchViewModel.setFilter(it)
+                    },
+                    onNavigate = { route ->
+                        bottomNavController.navigate(route)
+                    },
+                    onTrendingClick = { keyword ->
+                        searchViewModel.onTrendingClick(keyword)
+                    }
+                )
             }
 
             composable("itinerary") {
@@ -371,6 +436,7 @@ fun MainScreen(
                 )
             }
 
+
             composable("my_place_suggestions") {
                 MyPlaceSuggestionsScreen(
                     onMenuClick = openDrawer,
@@ -403,6 +469,27 @@ fun MainScreen(
                 )
             }
         }
+        selectedPlace?.let { place ->
+            PlaceIntroductionOverlay(
+                place = place,
+                onDismiss = { selectedPlace = null },
+                onExplore = {
+                    selectedPlace = null
+                    navigateToMainTab("explore")
+                }
+            )
+        }
+        selectedEvent?.let { event ->
+            FestivalIntroductionOverlay(
+                event = event,
+                onDismiss = { selectedEvent = null },
+                onSchedule = {
+                    selectedEvent = null
+                    navigateToMainTab("itinerary")
+                }
+            )
+        }
+
     }
     }
 }

@@ -45,6 +45,18 @@ interface VietnamTravelApi {
         @Body settings: UserSettingRequest
     ): Response<UserSettingResponseDto>
 
+    // ---- Search ----
+    @GET("api/search/trending")
+    suspend fun getTrendingKeywords(
+        @Query("limit") limit: Int = 10
+    ): List<String>
+
+    @POST("api/search/log")
+    suspend fun logSearchKeyword(
+        @Header("Authorization") token: String,
+        @Body body: Map<String, String>
+    ): Response<ResponseBody>
+
     // ---- Places ----
     @GET("api/places/search")
     suspend fun searchPlaces(
@@ -56,7 +68,8 @@ interface VietnamTravelApi {
     suspend fun getPlaces(
         @Query("province_code") provinceCode: String? = null,
         @Query("type") type: String? = null,
-        @Query("limit") limit: Int = 20
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
     ): List<Place>
 
     @GET("api/places/recommended")
@@ -100,7 +113,15 @@ interface VietnamTravelApi {
     @GET("api/events/upcoming")
     suspend fun getUpcomingEvents(
         @Query("months") months: Int = 3,
-        @Query("limit") limit: Int = 40
+        @Query("limit") limit: Int = 40,
+        @Query("offset") offset: Int = 0
+    ): List<Event>
+
+    /** Toàn bộ lễ hội — dùng cho màn Xem tất cả. */
+    @GET("api/events")
+    suspend fun getAllEvents(
+        @Query("limit") limit: Int = 20,
+        @Query("offset") offset: Int = 0
     ): List<Event>
 
     @GET("api/provinces/{code}/places")

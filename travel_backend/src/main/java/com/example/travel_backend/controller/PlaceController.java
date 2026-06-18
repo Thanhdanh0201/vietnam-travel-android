@@ -40,8 +40,9 @@ public class PlaceController {
     public ResponseEntity<List<PlaceResponse>> getPlaces(
             @RequestParam(required = false) String province_code,
             @RequestParam(required = false) String type,
-            @RequestParam(defaultValue = "20") int limit) {
-        return ResponseEntity.ok(placeService.getPlaces(province_code, type, limit));
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        return ResponseEntity.ok(placeService.getPlacesPaged(province_code, type, limit, offset));
     }
 
     /** Gợi ý trang chủ — top rating; path con của /api/places/** (permitAll). */

@@ -25,4 +25,27 @@ class EventRepository {
                 Result.failure(e)
             }
         }
+
+    suspend fun getUpcomingEventsPaged(
+        months: Int = 12,
+        limit: Int = 20,
+        offset: Int = 0
+    ): Result<List<Event>> = withContext(Dispatchers.IO) {
+        try {
+            Result.success(api.getUpcomingEvents(months, limit, offset))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAllEventsPaged(
+        limit: Int = 20,
+        offset: Int = 0
+    ): Result<List<Event>> = withContext(Dispatchers.IO) {
+        try {
+            Result.success(api.getAllEvents(limit, offset))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

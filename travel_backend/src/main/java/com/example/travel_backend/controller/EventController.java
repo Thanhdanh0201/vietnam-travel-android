@@ -23,15 +23,25 @@ public class EventController {
         this.eventService = eventService;
     }
 
+    /** Xem tất cả: toàn bộ lễ hội trong DB, phân trang. */
+    @GetMapping
+    public ResponseEntity<List<EventDto>> getAllEvents(
+            @RequestParam(name = "limit", defaultValue = "20") int limit,
+            @RequestParam(name = "offset", defaultValue = "0") int offset
+    ) {
+        return ResponseEntity.ok(eventService.getAllEventsPaged(limit, offset));
+    }
+
     /**
      * Trang chủ: lễ hội sắp tới (giao cửa sổ 3 tháng mặc định). Phải khai báo trước /{id} để không match "upcoming".
      */
     @GetMapping("/upcoming")
     public ResponseEntity<List<EventDto>> getUpcoming(
             @RequestParam(name = "months", defaultValue = "3") int months,
-            @RequestParam(name = "limit", defaultValue = "30") int limit
+            @RequestParam(name = "limit", defaultValue = "30") int limit,
+            @RequestParam(name = "offset", defaultValue = "0") int offset
     ) {
-        return ResponseEntity.ok(eventService.getUpcomingEvents(months, limit));
+        return ResponseEntity.ok(eventService.getUpcomingEventsPaged(months, limit, offset));
     }
 
     @GetMapping("/{id}")

@@ -35,11 +35,29 @@ public class EventServiceImpl implements EventService {
     @Override
     @Transactional(readOnly = true)
     public List<EventDto> getUpcomingEvents(int months, int limit) {
+        return getUpcomingEventsPaged(months, limit, 0);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> getUpcomingEventsPaged(int months, int limit, int offset) {
         int m = Math.min(Math.max(months, 1), 12);
         int lim = Math.min(Math.max(limit, 1), 100);
+        int page = lim > 0 ? offset / lim : 0;
         LocalDate today = LocalDate.now(VN);
         LocalDate windowEnd = today.plusMonths(m);
-        return eventRepository.findUpcomingInWindow(today, windowEnd, PageRequest.of(0, lim))
+        return eventRepository.findUpcomingInWindow(today, windowEnd, PageRequest.of(page, lim))
+                .stream()
+                .map(EventMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EventDto> getAllEventsPaged(int limit, int offset) {
+        int lim = Math.min(Math.max(limit, 1), 100);
+        int page = lim > 0 ? offset / lim : 0;
+        return eventRepository.findAllOrderedByStartDate(PageRequest.of(page, lim))
                 .stream()
                 .map(EventMapper::toDto)
                 .collect(Collectors.toList());

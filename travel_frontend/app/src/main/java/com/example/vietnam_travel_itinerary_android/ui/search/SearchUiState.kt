@@ -1,0 +1,26 @@
+package com.example.vietnam_travel_itinerary_android.ui.search
+
+import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
+import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.data.model.UserProfile
+
+data class SearchUiState(
+    val query: String = "",
+    val isLoading: Boolean = false,
+    val places: List<Place> = emptyList(),
+    val posts: List<CommunityPost> = emptyList(),
+    val users: List<UserProfile> = emptyList(),
+    val itineraries: List<Itinerary> = emptyList(),
+    val error: String? = null,
+    val selectedFilter: SearchFilter = SearchFilter.ALL,
+    val trendingKeywords: List<String> = emptyList(),
+    val isTrendingLoading: Boolean = false,
+)
+enum class SearchFilter(val title: String) {
+    ALL("Tất cả"),
+    PLACES("Địa điểm"),
+    ITINERARIES("Lịch trình"),
+    POSTS("Bài viết"),
+    USERS("Người dùng")
+}

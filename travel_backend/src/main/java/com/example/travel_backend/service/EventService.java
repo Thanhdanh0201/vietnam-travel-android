@@ -10,4 +10,6 @@ public interface EventService {
     Event getEventById(UUID id);
 
     List<EventDto> getUpcomingEvents(int months, int limit);
+    List<EventDto> getUpcomingEventsPaged(int months, int limit, int offset);
+    List<EventDto> getAllEventsPaged(int limit, int offset);
 }
