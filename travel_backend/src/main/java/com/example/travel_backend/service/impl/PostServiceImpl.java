@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,9 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private com.example.travel_backend.repository.MentionRepository mentionRepository;
+
+    @Autowired
+    private ItineraryItemRepository itineraryItemRepository;
 
     @Autowired
     private NotificationTriggerService notificationTriggerService;
@@ -99,8 +103,22 @@ public class PostServiceImpl implements PostService {
         Map<UUID, List<PostMedia>> mediaByPostId = allMedia.stream()
                 .collect(Collectors.groupingBy(media -> media.getPost().getId()));
 
+        List<UUID> itineraryIds = posts.stream()
+                .map(Post::getItinerary)
+                .filter(java.util.Objects::nonNull)
+                .map(it -> it.getId())
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<UUID, Long> itemCountMap = new HashMap<>();
+        if (!itineraryIds.isEmpty()) {
+            for (Object[] result : itineraryItemRepository.countItemsByItineraryIds(itineraryIds)) {
+                itemCountMap.put((UUID) result[0], ((Number) result[1]).longValue());
+            }
+        }
+
         return posts.stream().map(post -> {
-            PostResponseDto dto = mapToPostDto(post);
+            PostResponseDto dto = mapToPostDto(post, itemCountMap);
             List<PostMedia> postMediaList = mediaByPostId.getOrDefault(post.getId(), new ArrayList<>());
             dto.setMedia(postMediaList.stream().map(this::mapToMediaDto).collect(Collectors.toList()));
             return dto;
@@ -247,6 +265,16 @@ public class PostServiceImpl implements PostService {
 
 
     private PostResponseDto mapToPostDto(Post post) {
+        Map<UUID, Long> itemCountMap = new HashMap<>();
+        if (post.getItinerary() != null) {
+            UUID itineraryId = post.getItinerary().getId();
+            long count = itineraryItemRepository.findByItineraryIdOrderByOrderIndexAsc(itineraryId).size();
+            itemCountMap.put(itineraryId, count);
+        }
+        return mapToPostDto(post, itemCountMap);
+    }
+
+    private PostResponseDto mapToPostDto(Post post, Map<UUID, Long> itemCountMap) {
         PostResponseDto dto = new PostResponseDto();
         dto.setId(post.getId());
         dto.setContent(post.getContent());
@@ -266,6 +294,7 @@ public class PostServiceImpl implements PostService {
             itDto.setTitle(post.getItinerary().getTitle());
             itDto.setIsPublic(post.getItinerary().getIsPublic());
             itDto.setDescription(post.getItinerary().getDescription());
+            itDto.setItemCount(itemCountMap.getOrDefault(post.getItinerary().getId(), 0L).intValue());
             dto.setItinerary(itDto);
         }
         if (post.getPlace() != null) {
@@ -281,7 +310,7 @@ public class PostServiceImpl implements PostService {
             dto.setPlace(placeDto);
         }
         if (post.getOriginalPost() != null) {
-            PostResponseDto origDto = mapToPostDto(post.getOriginalPost());
+            PostResponseDto origDto = mapToPostDto(post.getOriginalPost(), itemCountMap);
             List<PostMedia> origMediaList = postMediaRepository.findByPostIdInOrderByOrderIndexAsc(List.of(post.getOriginalPost().getId()));
             origDto.setMedia(origMediaList.stream().map(this::mapToMediaDto).collect(Collectors.toList()));
             dto.setOriginalPost(origDto);

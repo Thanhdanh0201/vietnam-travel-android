@@ -65,7 +65,7 @@ fun CommunityScreen(
             LinkedItinerary(
                 id = it.id,
                 title = it.title,
-                stopCount = 0,
+                stopCount = it.itemCount,
                 location = it.location,
                 isPublic = it.isPublic,
                 coverImageKey = it.coverUrl ?: ""

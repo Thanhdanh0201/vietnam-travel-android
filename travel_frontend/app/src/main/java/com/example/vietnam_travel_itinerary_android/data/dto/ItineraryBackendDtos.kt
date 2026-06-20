@@ -17,7 +17,7 @@ data class ItineraryResponseDto(
     val status: String? = null,
     @Json(name = "is_public") val isPublic: Boolean? = false,
     /** OWNER | EDIT | VIEW - quyền của user hiện tại */
-    val myRole: String? = "OWNER",
+    val myRole: String? = "VIEW",
     val ownerId: String? = null
 )
 

@@ -2,6 +2,7 @@ package com.example.vietnam_travel_itinerary_android.ui.itinerary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.net.Uri
 import com.example.vietnam_travel_itinerary_android.data.dto.ItineraryNoteDto
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
@@ -677,12 +678,31 @@ class ItineraryViewModel(
         itineraryId: String,
         content: String,
         imageUrl: String? = null,
+        imageUri: Uri? = null,
+        contentResolver: android.content.ContentResolver? = null,
         itemId: String? = null,
         onSuccess: () -> Unit = {},
         onFailure: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
-            itineraryRepo.addNote(itineraryId, content, imageUrl, itemId)
+            var uploadedImageUrl = imageUrl
+            if (imageUri != null && contentResolver != null) {
+                try {
+                    val bytes = contentResolver.openInputStream(imageUri)?.readBytes()
+                    if (bytes != null) {
+                        itineraryRepo.uploadNoteImage(bytes, "note_${System.currentTimeMillis()}.jpg")
+                            .onSuccess { uploadedImageUrl = it }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            val trimmed = content.trim()
+            if (trimmed.isBlank() && uploadedImageUrl.isNullOrBlank()) return@launch
+            val finalContent = trimmed.ifBlank { "📷" }
+
+            itineraryRepo.addNote(itineraryId, finalContent, uploadedImageUrl, itemId)
                 .onSuccess { newNote ->
                     _uiState.update { state ->
                         if (itemId != null) {

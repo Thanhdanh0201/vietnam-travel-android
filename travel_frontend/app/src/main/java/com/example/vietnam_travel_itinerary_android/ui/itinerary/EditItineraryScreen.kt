@@ -21,6 +21,8 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -50,8 +52,10 @@ import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import android.net.Uri
 import kotlinx.coroutines.delay
 
 
@@ -123,6 +127,7 @@ fun EditItineraryScreen(
     onBackClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     
     val days = remember(itinerary?.dateRange) {
         parseItineraryDays(itinerary?.dateRange ?: "")
@@ -169,8 +174,8 @@ fun EditItineraryScreen(
     val participants = uiState.participantsMap[itinerary?.id] ?: emptyList()
     
     // Kiểm tra quyền chỉnh sửa của user hiện tại với itinerary này
-    val canModify = remember(itinerary?.id, uiState.itineraries) {
-        itinerary?.id?.let { viewModel.canModifyItinerary(it) } ?: true
+    val canModify = remember(itinerary?.myRole) {
+        itinerary?.myRole == "OWNER" || itinerary?.myRole == "EDIT"
     }
     val isOwner = itinerary?.myRole == "OWNER"
     
@@ -473,10 +478,12 @@ fun EditItineraryScreen(
                                         viewModel.fetchNotesForItem(itinerary.id, item.id)
                                     }
                                 },
-                                onAddNote = { content ->
+                                onAddNote = { content, imageUri ->
                                     viewModel.addNote(
                                         itineraryId = itinerary.id,
                                         content = content,
+                                        imageUri = imageUri,
+                                        contentResolver = context.contentResolver,
                                         itemId = item.id
                                     )
                                 },
@@ -550,11 +557,14 @@ fun EditItineraryScreen(
                     itineraryId = itinerary.id,
                     notes = generalNotes,
                     isItineraryOwner = isOwner,
+                    canAddNotes = canModify,
                     onLoadNotes = { viewModel.fetchGeneralNotes(itinerary.id) },
-                    onAddNote = { content ->
+                    onAddNote = { content, imageUri ->
                         viewModel.addNote(
                             itineraryId = itinerary.id,
                             content = content,
+                            imageUri = imageUri,
+                            contentResolver = context.contentResolver,
                             itemId = null
                         )
                     },
@@ -1228,7 +1238,7 @@ fun TimelineItem(
     onDeleteClick: () -> Unit = {},
     onEditNoteClick: (String?) -> Unit = {},
     onLoadNotes: () -> Unit = {},
-    onAddNote: (String) -> Unit = {},
+    onAddNote: (String, Uri?) -> Unit = { _, _ -> },
     onDeleteNote: (String) -> Unit = {}
 ) {
     var showEditNoteDialog by remember { mutableStateOf(false) }
@@ -1397,6 +1407,7 @@ fun TimelineItem(
                 notes = notes,
                 isItineraryOwner = isItineraryOwner,
                 currentUserId = currentUserId,
+                canAddNotes = canModify,
                 onAddNote = onAddNote,
                 onDeleteNote = onDeleteNote
             )
@@ -1472,7 +1483,8 @@ fun GroupNotesSection(
     notes: List<ItineraryNoteDto>,
     isItineraryOwner: Boolean,
     currentUserId: String?,
-    onAddNote: (String) -> Unit,
+    canAddNotes: Boolean = false,
+    onAddNote: (String, Uri?) -> Unit,
     onDeleteNote: (String) -> Unit
 ) {
     var showInput by remember { mutableStateOf(false) }
@@ -1491,37 +1503,39 @@ fun GroupNotesSection(
             Spacer(modifier = Modifier.height(6.dp))
         }
 
-        if (showInput) {
-            AddGroupNoteInput(
-                onSend = { content ->
-                    onAddNote(content)
-                    showInput = false
-                },
-                onCancel = { showInput = false }
-            )
-        } else {
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFF1F5F9),
-                modifier = Modifier.clickable { showInput = true }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+        if (canAddNotes) {
+            if (showInput) {
+                AddGroupNoteInput(
+                    onSend = { content, imageUri ->
+                        onAddNote(content, imageUri)
+                        showInput = false
+                    },
+                    onCancel = { showInput = false }
+                )
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFF1F5F9),
+                    modifier = Modifier.clickable { showInput = true }
                 ) {
-                    Icon(
-                        Icons.Filled.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(12.dp),
-                        tint = SlateGray500
-                    )
-                    Text(
-                        "Thêm ghi chú nhóm",
-                        fontSize = 11.sp,
-                        color = SlateGray500,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = SlateGray500
+                        )
+                        Text(
+                            "Thêm ghi chú nhóm",
+                            fontSize = 11.sp,
+                            color = SlateGray500,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
@@ -1597,12 +1611,14 @@ fun GroupNoteCard(
             }
 
             Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = note.content,
-                fontSize = 13.sp,
-                color = SlateGray700,
-                lineHeight = 18.sp
-            )
+            if (note.content.isNotBlank() && note.content != "📷") {
+                Text(
+                    text = note.content,
+                    fontSize = 13.sp,
+                    color = SlateGray700,
+                    lineHeight = 18.sp
+                )
+            }
 
             // Ảnh đính kèm (nếu có)
             if (!note.imageUrl.isNullOrBlank()) {
@@ -1644,13 +1660,18 @@ fun GroupNoteCard(
 // ---- Input thêm ghi chú nhóm ----
 @Composable
 fun AddGroupNoteInput(
-    onSend: (String) -> Unit,
+    onSend: (String, Uri?) -> Unit,
     onCancel: () -> Unit,
     placeholder: String = "Ghi chú nhóm...",
 ) {
     var text by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
     val focusRequester = remember { FocusRequester() }
     val sessionProfile = remember { UserSessionCache.get() }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> imageUri = uri }
 
     LaunchedEffect(Unit) {
         delay(100)
@@ -1661,10 +1682,35 @@ fun AddGroupNoteInput(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        if (imageUri != null) {
+            Box {
+                AsyncImage(
+                    model = imageUri,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                )
+                Icon(
+                    Icons.Outlined.Close,
+                    contentDescription = "Xóa ảnh",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .clickable { imageUri = null }
+                        .padding(2.dp),
+                )
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AuthorAvatar(
                 initials = sessionProfile?.avatarInitials ?: "BN",
@@ -1695,14 +1741,26 @@ fun AddGroupNoteInput(
                     maxLines = 3,
                 )
             }
-            val canSend = text.isNotBlank()
+            Icon(
+                Icons.Outlined.Image,
+                contentDescription = "Thêm ảnh",
+                tint = if (imageUri != null) VNRed else SlateGray500,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable {
+                        photoPicker.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                        )
+                    },
+            )
+            val canSend = text.isNotBlank() || imageUri != null
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
                     .background(if (canSend) VNRed else SlateGray200)
                     .clickable(enabled = canSend) {
-                        if (text.isNotBlank()) onSend(text.trim())
+                        if (canSend) onSend(text.trim(), imageUri)
                     },
                 contentAlignment = Alignment.Center,
             ) {
@@ -1751,8 +1809,9 @@ fun GeneralNotesSection(
     itineraryId: String,
     notes: List<ItineraryNoteDto>,
     isItineraryOwner: Boolean,
+    canAddNotes: Boolean = false,
     onLoadNotes: () -> Unit,
-    onAddNote: (String) -> Unit,
+    onAddNote: (String, Uri?) -> Unit,
     onDeleteNote: (String) -> Unit
 ) {
     LaunchedEffect(itineraryId) { onLoadNotes() }
@@ -1821,29 +1880,30 @@ fun GeneralNotesSection(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Input thêm ghi chú chung
-        var showGeneralInput by remember { mutableStateOf(false) }
+        if (canAddNotes) {
+            var showGeneralInput by remember { mutableStateOf(false) }
 
-        if (showGeneralInput) {
-            AddGroupNoteInput(
-                onSend = { content ->
-                    onAddNote(content)
-                    showGeneralInput = false
-                },
-                onCancel = { showGeneralInput = false },
-                placeholder = "Thêm ghi chú chung...",
-            )
-        } else {
-            Button(
-                onClick = { showGeneralInput = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = VNRed.copy(alpha = 0.08f)),
-                shape = RoundedCornerShape(12.dp),
-                elevation = ButtonDefaults.buttonElevation(0.dp)
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null, tint = VNRed, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Thêm ghi chú chung", color = VNRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            if (showGeneralInput) {
+                AddGroupNoteInput(
+                    onSend = { content, imageUri ->
+                        onAddNote(content, imageUri)
+                        showGeneralInput = false
+                    },
+                    onCancel = { showGeneralInput = false },
+                    placeholder = "Thêm ghi chú chung...",
+                )
+            } else {
+                Button(
+                    onClick = { showGeneralInput = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = VNRed.copy(alpha = 0.08f)),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = ButtonDefaults.buttonElevation(0.dp)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, tint = VNRed, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Thêm ghi chú chung", color = VNRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
             }
         }
 

@@ -15,6 +15,7 @@ data class Itinerary(
     val description: String? = null,
     val shareCount: Int = 0,
     val isPublic: Boolean = false,
+    val itemCount: Int = 0,
     /** OWNER | EDIT | VIEW - quyền của user hiện tại với itinerary này */
-    val myRole: String = "OWNER"
+    val myRole: String = "VIEW"
 )

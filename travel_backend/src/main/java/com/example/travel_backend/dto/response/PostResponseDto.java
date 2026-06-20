@@ -30,6 +30,7 @@ public class PostResponseDto {
         private String title;
         private Boolean isPublic;
         private String description;
+        private Integer itemCount;
     }
 
     @Data

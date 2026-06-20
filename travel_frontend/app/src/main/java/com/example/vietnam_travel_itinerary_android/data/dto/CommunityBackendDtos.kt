@@ -23,7 +23,8 @@ data class ItineraryCompactDto(
     val id: String,
     val title: String? = null,
     val isPublic: Boolean? = null,
-    val description: String? = null
+    val description: String? = null,
+    val itemCount: Int? = 0
 )
 
 // Place compact info (returned inside PostResponseBackendDto)

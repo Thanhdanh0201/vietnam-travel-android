@@ -118,7 +118,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             LinkedItinerary(
                 id = it.id,
                 title = it.title ?: "",
-                stopCount = 0,
+                stopCount = it.itemCount ?: 0,
                 isPublic = it.isPublic ?: true
             )
         }

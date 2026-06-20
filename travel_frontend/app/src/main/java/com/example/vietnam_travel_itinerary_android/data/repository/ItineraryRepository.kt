@@ -31,6 +31,20 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             }
         }
 
+    suspend fun uploadNoteImage(byteArray: ByteArray, fileName: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                val bucket = supabase.storage["post-media"]
+                val path = "notes/${System.currentTimeMillis()}_$fileName"
+                bucket.upload(path, byteArray) {
+                    upsert = true
+                }
+                Result.success(bucket.publicUrl(path))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
     private fun getAuthToken(): String {
         val token = supabase.auth.currentAccessTokenOrNull()
         return if (token != null) "Bearer $token" else ""
@@ -80,7 +94,8 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             description = description,
             shareCount = shareCount ?: 0,
             isPublic = isPublic ?: false,
-            myRole = myRole ?: "OWNER"
+            itemCount = itemCount ?: 0,
+            myRole = myRole ?: "VIEW"
         )
     }
 
