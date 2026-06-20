@@ -99,6 +99,12 @@ interface VietnamTravelApi {
     @GET("api/provinces")
     suspend fun getProvinces(): List<Province>
 
+    @GET("api/provinces/search")
+    suspend fun searchProvinces(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 8,
+    ): List<Province>
+
     @GET("api/provinces/{code}")
     suspend fun getProvince(
         @Path("code") code: String

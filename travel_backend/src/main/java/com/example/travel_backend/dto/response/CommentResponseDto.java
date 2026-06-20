@@ -10,6 +10,7 @@ public class CommentResponseDto {
     private UUID postId;
     private UUID parentCommentId;
     private String content;
+    private String imageUrl;
     private OffsetDateTime createdAt;
 
     // Thông tin author (Tương đương view comments_with_author)

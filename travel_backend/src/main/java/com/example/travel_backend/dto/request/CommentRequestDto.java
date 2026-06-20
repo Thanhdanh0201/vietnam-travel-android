@@ -8,4 +8,5 @@ public class CommentRequestDto {
     private UUID postId;
     private UUID parentCommentId; // Null nếu là Top-level comment
     private String content;
+    private String imageUrl;
 }

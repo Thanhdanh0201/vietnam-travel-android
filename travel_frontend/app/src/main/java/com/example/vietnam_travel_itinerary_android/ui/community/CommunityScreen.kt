@@ -100,6 +100,9 @@ fun CommunityScreen(
     val selectedImages by viewModel.selectedImages.collectAsState()
     val selectedPlace by viewModel.selectedPlace.collectAsState()
     val searchPlaceResults by viewModel.searchPlaceResults.collectAsState()
+    val searchProvinceResults by viewModel.searchProvinceResults.collectAsState()
+    val provincePlacesResults by viewModel.provincePlacesResults.collectAsState()
+    val selectedProvinceFilter by viewModel.selectedProvinceFilter.collectAsState()
     val isSearchingPlaces by viewModel.isSearchingPlaces.collectAsState()
     val isCreatingPost by viewModel.isCreatingPost.collectAsState()
     val context = LocalContext.current
@@ -178,12 +181,21 @@ fun CommunityScreen(
     if (showPlacePicker) {
         PlacePickerBottomSheet(
             searchResults = searchPlaceResults,
+            provinceResults = searchProvinceResults,
+            provincePlaces = provincePlacesResults,
+            selectedProvince = selectedProvinceFilter,
             isSearching = isSearchingPlaces,
             onSearch = { query -> viewModel.searchPlaces(query) },
             onSelect = { place ->
                 viewModel.selectPlace(place)
                 viewModel.clearSearchResults()
                 showPlacePicker = false
+            },
+            onSelectProvince = { province ->
+                viewModel.loadPlacesForProvince(province)
+            },
+            onClearProvinceFilter = {
+                viewModel.clearProvinceFilter()
             },
             onDismiss = {
                 viewModel.clearSearchResults()
@@ -270,11 +282,15 @@ fun CommunityScreen(
                             onItineraryClick = {
                                 showItineraryPicker = true
                             },
+                            selectedPlace = selectedPlace,
+                            onPlaceClick = { showPlacePicker = true },
+                            onUnlinkPlaceClick = { viewModel.clearPlace() },
                             onPost = {
-                                if (postText.isNotBlank() || activeShareItineraryId != null || selectedImages.isNotEmpty()) {
+                                if (postText.isNotBlank() || activeShareItineraryId != null || selectedImages.isNotEmpty() || selectedPlace != null) {
                                     val currentText = postText
                                     val currentItineraryId = activeShareItineraryId
                                     val currentImages = selectedImages.toList()
+                                    val currentPlaceId = selectedPlace?.id
                                     // Clear UI immediately for responsive feel
                                     postText = ""
                                     activeShareItineraryId = null
@@ -284,7 +300,7 @@ fun CommunityScreen(
                                         content = currentText,
                                         mediaUris = currentImages,
                                         itineraryId = currentItineraryId,
-                                        placeId = null,
+                                        placeId = currentPlaceId,
                                         contentResolver = context.contentResolver
                                     )
                                 }

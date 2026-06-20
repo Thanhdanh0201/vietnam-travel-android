@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,6 +42,7 @@ import coil3.compose.AsyncImage
 import com.example.vietnam_travel_itinerary_android.data.dto.ItineraryNoteDto
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
@@ -1551,21 +1553,12 @@ fun GroupNoteCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Avatar chữ cái đầu
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(VNRed.copy(alpha = 0.8f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = note.userName.take(1).uppercase(),
-                            color = Color.White,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    AuthorAvatar(
+                        initials = noteAvatarInitials(note.userName),
+                        color = noteAvatarColor(note.userName),
+                        avatarUrl = note.userAvatar.orEmpty(),
+                        size = 24,
+                    )
                     Text(
                         text = note.userName,
                         fontSize = 12.sp,
@@ -1652,54 +1645,104 @@ fun GroupNoteCard(
 @Composable
 fun AddGroupNoteInput(
     onSend: (String) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    placeholder: String = "Ghi chú nhóm...",
 ) {
     var text by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+    val sessionProfile = remember { UserSessionCache.get() }
 
     LaunchedEffect(Unit) {
         delay(100)
         focusRequester.requestFocus()
     }
 
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        OutlinedTextField(
-            value = text,
-            onValueChange = { text = it },
-            placeholder = { Text("Ghi chú nhóm...", fontSize = 12.sp) },
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester),
-            maxLines = 3,
-            shape = RoundedCornerShape(10.dp),
-            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = VNRed,
-                unfocusedBorderColor = SlateGray300
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            AuthorAvatar(
+                initials = sessionProfile?.avatarInitials ?: "BN",
+                color = Color(sessionProfile?.avatarColor ?: 0xFFC6102E),
+                avatarUrl = sessionProfile?.avatarUrl.orEmpty(),
+                size = 34,
             )
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            IconButton(
-                onClick = { if (text.isNotBlank()) onSend(text.trim()) },
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFFF1F5F9))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            ) {
+                if (text.isEmpty()) {
+                    Text(placeholder, color = SlateGray400, fontSize = 13.sp)
+                }
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = SlateGray700,
+                        fontSize = 13.sp,
+                    ),
+                    maxLines = 3,
+                )
+            }
+            val canSend = text.isNotBlank()
+            Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(VNRed, CircleShape)
+                    .clip(CircleShape)
+                    .background(if (canSend) VNRed else SlateGray200)
+                    .clickable(enabled = canSend) {
+                        if (text.isNotBlank()) onSend(text.trim())
+                    },
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Outlined.Send, contentDescription = "Gửi", tint = Color.White, modifier = Modifier.size(16.dp))
-            }
-            TextButton(
-                onClick = onCancel,
-                modifier = Modifier.size(36.dp),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text("Hủy", fontSize = 10.sp, color = SlateGray400)
+                Icon(
+                    Icons.Outlined.Send,
+                    contentDescription = "Gửi",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp),
+                )
             }
         }
+        Text(
+            "Hủy",
+            fontSize = 12.sp,
+            color = SlateGray400,
+            modifier = Modifier
+                .align(Alignment.End)
+                .clickable(onClick = onCancel),
+        )
     }
+}
+
+private fun noteAvatarInitials(name: String): String {
+    if (name.isBlank()) return "U"
+    val parts = name.trim().split("\\s+".toRegex())
+    if (parts.size == 1) return parts[0].take(2).uppercase()
+    return (parts.first().take(1) + parts.last().take(1)).uppercase()
+}
+
+private fun noteAvatarColor(name: String): Color {
+    val colors = listOf(
+        Color(0xFF2563EB),
+        Color(0xFF7C3AED),
+        Color(0xFF059669),
+        Color(0xFFEA580C),
+        Color(0xFFDB2777),
+        Color(0xFF0891B2),
+        VNRed,
+    )
+    return colors[kotlin.math.abs(name.hashCode()) % colors.size]
 }
 
 // ---- Section ghi chú chung ở cuối timeline ----
@@ -1787,7 +1830,8 @@ fun GeneralNotesSection(
                     onAddNote(content)
                     showGeneralInput = false
                 },
-                onCancel = { showGeneralInput = false }
+                onCancel = { showGeneralInput = false },
+                placeholder = "Thêm ghi chú chung...",
             )
         } else {
             Button(

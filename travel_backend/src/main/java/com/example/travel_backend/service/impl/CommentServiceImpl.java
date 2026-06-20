@@ -45,6 +45,7 @@ public class CommentServiceImpl implements CommentService {
         comment.setUser(userRepository.getReferenceById(userId));
         comment.setPost(postRepository.getReferenceById(request.getPostId()));
         comment.setContent(request.getContent());
+        comment.setImageUrl(request.getImageUrl());
 
         // Kiểm tra nếu là Reply (có parent_comment_id)
         if (request.getParentCommentId() != null) {

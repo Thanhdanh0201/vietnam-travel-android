@@ -23,6 +23,7 @@ data class Comment(
     val authorAvatarColor: Long,
     val timeAgo: String,
     val content: String,
+    val imageUrl: String = "",
     val reactionCount: Int = 0,
     val replyCount: Int = 0,
     val isLiked: Boolean = false,

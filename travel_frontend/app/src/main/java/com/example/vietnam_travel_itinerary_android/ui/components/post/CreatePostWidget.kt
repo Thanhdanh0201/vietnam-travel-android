@@ -45,6 +45,9 @@ fun CreatePostWidget(
     onTextChange: (String) -> Unit = {},
     linkedItinerary: LinkedItinerary? = null,
     onUnlinkClick: () -> Unit = {},
+    selectedPlace: PostPlace? = null,
+    onPlaceClick: () -> Unit = {},
+    onUnlinkPlaceClick: () -> Unit = {},
     selectedImages: List<Uri> = emptyList(),
     onImageClick: () -> Unit = {},
     onRemoveImage: (Int) -> Unit = {},
@@ -192,6 +195,45 @@ fun CreatePostWidget(
                         }
                     }
 
+                    if (selectedPlace != null && !isPlaceholder) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.Place,
+                                contentDescription = "Check-in",
+                                tint = VNRed,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                buildString {
+                                    append(selectedPlace.name)
+                                    if (selectedPlace.provinceName.isNotBlank()) {
+                                        append(", ").append(selectedPlace.provinceName)
+                                    }
+                                },
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = VNRed,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Icon(
+                                Icons.Outlined.Close,
+                                contentDescription = "Bỏ check-in",
+                                tint = SlateGray400,
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable(onClick = onUnlinkPlaceClick),
+                            )
+                        }
+                    }
+
                     HorizontalDivider(color = SlateGray50)
 
                     // ── Bottom actions
@@ -209,6 +251,13 @@ fun CreatePostWidget(
                                     .let { if (isPlaceholder) it else it.clickable(onClick = onImageClick) }
                             )
                             Icon(
+                                Icons.Outlined.Place, "Check-in",
+                                tint = if (selectedPlace != null) VNRed else SlateGray400,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .let { if (isPlaceholder) it else it.clickable(onClick = onPlaceClick) }
+                            )
+                            Icon(
                                 Icons.Outlined.DateRange, "Chọn lịch trình",
                                 tint = if (linkedItinerary != null) VNRed else SlateGray400,
                                 modifier = Modifier
@@ -219,7 +268,7 @@ fun CreatePostWidget(
                         Button(
                             onClick = if (isPlaceholder) onPlaceholderClick else onPost,
                             shape = CircleShape,
-                            enabled = isPlaceholder || text.isNotBlank() || linkedItinerary != null || selectedImages.isNotEmpty(),
+                            enabled = isPlaceholder || text.isNotBlank() || linkedItinerary != null || selectedImages.isNotEmpty() || selectedPlace != null,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = VNRed,
                                 disabledContainerColor = SlateGray200

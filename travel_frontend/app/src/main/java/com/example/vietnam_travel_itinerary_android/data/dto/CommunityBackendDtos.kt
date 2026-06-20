@@ -83,6 +83,7 @@ data class CommentResponseBackendDto(
     val postId: String,
     val parentCommentId: String? = null,
     val content: String? = null,
+    val imageUrl: String? = null,
     val createdAt: String? = null, // ISO string
     val authorId: String? = null,
     val authorName: String? = null,
@@ -95,7 +96,8 @@ data class CommentResponseBackendDto(
 data class CommentRequest(
     val postId: String,
     val parentCommentId: String? = null,
-    val content: String
+    val content: String,
+    val imageUrl: String? = null
 )
 
 // Request DTO for comment reaction (like)

@@ -116,6 +116,7 @@ public class CommentController {
         dto.setId(comment.getId());
         dto.setPostId(comment.getPost().getId());
         dto.setContent(comment.getContent());
+        dto.setImageUrl(comment.getImageUrl());
         dto.setCreatedAt(comment.getCreatedAt());
 
         if (comment.getParentComment() != null) {

@@ -73,7 +73,14 @@ class ProfileRepository(
                         emptySet()
                     }
                 } else emptySet()
-                postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds = postsDto.map { it.id }.toSet()) }
+                postsDto.map {
+                    communityRepository.mapPostResponse(
+                        it,
+                        currentUserId,
+                        likedPostIds,
+                        savedPostIds = postsDto.map { post -> post.id }.toSet(),
+                    )
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
                 emptyList()
@@ -254,7 +261,9 @@ class ProfileRepository(
                 }
             } else emptySet()
 
-            postsDto.map { it.toCommunityPost(currentUserId, likedPostIds, savedPostIds) }
+            postsDto.map {
+                communityRepository.mapPostResponse(it, currentUserId, likedPostIds, savedPostIds)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -360,50 +369,6 @@ class ProfileRepository(
 
     private fun deriveUsername(name: String): String =
         "@" + name.lowercase().replace("\\s+".toRegex(), ".")
-
-    private fun PostResponseBackendDto.toCommunityPost(
-        currentUserId: String?,
-        likedPostIds: Set<String>,
-        savedPostIds: Set<String> = emptySet(),
-    ): CommunityPost {
-        val authorNameVal = author?.name ?: "Người dùng"
-        val mediaList = media?.map {
-            PostMedia(
-                id = it.id ?: "",
-                mediaUrl = it.mediaUrl ?: "",
-                mediaType = it.mediaType ?: "image",
-                orderIndex = it.orderIndex ?: 0,
-            )
-        } ?: emptyList()
-
-        val linkedItineraryVal = itinerary?.let {
-            LinkedItinerary(
-                id = it.id,
-                title = it.title ?: "",
-                stopCount = 0,
-                isPublic = it.isPublic ?: true,
-            )
-        }
-
-        return CommunityPost(
-            id = id,
-            userId = author?.id ?: "",
-            authorName = authorNameVal,
-            authorAvatarUrl = author?.avatarUrl ?: "",
-            authorAvatarInitials = getInitials(authorNameVal),
-            authorAvatarColor = getAvatarColor(authorNameVal),
-            timeAgo = formatTimeAgo(createdAt).uppercase(),
-            content = content ?: "",
-            postType = if (postType == "text" || postType == "image") "original" else (postType ?: "original"),
-            media = mediaList,
-            likeCount = reactionCount ?: 0,
-            commentCount = commentCount ?: 0,
-            repostCount = repostCount ?: 0,
-            isLiked = likedPostIds.contains(id),
-            isSaved = savedPostIds.contains(id),
-            linkedItinerary = linkedItineraryVal,
-        )
-    }
 
     private fun getAvatarColor(name: String): Long {
         val colors = listOf(

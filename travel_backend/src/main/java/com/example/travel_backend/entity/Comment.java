@@ -38,6 +38,9 @@ public class Comment {
     @Column(name = "content", nullable = false, length = Integer.MAX_VALUE)
     private String content;
 
+    @Column(name = "image_url", length = Integer.MAX_VALUE)
+    private String imageUrl;
+
     @ColumnDefault("0")
     @Column(name = "reaction_count")
     private Integer reactionCount;

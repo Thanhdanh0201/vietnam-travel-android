@@ -6,6 +6,7 @@ import com.example.travel_backend.mapper.EventMapper;
 import com.example.travel_backend.repository.EventRepository;
 import com.example.travel_backend.repository.ProvinceRepository;
 import com.example.travel_backend.service.ProvinceService;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,15 @@ public class ProvinceServiceImpl implements ProvinceService {
     public Province getProvinceByCode(String code) {
         System.out.println("Get province by code: " + code);
         return provinceRepository.findByCode(code).orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Province> searchProvinces(String query, int limit) {
+        if (query == null || query.trim().length() < 2) {
+            return List.of();
+        }
+        return provinceRepository.searchByNameOrNameEn(query.trim(), PageRequest.of(0, limit));
     }
 
     @Override

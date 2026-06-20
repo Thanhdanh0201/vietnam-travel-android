@@ -66,6 +66,13 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     }
 
     // Mapping DTOs to UI models
+    fun mapPostResponse(
+        dto: PostResponseBackendDto,
+        currentUserId: String? = null,
+        likedPostIds: Set<String> = emptySet(),
+        savedPostIds: Set<String> = emptySet(),
+    ): CommunityPost = dto.toCommunityPost(currentUserId, likedPostIds, savedPostIds)
+
     private fun PostResponseBackendDto.toCommunityPost(
         currentUserId: String? = null,
         likedPostIds: Set<String> = emptySet(),
@@ -162,6 +169,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             authorAvatarColor = getAvatarColor(authorNameVal),
             timeAgo = formatTimeAgo(createdAt),
             content = content ?: "",
+            imageUrl = imageUrl ?: "",
             reactionCount = likeCount ?: 0,
             replyCount = replyCount ?: 0,
             isLiked = likedCommentIds.contains(id),
@@ -318,8 +326,25 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     // --- 4.2b Tìm kiếm địa điểm ---
     suspend fun searchPlaces(query: String, limit: Int = 10): List<Place> = withContext(Dispatchers.IO) {
         try {
-            val places = api.searchPlaces(query, limit)
-            places
+            api.searchPlaces(query, limit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun searchProvinces(query: String, limit: Int = 8): List<Province> = withContext(Dispatchers.IO) {
+        try {
+            api.searchProvinces(query, limit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun getPlacesByProvince(code: String, limit: Int = 20): List<Place> = withContext(Dispatchers.IO) {
+        try {
+            api.getPlacesByProvince(code, limit = limit)
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -478,10 +503,16 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         postId: String,
         userId: String,
         content: String,
-        parentCommentId: String? = null
+        parentCommentId: String? = null,
+        imageUrl: String? = null
     ): Comment = withContext(Dispatchers.IO) {
         val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: throw Exception("Not authenticated")
-        val request = CommentRequest(postId = postId, parentCommentId = parentCommentId, content = content)
+        val request = CommentRequest(
+            postId = postId,
+            parentCommentId = parentCommentId,
+            content = content,
+            imageUrl = imageUrl
+        )
         val createdDto = api.postComment(token, request)
         createdDto.toComment()
     }

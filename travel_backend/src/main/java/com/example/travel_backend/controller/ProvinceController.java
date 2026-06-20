@@ -23,6 +23,13 @@ public class ProvinceController {
         return ResponseEntity.ok(provinceService.getAllProvinces());
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Province>> searchProvinces(
+            @RequestParam("q") String query,
+            @RequestParam(value = "limit", defaultValue = "8") int limit) {
+        return ResponseEntity.ok(provinceService.searchProvinces(query, limit));
+    }
+
     @GetMapping("/{code}")
     public ResponseEntity<Province> getProvinceByCode(@PathVariable String code) {
         Province province = provinceService.getProvinceByCode(code);

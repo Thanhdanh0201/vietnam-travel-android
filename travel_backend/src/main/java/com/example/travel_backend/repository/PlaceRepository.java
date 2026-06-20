@@ -24,6 +24,7 @@ public interface PlaceRepository extends JpaRepository<Place, UUID> {
             LEFT JOIN p.city c
             WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%'))
                OR LOWER(pr.name) LIKE LOWER(CONCAT('%', :query, '%'))
+               OR LOWER(pr.nameEn) LIKE LOWER(CONCAT('%', :query, '%'))
                OR LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%'))
             """)
     Page<Place> searchByNameOrProvince(@Param("query") String query, Pageable pageable);

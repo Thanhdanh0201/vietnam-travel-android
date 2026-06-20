@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.Place
+import com.example.vietnam_travel_itinerary_android.data.model.Province
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import coil3.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
@@ -35,9 +36,14 @@ import androidx.compose.ui.layout.ContentScale
 @Composable
 fun PlacePickerBottomSheet(
     searchResults: List<Place>,
+    provinceResults: List<Province> = emptyList(),
+    provincePlaces: List<Place> = emptyList(),
+    selectedProvince: Province? = null,
     isSearching: Boolean,
     onSearch: (String) -> Unit,
     onSelect: (Place) -> Unit,
+    onSelectProvince: (Province) -> Unit = {},
+    onClearProvinceFilter: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -73,7 +79,7 @@ fun PlacePickerBottomSheet(
         ) {
             // ── Title
             Text(
-                "Chọn địa điểm",
+                "Check-in địa điểm",
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
                 color = SlateGray900
@@ -155,7 +161,7 @@ fun PlacePickerBottomSheet(
                         strokeWidth = 2.dp
                     )
                 }
-            } else if (searchResults.isEmpty() && searchQuery.length >= 2) {
+            } else if (searchResults.isEmpty() && provinceResults.isEmpty() && provincePlaces.isEmpty() && searchQuery.length >= 2) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -171,13 +177,13 @@ fun PlacePickerBottomSheet(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Không tìm thấy địa điểm",
+                            "Không tìm thấy tỉnh/thành hoặc địa điểm",
                             fontSize = 14.sp,
                             color = SlateGray400
                         )
                     }
                 }
-            } else if (searchQuery.length < 2) {
+            } else if (searchQuery.length < 2 && selectedProvince == null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -203,14 +209,91 @@ fun PlacePickerBottomSheet(
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    items(
-                        items = searchResults,
-                        key = { it.id }
-                    ) { place ->
-                        PlaceResultItem(
-                            place = place,
-                            onClick = { onSelect(place) }
-                        )
+                    if (selectedProvince != null) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(onClick = onClearProvinceFilter)
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.ArrowBack,
+                                    contentDescription = "Quay lại",
+                                    tint = VNRed,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    "Địa điểm tại ${selectedProvince.name}",
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = VNRed,
+                                )
+                            }
+                            HorizontalDivider(color = SlateGray100)
+                        }
+                        if (provincePlaces.isEmpty() && !isSearching) {
+                            item {
+                                Text(
+                                    "Chưa có địa điểm tại tỉnh/thành này",
+                                    fontSize = 13.sp,
+                                    color = SlateGray400,
+                                    modifier = Modifier.padding(vertical = 16.dp),
+                                )
+                            }
+                        }
+                        items(
+                            items = provincePlaces,
+                            key = { "province-place-${it.id}" },
+                        ) { place ->
+                            PlaceResultItem(
+                                place = place,
+                                onClick = { onSelect(place) },
+                            )
+                        }
+                    } else {
+                        if (provinceResults.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Tỉnh / Thành phố",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = SlateGray500,
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+                                )
+                            }
+                            items(
+                                items = provinceResults,
+                                key = { "province-${it.id}" },
+                            ) { province ->
+                                ProvinceResultItem(
+                                    province = province,
+                                    onClick = { onSelectProvince(province) },
+                                )
+                            }
+                        }
+                        if (searchResults.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Địa điểm",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = SlateGray500,
+                                    modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
+                                )
+                            }
+                            items(
+                                items = searchResults,
+                                key = { it.id },
+                            ) { place ->
+                                PlaceResultItem(
+                                    place = place,
+                                    onClick = { onSelect(place) },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -314,6 +397,60 @@ private fun PlaceResultItem(
                 }
             }
         }
+    }
+    HorizontalDivider(color = SlateGray50)
+}
+
+@Composable
+private fun ProvinceResultItem(
+    province: Province,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp, horizontal = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(VNRed.copy(alpha = 0.08f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Place,
+                contentDescription = null,
+                tint = VNRed,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                province.name,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = SlateGray900,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            province.region?.let { region ->
+                Text(
+                    region.replaceFirstChar { it.uppercase() },
+                    fontSize = 12.sp,
+                    color = SlateGray400,
+                )
+            }
+        }
+        Icon(
+            Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = SlateGray300,
+            modifier = Modifier.size(18.dp),
+        )
     }
     HorizontalDivider(color = SlateGray50)
 }

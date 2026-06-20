@@ -1,5 +1,9 @@
 package com.example.vietnam_travel_itinerary_android.ui.community
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -31,8 +36,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.example.vietnam_travel_itinerary_android.data.model.Comment
 import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
+import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
 import com.example.vietnam_travel_itinerary_android.ui.components.itinerary.ItineraryCompactCard
 import com.example.vietnam_travel_itinerary_android.ui.components.post.*
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
@@ -55,11 +62,15 @@ fun PostDetailScreen(
     val allComments by viewModel.comments.collectAsState()
     val currentUserProfile by viewModel.currentUserProfile.collectAsState()
     val posts by viewModel.posts.collectAsState()
-    
+    val sessionProfile = remember { UserSessionCache.get() }
+    val resolvedProfile = currentUserProfile ?: sessionProfile
+    val context = LocalContext.current
+
     // Find the latest post details from state to reflect realtime changes
     val currentPost = posts.find { it.id == post.id } ?: post
 
     var inputText by remember { mutableStateOf("") }
+    var commentImageUri by remember { mutableStateOf<Uri?>(null) }
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
     var showShareDialog by remember { mutableStateOf(false) }
     var commentToReport by remember { mutableStateOf<Comment?>(null) }
@@ -69,9 +80,14 @@ fun PostDetailScreen(
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
 
+    val commentPhotoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> commentImageUri = uri }
+
     // Fetch comments from Supabase initially
     LaunchedEffect(post.id) {
         viewModel.loadComments(post.id)
+        viewModel.loadUserProfile()
     }
 
     LaunchedEffect(highlightCommentId, allComments) {
@@ -130,20 +146,42 @@ fun PostDetailScreen(
             CommentInputBar(
                 text = inputText,
                 replyingTo = replyingTo,
-                currentUserAvatarColor = currentUserProfile?.avatarColor ?: 0xFFC6102E,
-                currentUserAvatarInitials = currentUserProfile?.avatarInitials ?: "BN",
-                currentUserAvatarUrl = currentUserProfile?.avatarUrl ?: "",
+                selectedImageUri = commentImageUri,
+                currentUserAvatarColor = resolvedProfile?.avatarColor ?: 0xFFC6102E,
+                currentUserAvatarInitials = resolvedProfile?.avatarInitials ?: "BN",
+                currentUserAvatarUrl = resolvedProfile?.avatarUrl ?: "",
                 onTextChange = { inputText = it },
                 onCancelReply = { replyingTo = null },
+                onImageClick = {
+                    commentPhotoPicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
+                onRemoveImage = { commentImageUri = null },
                 onSend = {
                     val parent = replyingTo
+                    val text = inputText
+                    val imageUri = commentImageUri
+                    if (text.isBlank() && imageUri == null) return@CommentInputBar
                     if (parent != null) {
-                        viewModel.postComment(post.id, inputText, parent.id)
+                        viewModel.postComment(
+                            post.id,
+                            text,
+                            parent.id,
+                            imageUri,
+                            context.contentResolver,
+                        )
                         replyingTo = null
                     } else {
-                        viewModel.postComment(post.id, inputText)
+                        viewModel.postComment(
+                            post.id,
+                            text,
+                            imageUri = imageUri,
+                            contentResolver = context.contentResolver,
+                        )
                     }
                     inputText = ""
+                    commentImageUri = null
                     keyboard?.hide()
                 }
             )
@@ -475,11 +513,14 @@ fun PostDetailScreen(
 private fun CommentInputBar(
     text: String,
     replyingTo: Comment?,
+    selectedImageUri: Uri? = null,
     currentUserAvatarColor: Long,
     currentUserAvatarInitials: String,
     currentUserAvatarUrl: String = "",
     onTextChange: (String) -> Unit,
     onCancelReply: () -> Unit,
+    onImageClick: () -> Unit = {},
+    onRemoveImage: () -> Unit = {},
     onSend: () -> Unit
 ) {
     Surface(
@@ -511,6 +552,39 @@ private fun CommentInputBar(
                 }
             }
             HorizontalDivider(color = SlateGray100)
+            if (selectedImageUri != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box {
+                        AsyncImage(
+                            model = selectedImageUri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                        )
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Xóa ảnh",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(2.dp)
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .clickable(onClick = onRemoveImage)
+                                .padding(2.dp),
+                        )
+                    }
+                }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -547,8 +621,16 @@ private fun CommentInputBar(
                         maxLines = 4
                     )
                 }
+                Icon(
+                    Icons.Outlined.Image,
+                    contentDescription = "Thêm ảnh",
+                    tint = SlateGray500,
+                    modifier = Modifier
+                        .size(22.dp)
+                        .clickable(onClick = onImageClick),
+                )
                 // Send button
-                val canSend = text.isNotBlank()
+                val canSend = text.isNotBlank() || selectedImageUri != null
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -667,14 +749,28 @@ fun ThreadCommentItem(
                 }
 
                 // Content (no bubble — Threads style)
-                Text(
-                    comment.content,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
-                    color = SlateGray800,
-                    maxLines = 10,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (comment.content.isNotBlank() && comment.content != "📷") {
+                    Text(
+                        comment.content,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        color = SlateGray800,
+                        maxLines = 10,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (comment.imageUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = comment.imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 220.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                    )
+                }
 
                 // Actions row
                 Row(

@@ -7,6 +7,7 @@ import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
 import com.example.vietnam_travel_itinerary_android.data.dto.*
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import com.example.vietnam_travel_itinerary_android.data.repository.CommunityRepository
+import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.status.SessionStatus
@@ -17,6 +18,7 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.github.jan.supabase.realtime.realtime
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -93,6 +95,15 @@ class CommunityViewModel(
 
     private val _searchPlaceResults = MutableStateFlow<List<Place>>(emptyList())
     val searchPlaceResults: StateFlow<List<Place>> = _searchPlaceResults.asStateFlow()
+
+    private val _searchProvinceResults = MutableStateFlow<List<Province>>(emptyList())
+    val searchProvinceResults: StateFlow<List<Province>> = _searchProvinceResults.asStateFlow()
+
+    private val _provincePlacesResults = MutableStateFlow<List<Place>>(emptyList())
+    val provincePlacesResults: StateFlow<List<Place>> = _provincePlacesResults.asStateFlow()
+
+    private val _selectedProvinceFilter = MutableStateFlow<Province?>(null)
+    val selectedProvinceFilter: StateFlow<Province?> = _selectedProvinceFilter.asStateFlow()
 
     private val _isSearchingPlaces = MutableStateFlow(false)
     val isSearchingPlaces: StateFlow<Boolean> = _isSearchingPlaces.asStateFlow()
@@ -187,6 +198,11 @@ class CommunityViewModel(
     fun loadUserProfile() {
         viewModelScope.launch {
             try {
+                val cached = UserSessionCache.get()
+                if (cached != null && _currentUserProfile.value == null) {
+                    _currentUserProfile.value = cached
+                }
+
                 val userId = supabase.auth.currentUserOrNull()?.id
                 val token = supabase.auth.currentAccessTokenOrNull()
                 if (userId != null && token != null) {
@@ -212,7 +228,7 @@ class CommunityViewModel(
                     }
 
                     if (profileDto != null) {
-                        _currentUserProfile.value = UserProfile(
+                        val profile = UserProfile(
                             id = profileDto.id.toString(),
                             name = profileDto.name ?: "",
                             avatarUrl = profileDto.avatarUrl ?: "",
@@ -221,6 +237,8 @@ class CommunityViewModel(
                             explorerLevel = ExplorerLevel.from(profileDto.explorerLevel ?: "newbie"),
                             isVerified = profileDto.isVerified ?: false
                         )
+                        _currentUserProfile.value = profile
+                        UserSessionCache.set(profile)
                     } else {
                         // Fallback default user profile for testing
                         _currentUserProfile.value = UserProfile(
@@ -383,6 +401,9 @@ class CommunityViewModel(
         searchJob?.cancel()
         if (query.length < 2) {
             _searchPlaceResults.value = emptyList()
+            _searchProvinceResults.value = emptyList()
+            _provincePlacesResults.value = emptyList()
+            _selectedProvinceFilter.value = null
             _isSearchingPlaces.value = false
             return
         }
@@ -390,19 +411,47 @@ class CommunityViewModel(
         searchJob = viewModelScope.launch {
             delay(300) // Debounce 300ms
             try {
-                val results = repository.searchPlaces(query)
-                _searchPlaceResults.value = results
+                val placesDeferred = async { repository.searchPlaces(query) }
+                val provincesDeferred = async { repository.searchProvinces(query) }
+                _searchPlaceResults.value = placesDeferred.await()
+                _searchProvinceResults.value = provincesDeferred.await()
+                _provincePlacesResults.value = emptyList()
+                _selectedProvinceFilter.value = null
             } catch (e: Exception) {
                 e.printStackTrace()
                 _searchPlaceResults.value = emptyList()
+                _searchProvinceResults.value = emptyList()
             } finally {
                 _isSearchingPlaces.value = false
             }
         }
     }
 
+    fun loadPlacesForProvince(province: Province) {
+        _selectedProvinceFilter.value = province
+        _isSearchingPlaces.value = true
+        viewModelScope.launch {
+            try {
+                _provincePlacesResults.value = repository.getPlacesByProvince(province.code, limit = 30)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _provincePlacesResults.value = emptyList()
+            } finally {
+                _isSearchingPlaces.value = false
+            }
+        }
+    }
+
+    fun clearProvinceFilter() {
+        _selectedProvinceFilter.value = null
+        _provincePlacesResults.value = emptyList()
+    }
+
     fun clearSearchResults() {
         _searchPlaceResults.value = emptyList()
+        _searchProvinceResults.value = emptyList()
+        _provincePlacesResults.value = emptyList()
+        _selectedProvinceFilter.value = null
     }
 
     // ── Create post with image upload
@@ -622,10 +671,43 @@ class CommunityViewModel(
         }
     }
 
-    fun postComment(postId: String, content: String, parentCommentId: String? = null) {
+    fun postComment(
+        postId: String,
+        content: String,
+        parentCommentId: String? = null,
+        imageUri: Uri? = null,
+        contentResolver: android.content.ContentResolver? = null,
+    ) {
         viewModelScope.launch {
             try {
-                val newComment = repository.postComment(postId, currentUserId, content, parentCommentId)
+                var uploadedImageUrl: String? = null
+                if (imageUri != null && contentResolver != null) {
+                    try {
+                        val inputStream = contentResolver.openInputStream(imageUri)
+                        val bytes = inputStream?.readBytes()
+                        inputStream?.close()
+                        if (bytes != null) {
+                            uploadedImageUrl = repository.uploadMedia(
+                                bytes,
+                                "comment_${System.currentTimeMillis()}.jpg"
+                            )
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
+                val trimmed = content.trim()
+                if (trimmed.isBlank() && uploadedImageUrl.isNullOrBlank()) return@launch
+
+                val finalContent = trimmed.ifBlank { "📷" }
+                val newComment = repository.postComment(
+                    postId = postId,
+                    userId = currentUserId,
+                    content = finalContent,
+                    parentCommentId = parentCommentId,
+                    imageUrl = uploadedImageUrl,
+                )
                 
                 // Locally append to update state immediately
                 if (parentCommentId != null) {
