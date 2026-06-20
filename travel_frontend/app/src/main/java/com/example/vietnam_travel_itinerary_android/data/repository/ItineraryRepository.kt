@@ -283,12 +283,32 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             try {
                 val token = getAuthToken()
                 if (token.isBlank()) throw Exception("Chưa đăng nhập")
-                val response = api.addCollaborator(token, itineraryId, CollaboratorDto(email, name, role, null))
+                val response = api.addCollaborator(token, itineraryId, CollaboratorDto(email = email, name = name, role = role))
                 Result.success(response)
             } catch (e: Exception) {
                 Result.failure(e)
             }
         }
+
+    suspend fun addCollaboratorByUserId(
+        itineraryId: String,
+        userId: String,
+        name: String,
+        role: String,
+    ): Result<CollaboratorDto> = withContext(Dispatchers.IO) {
+        try {
+            val token = getAuthToken()
+            if (token.isBlank()) throw Exception("Chưa đăng nhập")
+            val response = api.addCollaborator(
+                token,
+                itineraryId,
+                CollaboratorDto(name = name, role = role, userId = userId),
+            )
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun removeCollaborator(itineraryId: String, email: String): Result<Unit> =
         withContext(Dispatchers.IO) {

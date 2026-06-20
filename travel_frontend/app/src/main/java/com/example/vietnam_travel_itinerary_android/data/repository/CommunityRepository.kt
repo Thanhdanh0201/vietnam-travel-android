@@ -601,7 +601,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     suspend fun markNotificationAsRead(notifId: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
-            val response = api.markNotificationAsRead(token, notifId, NotificationPatchDto(isRead = true))
+            val response = api.patchNotification(token, notifId, NotificationPatchDto(isRead = true))
             response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
@@ -624,9 +624,12 @@ class CommunityRepository(private val supabase: SupabaseClient) {
     suspend fun deleteNotification(notifId: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
-            api.deleteNotification(token, notifId).isSuccessful
+            val patch = api.patchNotification(token, notifId, NotificationPatchDto(isDeleted = true))
+            if (patch.isSuccessful) return@withContext true
+            val delete = api.deleteNotification(token, notifId)
+            delete.isSuccessful
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("NotifRepo", "deleteNotification failed", e)
             false
         }
     }
@@ -635,12 +638,16 @@ class CommunityRepository(private val supabase: SupabaseClient) {
         if (notifIds.isEmpty()) return@withContext true
         try {
             val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
-            if (notifIds.size == 1) {
-                return@withContext api.deleteNotification(token, notifIds.first()).isSuccessful
+            if (notifIds.size > 1) {
+                val batch = api.deleteNotificationsBatch(token, DeleteNotificationsRequestDto(notifIds))
+                if (batch.isSuccessful) return@withContext true
             }
-            api.deleteNotificationsBatch(token, DeleteNotificationsRequestDto(notifIds)).isSuccessful
+            notifIds.all { id ->
+                val patch = api.patchNotification(token, id, NotificationPatchDto(isDeleted = true))
+                patch.isSuccessful || api.deleteNotification(token, id).isSuccessful
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
+            android.util.Log.e("NotifRepo", "deleteNotifications failed", e)
             false
         }
     }

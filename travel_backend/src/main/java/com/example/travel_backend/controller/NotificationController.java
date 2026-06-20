@@ -40,14 +40,17 @@ public class NotificationController {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<Void> markSingleAsRead(
+    public ResponseEntity<Void> patchNotification(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("id") UUID notifId,
             @RequestBody NotificationPatchDto request) {
 
+        UUID myId = UUID.fromString(jwt.getSubject());
         if (Boolean.TRUE.equals(request.getIsRead())) {
-            UUID myId = UUID.fromString(jwt.getSubject());
             notificationService.markAsRead(notifId, myId);
+        }
+        if (Boolean.TRUE.equals(request.getIsDeleted())) {
+            notificationService.deleteNotification(notifId, myId);
         }
         return ResponseEntity.ok().build();
     }

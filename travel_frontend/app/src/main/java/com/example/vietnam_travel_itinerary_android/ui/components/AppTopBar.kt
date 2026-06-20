@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
@@ -111,6 +112,7 @@ fun AppTopBar(
 fun AppBackTopBar(
     onBackClick: () -> Unit,
     title: String? = null,
+    showLogo: Boolean = true,
     onSearchClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
     unreadCount: Int = 0,
@@ -149,8 +151,9 @@ fun AppBackTopBar(
                             fontSize = 18.sp,
                             color = SlateGray900,
                             maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
-                    } else {
+                    } else if (showLogo) {
                         AppTopBarLogo()
                     }
                 }

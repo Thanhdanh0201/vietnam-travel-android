@@ -165,6 +165,13 @@ interface VietnamTravelApi {
         @Header("Authorization") token: String? = null
     ): UserProfileResponseDto
 
+    @GET("api/users/search")
+    suspend fun searchUsersForInvite(
+        @Header("Authorization") token: String,
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 20,
+    ): List<UserInviteSearchDto>
+
     @PATCH("api/users/me")
     suspend fun updateProfile(
         @Header("Authorization") token: String,
@@ -345,7 +352,7 @@ interface VietnamTravelApi {
     ): UnreadCountDto
 
     @PATCH("api/notifications/{id}")
-    suspend fun markNotificationAsRead(
+    suspend fun patchNotification(
         @Header("Authorization") token: String,
         @Path("id") notifId: String,
         @Body request: NotificationPatchDto

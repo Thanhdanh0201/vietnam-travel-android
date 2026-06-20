@@ -58,10 +58,19 @@ data class CreateItineraryItemRequest(
 )
 
 data class CollaboratorDto(
-    val email: String,
+    val email: String = "",
     val name: String,
     val role: String,
-    val status: String? = null
+    val status: String? = null,
+    val userId: String? = null,
+)
+
+data class UserInviteSearchDto(
+    val id: String,
+    val name: String? = null,
+    val username: String? = null,
+    val avatarUrl: String? = null,
+    val isVerified: Boolean? = null,
 )
 
 data class CityDto(

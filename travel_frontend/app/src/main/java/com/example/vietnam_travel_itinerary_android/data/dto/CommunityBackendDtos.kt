@@ -4,6 +4,7 @@ package com.example.vietnam_travel_itinerary_android.data.dto
 data class UserCompactDto(
     val id: String,
     val name: String? = null,
+    val username: String? = null,
     val avatarUrl: String? = null,
     val explorerLevel: String? = null,
     val isVerified: Boolean? = null
@@ -132,9 +133,10 @@ data class UnreadCountDto(
     val count: Long = 0
 )
 
-// Request DTO for marking notifications as read
+// Request DTO for marking notifications as read / soft delete
 data class NotificationPatchDto(
-    val isRead: Boolean
+    val isRead: Boolean? = null,
+    val isDeleted: Boolean? = null,
 )
 
 data class DeleteNotificationsRequestDto(

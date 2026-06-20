@@ -3,6 +3,7 @@ package com.example.vietnam_travel_itinerary_android.ui.notification
 import android.widget.Toast
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
@@ -16,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material3.*
@@ -69,9 +69,11 @@ fun NotificationScreen(
             onBackClick = {
                 if (isSelectionMode) exitSelectionMode() else onBack()
             },
+            showLogo = !isSelectionMode,
+            title = if (isSelectionMode) "Đã chọn ${selectedIds.size}" else null,
             trailingContent = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (isSelectionMode) {
+                if (isSelectionMode) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(
                             onClick = {
                                 selectedIds = if (selectedIds.size == notifications.size) {
@@ -111,46 +113,27 @@ fun NotificationScreen(
                                 tint = if (selectedIds.isNotEmpty()) VNRed else Color(0xFFCBD5E1),
                             )
                         }
-                    } else {
-                        IconButton(onClick = { viewModel.markAllAsRead() }) {
-                            Icon(
-                                imageVector = Icons.Outlined.DoneAll,
-                                contentDescription = "Đọc tất cả",
-                                tint = VNRed,
-                            )
-                        }
-                        if (notifications.isNotEmpty()) {
-                            IconButton(onClick = { isSelectionMode = true }) {
-                                Icon(
-                                    imageVector = Icons.Outlined.DeleteOutline,
-                                    contentDescription = "Chọn để xóa",
-                                    tint = VNRed,
-                                )
-                            }
-                        }
+                    }
+                } else {
+                    IconButton(onClick = { viewModel.markAllAsRead() }) {
+                        Icon(
+                            imageVector = Icons.Outlined.DoneAll,
+                            contentDescription = "Đọc tất cả",
+                            tint = VNRed,
+                        )
                     }
                 }
             },
         )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        if (!isSelectionMode) {
             Text(
-                text = if (isSelectionMode) "Đã chọn ${selectedIds.size}" else "Thông báo",
+                text = "Thông báo",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B),
             )
-            if (isSelectionMode) {
-                TextButton(onClick = { exitSelectionMode() }) {
-                    Text("Huỷ", color = Color(0xFF64748B))
-                }
-            }
         }
 
         NotificationFilterTabs(
@@ -298,7 +281,7 @@ private fun NotificationCard(
         NotificationType.ACHIEVEMENT,
     )
 
-    val borderModifier = if (isInvite) {
+    val borderModifier = if (isInvite && !isSelectionMode) {
         Modifier.border(
             width = 1.5.dp,
             brush = Brush.linearGradient(listOf(VNRed, VNRedContainer)),
@@ -306,17 +289,30 @@ private fun NotificationCard(
         )
     } else Modifier
 
+    val interactionSource = remember { MutableInteractionSource() }
+    val cardClickModifier = if (isSelectionMode) {
+        Modifier.clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick,
+        )
+    } else {
+        Modifier.combinedClickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = onClick,
+            onLongClick = onLongClick,
+        )
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .then(borderModifier)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick,
-            ),
+            .then(cardClickModifier),
         shape = RoundedCornerShape(16.dp),
         color = if (isSelected) VNRed.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.92f),
-        shadowElevation = 1.dp,
+        shadowElevation = if (isSelectionMode) 0.dp else 1.dp,
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
@@ -326,7 +322,8 @@ private fun NotificationCard(
             if (isSelectionMode) {
                 Checkbox(
                     checked = isSelected,
-                    onCheckedChange = { onClick() },
+                    onCheckedChange = null,
+                    enabled = false,
                     colors = CheckboxDefaults.colors(checkedColor = VNRed),
                 )
             }

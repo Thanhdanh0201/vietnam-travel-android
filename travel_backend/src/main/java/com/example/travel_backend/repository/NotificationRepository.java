@@ -35,11 +35,11 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Query("UPDATE Notification n SET n.isRead = true WHERE n.id = :notifId AND n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL)")
     void markAsRead(@Param("notifId") UUID notifId, @Param("userId") UUID userId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Notification n SET n.isDeleted = true WHERE n.id = :notifId AND n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL)")
     void softDeleteByIdAndUserId(@Param("notifId") UUID notifId, @Param("userId") UUID userId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Notification n SET n.isDeleted = true WHERE n.id IN :ids AND n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL)")
     void softDeleteByIdInAndUserId(@Param("ids") List<UUID> ids, @Param("userId") UUID userId);
 }

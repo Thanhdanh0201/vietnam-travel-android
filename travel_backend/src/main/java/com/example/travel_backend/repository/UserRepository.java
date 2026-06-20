@@ -17,6 +17,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByUsernameIgnoreCase(String username);
 
+    @Query("SELECT u FROM User u WHERE u.id <> :excludeId " +
+           "AND (u.isBanned IS NULL OR u.isBanned = false) " +
+           "AND (LOWER(COALESCE(u.name, '')) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "     OR LOWER(COALESCE(u.username, '')) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    Page<User> searchForInvite(@Param("keyword") String keyword,
+                               @Param("excludeId") UUID excludeId,
+                               Pageable pageable);
+
     @Query("SELECT u FROM User u WHERE " +
            "(:keyword IS NULL OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
            "AND (:isBanned IS NULL OR u.isBanned = :isBanned)")

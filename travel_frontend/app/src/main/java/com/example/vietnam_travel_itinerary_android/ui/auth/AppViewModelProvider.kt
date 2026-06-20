@@ -65,7 +65,8 @@ object AppViewModelProvider {
         initializer {
             ItineraryViewModel(
                 placeRepo = PlaceRepository(),
-                itineraryRepo = ItineraryRepository(SupabaseObject.client)
+                itineraryRepo = ItineraryRepository(SupabaseObject.client),
+                profileRepo = ProfileRepository(SupabaseObject.client),
             )
         }
 

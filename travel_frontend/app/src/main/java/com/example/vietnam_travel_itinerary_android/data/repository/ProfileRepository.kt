@@ -4,6 +4,7 @@ import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
 import com.example.vietnam_travel_itinerary_android.data.dto.ItineraryResponseDto
 import com.example.vietnam_travel_itinerary_android.data.dto.PostResponseBackendDto
 import com.example.vietnam_travel_itinerary_android.data.dto.UpdateProfileRequest
+import com.example.vietnam_travel_itinerary_android.data.dto.UserInviteSearchDto
 import com.example.vietnam_travel_itinerary_android.data.dto.UserProfileResponseDto
 import com.example.vietnam_travel_itinerary_android.data.model.*
 import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
@@ -150,11 +151,24 @@ class ProfileRepository(
         }
     }
 
+    suspend fun searchUsersForInvite(query: String, limit: Int = 20): List<UserInviteSearchDto> = withContext(Dispatchers.IO) {
+        if (query.trim().length < 2) return@withContext emptyList()
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
+                ?: return@withContext emptyList()
+            api.searchUsersForInvite(token, query.trim(), limit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
     private fun com.example.vietnam_travel_itinerary_android.data.dto.UserCompactDto.toFollowListUser(): FollowListUser {
         val displayName = name?.takeIf { it.isNotBlank() } ?: "Người dùng"
         return FollowListUser(
             id = id,
             name = displayName,
+            username = username.orEmpty(),
             avatarUrl = avatarUrl ?: "",
             avatarInitials = getInitials(displayName),
             avatarColor = getAvatarColor(displayName),

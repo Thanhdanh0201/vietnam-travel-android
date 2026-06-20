@@ -98,6 +98,9 @@ public class FollowServiceImpl implements FollowService {
         UserCompactDto dto = new UserCompactDto();
         dto.setId(user.getId());
         dto.setName(user.getName());
+        dto.setUsername(user.getUsername() != null && !user.getUsername().isBlank()
+                ? "@" + user.getUsername()
+                : null);
         dto.setAvatarUrl(user.getAvatarUrl());
         dto.setExplorerLevel(user.getExplorerLevel());
         dto.setIsVerified(user.getIsVerified());

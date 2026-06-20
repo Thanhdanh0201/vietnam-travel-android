@@ -41,6 +41,7 @@ public class ItineraryController {
         private String name;
         private String role;
         private String status;
+        private String userId;
 
         public CollaboratorDto() {}
 
@@ -65,6 +66,8 @@ public class ItineraryController {
         public void setRole(String role) { this.role = role; }
         public String getStatus() { return status; }
         public void setStatus(String status) { this.status = status; }
+        public String getUserId() { return userId; }
+        public void setUserId(String userId) { this.userId = userId; }
     }
 
 
@@ -218,22 +221,44 @@ public class ItineraryController {
         }
 
         // Không cho phép add chính mình làm collaborator
-        if (request.getEmail() == null || request.getEmail().isBlank()) {
+        String resolvedEmail = request.getEmail();
+        String displayName = request.getName();
+
+        if (request.getUserId() != null && !request.getUserId().isBlank()) {
+            UUID inviteUserId = UUID.fromString(request.getUserId().trim());
+            if (inviteUserId.equals(requesterId)) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Cannot invite yourself");
+            }
+            com.example.travel_backend.entity.User invitedUser = userRepository.findById(inviteUserId)
+                    .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                            org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+            if (invitedUser.getEmail() == null || invitedUser.getEmail().isBlank()) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "User has no email");
+            }
+            resolvedEmail = invitedUser.getEmail().trim().toLowerCase();
+            if (displayName == null || displayName.isBlank()) {
+                displayName = invitedUser.getName();
+            }
+        }
+
+        if (resolvedEmail == null || resolvedEmail.isBlank()) {
             throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.BAD_REQUEST, "Email is required");
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Email or userId is required");
         }
 
         // Tên hiển thị: nếu không có thì dùng phần trước '@' của email
-        String displayName = (request.getName() != null && !request.getName().isBlank())
-                ? request.getName().trim()
-                : request.getEmail().split("@")[0];
+        displayName = (displayName != null && !displayName.isBlank())
+                ? displayName.trim()
+                : resolvedEmail.split("@")[0];
 
         com.example.travel_backend.entity.ItineraryCollaborator collaborator =
-                collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, request.getEmail().trim())
+                collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, resolvedEmail.trim())
                 .orElseGet(() -> {
                     com.example.travel_backend.entity.ItineraryCollaborator c = new com.example.travel_backend.entity.ItineraryCollaborator();
                     c.setItinerary(itinerary);
-                    c.setEmail(request.getEmail().trim().toLowerCase());
+                    c.setEmail(resolvedEmail.trim().toLowerCase());
                     return c;
                 });
         collaborator.setName(displayName);

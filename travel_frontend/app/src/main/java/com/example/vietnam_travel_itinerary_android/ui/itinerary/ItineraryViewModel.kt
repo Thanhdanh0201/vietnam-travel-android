@@ -13,8 +13,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
+import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
 import com.example.vietnam_travel_itinerary_android.SupabaseObject
 import com.example.vietnam_travel_itinerary_android.data.dto.CollaboratorDto
+import com.example.vietnam_travel_itinerary_android.data.dto.UserInviteSearchDto
+import com.example.vietnam_travel_itinerary_android.data.model.FollowListUser
+import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 enum class ParticipantRole {
     EDIT, VIEW_ONLY
@@ -30,8 +36,15 @@ data class Participant(
 
 class ItineraryViewModel(
     private val placeRepo: PlaceRepository = PlaceRepository(),
-    private val itineraryRepo: ItineraryRepository = ItineraryRepository(SupabaseObject.client)
+    private val itineraryRepo: ItineraryRepository = ItineraryRepository(SupabaseObject.client),
+    private val profileRepo: ProfileRepository = ProfileRepository(SupabaseObject.client),
 ) : ViewModel() {
+
+    data class MemberSearchUiState(
+        val friends: List<InviteMemberCandidate> = emptyList(),
+        val community: List<InviteMemberCandidate> = emptyList(),
+        val isLoading: Boolean = false,
+    )
 
     data class ItineraryUiState(
         val itineraries: List<Itinerary> = emptyList(),
@@ -52,6 +65,12 @@ class ItineraryViewModel(
 
     private val _uiState = MutableStateFlow(ItineraryUiState())
     val uiState: StateFlow<ItineraryUiState> = _uiState.asStateFlow()
+
+    private val _memberSearchState = MutableStateFlow(MemberSearchUiState())
+    val memberSearchState: StateFlow<MemberSearchUiState> = _memberSearchState.asStateFlow()
+
+    private var mutualFriendsCache: List<FollowListUser> = emptyList()
+    private var memberSearchJob: Job? = null
 
     init {
         fetchItineraries() // overwrite with API if success
@@ -523,10 +542,49 @@ class ItineraryViewModel(
     }
 
     // ---- Các chức năng quản lý Người Tham Gia & Phân Quyền ----
-    fun addParticipant(itineraryId: String, name: String, email: String, role: ParticipantRole) {
+    fun prepareMemberSearch() {
+        viewModelScope.launch {
+            val me = SupabaseObject.client.auth.currentUserOrNull()?.id ?: return@launch
+            val following = profileRepo.getFollowing(me).getOrDefault(emptyList())
+            val followerIds = profileRepo.getFollowers(me).getOrDefault(emptyList()).map { it.id }.toSet()
+            mutualFriendsCache = following.filter { it.id in followerIds }
+        }
+    }
+
+    fun searchInviteMembers(query: String) {
+        memberSearchJob?.cancel()
+        if (query.trim().length < 2) {
+            _memberSearchState.value = MemberSearchUiState()
+            return
+        }
+        memberSearchJob = viewModelScope.launch {
+            delay(300)
+            _memberSearchState.update { it.copy(isLoading = true) }
+            val q = query.trim()
+            val friendIds = mutualFriendsCache.map { it.id }.toSet()
+            val friends = mutualFriendsCache
+                .filter { matchesUserQuery(it.name, it.username, q) }
+                .map { it.toInviteCandidate() }
+            val community = profileRepo.searchUsersForInvite(q)
+                .filter { dto -> dto.id !in friendIds }
+                .map { it.toInviteCandidate() }
+            _memberSearchState.value = MemberSearchUiState(
+                friends = friends,
+                community = community,
+                isLoading = false,
+            )
+        }
+    }
+
+    fun clearMemberSearch() {
+        memberSearchJob?.cancel()
+        _memberSearchState.value = MemberSearchUiState()
+    }
+
+    fun addParticipant(itineraryId: String, userId: String, name: String, role: ParticipantRole) {
         viewModelScope.launch {
             val roleStr = if (role == ParticipantRole.EDIT) "EDIT" else "VIEW"
-            itineraryRepo.addCollaborator(itineraryId, email, name, roleStr)
+            itineraryRepo.addCollaboratorByUserId(itineraryId, userId, name, roleStr)
                 .onSuccess {
                     fetchCollaborators(itineraryId)
                 }
@@ -779,4 +837,32 @@ class ItineraryViewModel(
                 }
         }
     }
+}
+
+private fun matchesUserQuery(name: String, username: String, query: String): Boolean {
+    return name.contains(query, ignoreCase = true) ||
+        username.contains(query, ignoreCase = true)
+}
+
+private fun FollowListUser.toInviteCandidate(): InviteMemberCandidate {
+    return InviteMemberCandidate(
+        id = id,
+        name = name,
+        username = username,
+        avatarUrl = avatarUrl,
+        avatarInitials = avatarInitials.ifBlank { name.take(1).uppercase() },
+        avatarColor = avatarColor,
+    )
+}
+
+private fun UserInviteSearchDto.toInviteCandidate(): InviteMemberCandidate {
+    val displayName = name?.takeIf { it.isNotBlank() } ?: "Người dùng"
+    return InviteMemberCandidate(
+        id = id,
+        name = displayName,
+        username = username.orEmpty(),
+        avatarUrl = avatarUrl.orEmpty(),
+        avatarInitials = displayName.take(1).uppercase(),
+        avatarColor = 0xFF64748B + (id.hashCode() and 0xFFFFFF),
+    )
 }

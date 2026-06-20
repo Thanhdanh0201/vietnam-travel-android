@@ -750,9 +750,22 @@ fun EditItineraryScreen(
 
     // Modal / Dialog Quản lý Người Tham Gia & Phân Quyền
     if (showParticipantsDialog) {
-        var newMemberName by remember { mutableStateOf("") }
-        var newMemberEmail by remember { mutableStateOf("") }
+        var memberSearchQuery by remember { mutableStateOf("") }
+        var selectedMember by remember { mutableStateOf<InviteMemberCandidate?>(null) }
         var newMemberRole by remember { mutableStateOf(ParticipantRole.VIEW_ONLY) }
+        val memberSearchState by viewModel.memberSearchState.collectAsState()
+
+        LaunchedEffect(showParticipantsDialog) {
+            if (showParticipantsDialog) {
+                viewModel.prepareMemberSearch()
+            } else {
+                viewModel.clearMemberSearch()
+            }
+        }
+
+        LaunchedEffect(memberSearchQuery) {
+            viewModel.searchInviteMembers(memberSearchQuery)
+        }
 
         AlertDialog(
             onDismissRequest = { showParticipantsDialog = false },
@@ -788,23 +801,19 @@ fun EditItineraryScreen(
                                 fontSize = 12.sp,
                                 color = SlateGray700
                             )
-                            
-                            OutlinedTextField(
-                                value = newMemberName,
-                                onValueChange = { newMemberName = it },
-                                placeholder = { Text("Tên người tham gia") },
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-                            
-                            OutlinedTextField(
-                                value = newMemberEmail,
-                                onValueChange = { newMemberEmail = it },
-                                placeholder = { Text("Email thành viên") },
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
+
+                            MemberSearchPicker(
+                                searchQuery = memberSearchQuery,
+                                onSearchQueryChange = { memberSearchQuery = it },
+                                friends = memberSearchState.friends,
+                                community = memberSearchState.community,
+                                selectedMember = selectedMember,
+                                onSelectMember = {
+                                    selectedMember = it
+                                    memberSearchQuery = ""
+                                },
+                                onClearSelection = { selectedMember = null },
+                                isLoading = memberSearchState.isLoading,
                             )
                             
                             // Phân Quyền
@@ -836,20 +845,19 @@ fun EditItineraryScreen(
                             
                             Button(
                                 onClick = {
-                                    if (newMemberName.isNotBlank() && newMemberEmail.isNotBlank()) {
-                                        itinerary?.let { it ->
-                                            viewModel.addParticipant(
-                                                itineraryId = it.id,
-                                                name = newMemberName,
-                                                email = newMemberEmail,
-                                                role = newMemberRole
-                                            )
-                                        }
-                                        newMemberName = ""
-                                        newMemberEmail = ""
+                                    val member = selectedMember ?: return@Button
+                                    itinerary?.let { it ->
+                                        viewModel.addParticipant(
+                                            itineraryId = it.id,
+                                            userId = member.id,
+                                            name = member.name,
+                                            role = newMemberRole,
+                                        )
                                     }
+                                    selectedMember = null
+                                    memberSearchQuery = ""
                                 },
-                                enabled = newMemberName.isNotBlank() && newMemberEmail.isNotBlank(),
+                                enabled = selectedMember != null,
                                 colors = ButtonDefaults.buttonColors(containerColor = VNRed),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp)

@@ -1,6 +1,7 @@
 package com.example.travel_backend.controller;
 
 import com.example.travel_backend.dto.request.UpdateProfileRequestDto;
+import com.example.travel_backend.dto.response.UserInviteSearchDto;
 import com.example.travel_backend.dto.response.UserProfileResponseDto;
 import com.example.travel_backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,15 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @GetMapping("/search")
+    public ResponseEntity<java.util.List<UserInviteSearchDto>> searchUsers(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam("q") String query,
+            @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        UUID myId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(userService.searchForInvite(myId, query, limit));
+    }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable("id") UUID userId) {

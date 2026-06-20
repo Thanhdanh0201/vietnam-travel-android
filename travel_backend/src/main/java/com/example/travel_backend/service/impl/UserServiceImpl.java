@@ -1,15 +1,18 @@
 package com.example.travel_backend.service.impl;
 
-import com.example.travel_backend.dto.request.UpdateProfileRequestDto;
+import com.example.travel_backend.dto.response.UserInviteSearchDto;
 import com.example.travel_backend.dto.response.UserProfileResponseDto;
 import com.example.travel_backend.entity.User;
 import com.example.travel_backend.repository.UserRepository;
 import com.example.travel_backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class UserServiceImpl implements UserService {
@@ -50,6 +53,28 @@ public class UserServiceImpl implements UserService {
 
         User updatedUser = userRepository.save(user);
         return convertToDto(updatedUser);
+    }
+
+    @Override
+    public List<UserInviteSearchDto> searchForInvite(UUID currentUserId, String keyword, int limit) {
+        if (keyword == null || keyword.trim().length() < 2) {
+            return List.of();
+        }
+        int size = Math.min(Math.max(limit, 1), 30);
+        return userRepository.searchForInvite(keyword.trim(), currentUserId, PageRequest.of(0, size))
+                .stream()
+                .map(this::toInviteSearchDto)
+                .collect(Collectors.toList());
+    }
+
+    private UserInviteSearchDto toInviteSearchDto(User user) {
+        UserInviteSearchDto dto = new UserInviteSearchDto();
+        dto.setId(user.getId());
+        dto.setName(user.getName());
+        dto.setUsername(formatUsernameForDisplay(user));
+        dto.setAvatarUrl(user.getAvatarUrl());
+        dto.setIsVerified(user.getIsVerified());
+        return dto;
     }
 
     private UserProfileResponseDto convertToDto(User user) {
