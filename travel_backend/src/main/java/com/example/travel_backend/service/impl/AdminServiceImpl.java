@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -31,8 +32,6 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired private ReportRepository reportRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired private CommentRepository commentRepository;
-    @Autowired private CommentReactionRepository commentReactionRepository;
     @Autowired private PlaceSuggestionRepository placeSuggestionRepository;
     @Autowired private PlaceRepository placeRepository;
     @Autowired private NotificationTriggerService notificationTriggerService;
@@ -67,11 +66,15 @@ public class AdminServiceImpl implements AdminService {
         if (report.getReportedPost() == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Report has no associated post");
         UUID postId = report.getReportedPost().getId();
+        List<Report> relatedReports = reportRepository.findByReportedPost_Id(postId);
         postService.forceDeletePost(postId);
-        report.setReportedPost(null);
-        report.setStatus("resolved");
-        report.setReviewedAt(OffsetDateTime.now());
-        reportRepository.save(report);
+        OffsetDateTime now = OffsetDateTime.now();
+        for (Report r : relatedReports) {
+            r.setReportedPost(null);
+            r.setStatus("resolved");
+            r.setReviewedAt(now);
+        }
+        reportRepository.saveAll(relatedReports);
     }
 
     @Override
@@ -81,21 +84,16 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
         if (report.getReportedComment() == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Report has no associated comment");
-        forceDeleteCommentTree(report.getReportedComment().getId());
-        report.setReportedComment(null);
-        report.setStatus("resolved");
-        report.setReviewedAt(OffsetDateTime.now());
-        reportRepository.save(report);
-    }
-
-    private void forceDeleteCommentTree(UUID commentId) {
-        List<com.example.travel_backend.entity.Comment> replies =
-                commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
-        for (com.example.travel_backend.entity.Comment reply : replies) {
-            forceDeleteCommentTree(reply.getId());
+        UUID commentId = report.getReportedComment().getId();
+        List<Report> relatedReports = reportRepository.findByReportedComment_Id(commentId);
+        postService.forceDeleteCommentTree(commentId);
+        OffsetDateTime now = OffsetDateTime.now();
+        for (Report r : relatedReports) {
+            r.setReportedComment(null);
+            r.setStatus("resolved");
+            r.setReviewedAt(now);
         }
-        commentReactionRepository.deleteByComment_Id(commentId);
-        commentRepository.deleteById(commentId);
+        reportRepository.saveAll(relatedReports);
     }
 
     // ─── Users ────────────────────────────────────────────────────────────────

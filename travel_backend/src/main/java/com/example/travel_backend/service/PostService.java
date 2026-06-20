@@ -14,6 +14,7 @@ public interface PostService {
     PostResponseDto getPostById(UUID postId);
     void deletePost(UUID userId, UUID postId);
     void forceDeletePost(UUID postId);
+    void forceDeleteCommentTree(UUID commentId);
 
     void savePost(UUID userId, UUID postId);
     void unsavePost(UUID userId, UUID postId);

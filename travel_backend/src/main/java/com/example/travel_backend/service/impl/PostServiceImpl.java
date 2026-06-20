@@ -75,6 +75,12 @@ public class PostServiceImpl implements PostService {
     @Autowired
     private NotificationRepository notificationRepository;
 
+    @Autowired
+    private PostHashtagRepository postHashtagRepository;
+
+    @Autowired
+    private ReportRepository reportRepository;
+
     private static final Pattern MENTION_PATTERN = Pattern.compile("@([a-zA-Z0-9_.]+)");
 
 
@@ -261,12 +267,20 @@ public class PostServiceImpl implements PostService {
         }
 
         // Xóa comments (reply trước, tránh lỗi FK parent_comment_id)
-        List<com.example.travel_backend.entity.Comment> topLevelComments = commentRepository.findByPost_Id(postId).stream()
+        List<com.example.travel_backend.entity.Comment> allComments = commentRepository.findByPost_Id(postId);
+        for (com.example.travel_backend.entity.Comment comment : allComments) {
+            reportRepository.clearReportedCommentReferences(comment.getId());
+        }
+        reportRepository.clearReportedPostReferences(postId);
+
+        List<com.example.travel_backend.entity.Comment> topLevelComments = allComments.stream()
                 .filter(c -> c.getParentComment() == null)
                 .toList();
         for (com.example.travel_backend.entity.Comment comment : topLevelComments) {
             forceDeleteCommentTree(comment.getId());
         }
+
+        postHashtagRepository.deleteByPost_Id(postId);
 
         repostRepository.deleteByPost_Id(postId);
         postReactionRepository.deleteByPost_Id(postId);
@@ -285,12 +299,16 @@ public class PostServiceImpl implements PostService {
         });
     }
 
-    private void forceDeleteCommentTree(UUID commentId) {
+    @Override
+    public void forceDeleteCommentTree(UUID commentId) {
         List<com.example.travel_backend.entity.Comment> replies =
                 commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
         for (com.example.travel_backend.entity.Comment reply : replies) {
             forceDeleteCommentTree(reply.getId());
         }
+        reportRepository.clearReportedCommentReferences(commentId);
+        notificationRepository.deleteByComment_Id(commentId);
+        mentionRepository.deleteByComment_Id(commentId);
         commentReactionRepository.deleteByComment_Id(commentId);
         commentRepository.deleteById(commentId);
     }

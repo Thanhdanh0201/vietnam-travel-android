@@ -30,4 +30,6 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     void markAsRead(@Param("notifId") UUID notifId, @Param("userId") UUID userId);
 
     void deleteByPost_Id(UUID postId);
+
+    void deleteByComment_Id(UUID commentId);
 }
