@@ -25,7 +25,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/sync", "/health").permitAll()
+                        .requestMatchers("/api/auth/sync", "/health", "/health/db").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/provinces/**").permitAll()
                         .requestMatchers(new RegexRequestMatcher("^/api/places$", "GET")).permitAll()

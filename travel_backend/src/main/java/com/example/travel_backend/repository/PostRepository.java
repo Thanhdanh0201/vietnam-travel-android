@@ -16,17 +16,21 @@ import java.util.UUID;
 @Repository
 public interface PostRepository extends JpaRepository<Post, UUID> {
     @EntityGraph(attributePaths = {"user"})
-    Page<Post> findByUser_IdAndIsDeletedFalseOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND (p.isDeleted = false OR p.isDeleted IS NULL) ORDER BY p.createdAt DESC")
+    Page<Post> findByUser_IdAndIsDeletedFalseOrderByCreatedAtDesc(@Param("userId") UUID userId, Pageable pageable);
 
-    Page<Post> findByVisibilityAndIsDeletedFalseOrderByCreatedAtDesc(String visibility, Pageable pageable);
+    @Query("SELECT p FROM Post p WHERE p.visibility = :visibility AND (p.isDeleted = false OR p.isDeleted IS NULL) ORDER BY p.createdAt DESC")
+    Page<Post> findByVisibilityAndIsDeletedFalseOrderByCreatedAtDesc(@Param("visibility") String visibility, Pageable pageable);
 
-    @Query("SELECT p FROM Post p WHERE p.isDeleted = false AND p.user.id IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) ORDER BY p.createdAt DESC")
+    @Query("SELECT p FROM Post p WHERE (p.isDeleted = false OR p.isDeleted IS NULL) AND p.user.id IN (SELECT f.following.id FROM Follow f WHERE f.follower.id = :userId) ORDER BY p.createdAt DESC")
     Page<Post> findFollowingPosts(@Param("userId") UUID userId, Pageable pageable);
 
-    List<Post> findByOriginalPost_IdAndIsDeletedFalse(UUID originalPostId);
+    @Query("SELECT p FROM Post p WHERE p.originalPost.id = :originalPostId AND (p.isDeleted = false OR p.isDeleted IS NULL)")
+    List<Post> findByOriginalPost_IdAndIsDeletedFalse(@Param("originalPostId") UUID originalPostId);
 
-    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.originalPost.id = :originalPostId AND p.isDeleted = false")
+    @Query("SELECT p FROM Post p WHERE p.user.id = :userId AND p.originalPost.id = :originalPostId AND (p.isDeleted = false OR p.isDeleted IS NULL)")
     Optional<Post> findActiveRepostPost(@Param("userId") UUID userId, @Param("originalPostId") UUID originalPostId);
 
-    Optional<Post> findByIdAndIsDeletedFalse(UUID id);
+    @Query("SELECT p FROM Post p WHERE p.id = :id AND (p.isDeleted = false OR p.isDeleted IS NULL)")
+    Optional<Post> findByIdAndIsDeletedFalse(@Param("id") UUID id);
 }

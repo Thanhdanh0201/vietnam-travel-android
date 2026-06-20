@@ -8,19 +8,21 @@ import com.example.travel_backend.dto.response.AdminUserListItemDto;
 import com.example.travel_backend.dto.response.PlaceSuggestionResponseDto;
 import com.example.travel_backend.entity.Place;
 import com.example.travel_backend.entity.PlaceSuggestion;
+import com.example.travel_backend.entity.Post;
+import com.example.travel_backend.entity.Comment;
 import com.example.travel_backend.entity.Report;
 import com.example.travel_backend.entity.User;
 import com.example.travel_backend.repository.*;
 import com.example.travel_backend.service.AdminService;
 import com.example.travel_backend.service.NotificationTriggerService;
 import com.example.travel_backend.service.PostService;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -88,7 +90,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void deleteReportedPost(UUID reportId) {
-        Report report = reportRepository.findById(reportId)
+        Report report = reportRepository.findByIdWithReportedPost(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
         if (report.getReportedPost() == null) {
             report.setStatus("resolved");
@@ -96,27 +98,24 @@ public class AdminServiceImpl implements AdminService {
             reportRepository.save(report);
             return;
         }
-        if (Boolean.TRUE.equals(report.getReportedPost().getIsDeleted())) {
+        Post reportedPost = report.getReportedPost();
+        if (Boolean.TRUE.equals(reportedPost.getIsDeleted())) {
             report.setStatus("resolved");
             report.setReviewedAt(OffsetDateTime.now());
             reportRepository.save(report);
             return;
         }
-        UUID postId = report.getReportedPost().getId();
-        List<Report> relatedReports = reportRepository.findByReportedPost_Id(postId);
+        UUID postId = reportedPost.getId();
+        System.out.println("Admin deleteReportedPost reportId=" + reportId + " postId=" + postId);
         postService.forceDeletePost(postId);
         OffsetDateTime now = OffsetDateTime.now();
-        for (Report r : relatedReports) {
-            r.setStatus("resolved");
-            r.setReviewedAt(now);
-        }
-        reportRepository.saveAll(relatedReports);
+        reportRepository.resolveAllForPost(postId, "resolved", now);
     }
 
     @Override
     @Transactional
     public void deleteReportedComment(UUID reportId) {
-        Report report = reportRepository.findById(reportId)
+        Report report = reportRepository.findByIdWithReportedComment(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
         if (report.getReportedComment() == null) {
             report.setStatus("resolved");
@@ -124,21 +123,18 @@ public class AdminServiceImpl implements AdminService {
             reportRepository.save(report);
             return;
         }
-        if (Boolean.TRUE.equals(report.getReportedComment().getIsDeleted())) {
+        Comment reportedComment = report.getReportedComment();
+        if (Boolean.TRUE.equals(reportedComment.getIsDeleted())) {
             report.setStatus("resolved");
             report.setReviewedAt(OffsetDateTime.now());
             reportRepository.save(report);
             return;
         }
-        UUID commentId = report.getReportedComment().getId();
-        List<Report> relatedReports = reportRepository.findByReportedComment_Id(commentId);
+        UUID commentId = reportedComment.getId();
+        System.out.println("Admin deleteReportedComment reportId=" + reportId + " commentId=" + commentId);
         postService.forceDeleteCommentTree(commentId);
         OffsetDateTime now = OffsetDateTime.now();
-        for (Report r : relatedReports) {
-            r.setStatus("resolved");
-            r.setReviewedAt(now);
-        }
-        reportRepository.saveAll(relatedReports);
+        reportRepository.resolveAllForComment(commentId, "resolved", now);
     }
 
     // ─── Users ────────────────────────────────────────────────────────────────

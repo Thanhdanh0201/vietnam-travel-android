@@ -14,11 +14,23 @@ import kotlinx.coroutines.withContext
 class AdminRepository(
     private val supabase: SupabaseClient,
 ) {
+    data class AdminActionResult(
+        val success: Boolean,
+        val errorMessage: String? = null,
+    )
+
     private val api = RetrofitInstance.api
 
     private fun requireToken(): String =
         supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
             ?: throw IllegalStateException("Not authenticated")
+
+    private fun parseError(code: Int, body: String?): String = when (code) {
+        401 -> "Phiên đăng nhập hết hạn (401)."
+        403 -> "Không có quyền admin (403)."
+        404 -> "Không tìm thấy báo cáo hoặc bài viết (404)."
+        else -> body?.takeIf { it.isNotBlank() } ?: "Lỗi API ($code)."
+    }
 
     // ---- Place Suggestions ----
     suspend fun getPlaceSuggestions(status: String?, page: Int = 0, size: Int = 20): List<PlaceSuggestionResponse> =
@@ -40,46 +52,52 @@ class AdminRepository(
             api.adminGetReports(requireToken(), status, page, size).content
         }
 
-    suspend fun resolveReport(id: String, action: String, adminNote: String? = null): Boolean =
+    suspend fun resolveReport(id: String, action: String, adminNote: String? = null): AdminActionResult =
         withContext(Dispatchers.IO) {
             try {
                 val response = api.adminResolveReport(requireToken(), id, ResolveReportRequest(action, adminNote))
-                if (!response.isSuccessful) {
-                    android.util.Log.e(
-                        "AdminRepo",
-                        "resolveReport failed: ${response.code()} ${response.errorBody()?.string()}",
-                    )
+                if (response.isSuccessful) {
+                    AdminActionResult(success = true)
+                } else {
+                    val body = response.errorBody()?.string()
+                    android.util.Log.e("AdminRepo", "resolveReport failed: ${response.code()} $body")
+                    AdminActionResult(success = false, errorMessage = parseError(response.code(), body))
                 }
-                response.isSuccessful
             } catch (e: Exception) {
                 e.printStackTrace()
-                false
+                AdminActionResult(success = false, errorMessage = e.message ?: "Lỗi mạng.")
             }
         }
 
-    suspend fun deleteReportedPost(id: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun deleteReportedPost(id: String): AdminActionResult = withContext(Dispatchers.IO) {
         try {
             val response = api.adminDeleteReportedPost(requireToken(), id)
-            if (!response.isSuccessful) {
-                android.util.Log.e("AdminRepo", "deleteReportedPost failed: ${response.code()} ${response.errorBody()?.string()}")
+            if (response.isSuccessful) {
+                AdminActionResult(success = true)
+            } else {
+                val body = response.errorBody()?.string()
+                android.util.Log.e("AdminRepo", "deleteReportedPost failed: ${response.code()} $body")
+                AdminActionResult(success = false, errorMessage = parseError(response.code(), body))
             }
-            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            AdminActionResult(success = false, errorMessage = e.message ?: "Lỗi mạng.")
         }
     }
 
-    suspend fun deleteReportedComment(id: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun deleteReportedComment(id: String): AdminActionResult = withContext(Dispatchers.IO) {
         try {
             val response = api.adminDeleteReportedComment(requireToken(), id)
-            if (!response.isSuccessful) {
-                android.util.Log.e("AdminRepo", "deleteReportedComment failed: ${response.code()} ${response.errorBody()?.string()}")
+            if (response.isSuccessful) {
+                AdminActionResult(success = true)
+            } else {
+                val body = response.errorBody()?.string()
+                android.util.Log.e("AdminRepo", "deleteReportedComment failed: ${response.code()} $body")
+                AdminActionResult(success = false, errorMessage = parseError(response.code(), body))
             }
-            response.isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            AdminActionResult(success = false, errorMessage = e.message ?: "Lỗi mạng.")
         }
     }
 

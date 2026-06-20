@@ -14,10 +14,10 @@ import java.util.UUID;
 public interface SavedPostRepository extends JpaRepository<SavedPost, UUID> {
     Optional<SavedPost> findByUserIdAndPostId(UUID userId, UUID postId);
 
-    @Query("SELECT sp FROM SavedPost sp WHERE sp.user.id = :userId AND sp.post.isDeleted = false ORDER BY sp.createdAt DESC")
+    @Query("SELECT sp FROM SavedPost sp WHERE sp.user.id = :userId AND (sp.post.isDeleted = false OR sp.post.isDeleted IS NULL) ORDER BY sp.createdAt DESC")
     Page<SavedPost> findActiveByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId, Pageable pageable);
 
-    @Query("SELECT sp.post.id FROM SavedPost sp WHERE sp.user.id = :userId AND sp.post.isDeleted = false AND sp.post.id IN :postIds")
+    @Query("SELECT sp.post.id FROM SavedPost sp WHERE sp.user.id = :userId AND (sp.post.isDeleted = false OR sp.post.isDeleted IS NULL) AND sp.post.id IN :postIds")
     List<UUID> findSavedPostIdsByUser(@Param("userId") UUID userId, @Param("postIds") List<UUID> postIds);
 
     void deleteByUserIdAndPostId(UUID userId, UUID postId);

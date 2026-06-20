@@ -54,14 +54,16 @@ class AdminReportsViewModel(
         }
     }
 
-    private fun runAction(id: String, successMsg: String, block: suspend () -> Boolean) {
+    private fun runAction(id: String, successMsg: String, block: suspend () -> AdminRepository.AdminActionResult) {
         _uiState.update { it.copy(actionInProgressId = id, error = null) }
         viewModelScope.launch {
-            val ok = try { block() } catch (e: Exception) {
+            val result = try {
+                block()
+            } catch (e: Exception) {
                 e.printStackTrace()
-                false
+                AdminRepository.AdminActionResult(success = false, errorMessage = e.message)
             }
-            if (ok) {
+            if (result.success) {
                 val list = try {
                     repository.getReports(_uiState.value.status)
                 } catch (e: Exception) {
@@ -76,7 +78,12 @@ class AdminReportsViewModel(
                     )
                 }
             } else {
-                _uiState.update { it.copy(actionInProgressId = null, error = "Thao tác thất bại.") }
+                _uiState.update {
+                    it.copy(
+                        actionInProgressId = null,
+                        error = result.errorMessage ?: "Thao tác thất bại.",
+                    )
+                }
             }
         }
     }
@@ -92,7 +99,8 @@ class AdminReportsViewModel(
     fun banUser(reportId: String, userId: String, reason: String?) =
         runAction(reportId, "Đã cấm người dùng.") {
             val banned = repository.banUser(userId, reason)
-            if (banned) repository.resolveReport(reportId, "resolved") else false
+            if (banned) repository.resolveReport(reportId, "resolved")
+            else AdminRepository.AdminActionResult(success = false, errorMessage = "Không thể cấm người dùng.")
         }
 
     fun consumeMessage() {

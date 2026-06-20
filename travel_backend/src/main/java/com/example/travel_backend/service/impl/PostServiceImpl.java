@@ -12,12 +12,12 @@ import com.example.travel_backend.repository.*;
 import com.example.travel_backend.entity.Mention;
 import com.example.travel_backend.service.NotificationTriggerService;
 import com.example.travel_backend.service.PostService;
-import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
