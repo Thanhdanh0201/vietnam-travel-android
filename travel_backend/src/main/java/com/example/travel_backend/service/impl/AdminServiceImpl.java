@@ -53,9 +53,36 @@ public class AdminServiceImpl implements AdminService {
     public void resolveReport(UUID reportId, ResolveReportRequestDto request) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
-        report.setStatus(request.getAction());
-        report.setReviewedAt(OffsetDateTime.now());
-        reportRepository.save(report);
+        String action = request.getAction();
+        if (action == null || action.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Action is required");
+        }
+        OffsetDateTime now = OffsetDateTime.now();
+        List<Report> pending = findPendingReportsForSameTarget(report);
+        if (pending.isEmpty() && "pending".equals(report.getStatus())) {
+            pending = List.of(report);
+        }
+        for (Report r : pending) {
+            r.setStatus(action);
+            r.setReviewedAt(now);
+        }
+        reportRepository.saveAll(pending);
+    }
+
+    private List<Report> findPendingReportsForSameTarget(Report report) {
+        if (report.getReportedPost() != null) {
+            return reportRepository.findByReportedPost_IdAndStatus(
+                    report.getReportedPost().getId(), "pending");
+        }
+        if (report.getReportedComment() != null) {
+            return reportRepository.findByReportedComment_IdAndStatus(
+                    report.getReportedComment().getId(), "pending");
+        }
+        if (report.getReportedUser() != null) {
+            return reportRepository.findByReportedUser_IdAndStatus(
+                    report.getReportedUser().getId(), "pending");
+        }
+        return List.of(report);
     }
 
     @Override
@@ -63,8 +90,12 @@ public class AdminServiceImpl implements AdminService {
     public void deleteReportedPost(UUID reportId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
-        if (report.getReportedPost() == null)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Report has no associated post");
+        if (report.getReportedPost() == null) {
+            report.setStatus("resolved");
+            report.setReviewedAt(OffsetDateTime.now());
+            reportRepository.save(report);
+            return;
+        }
         UUID postId = report.getReportedPost().getId();
         List<Report> relatedReports = reportRepository.findByReportedPost_Id(postId);
         postService.forceDeletePost(postId);
@@ -82,8 +113,12 @@ public class AdminServiceImpl implements AdminService {
     public void deleteReportedComment(UUID reportId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
-        if (report.getReportedComment() == null)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Report has no associated comment");
+        if (report.getReportedComment() == null) {
+            report.setStatus("resolved");
+            report.setReviewedAt(OffsetDateTime.now());
+            reportRepository.save(report);
+            return;
+        }
         UUID commentId = report.getReportedComment().getId();
         List<Report> relatedReports = reportRepository.findByReportedComment_Id(commentId);
         postService.forceDeleteCommentTree(commentId);

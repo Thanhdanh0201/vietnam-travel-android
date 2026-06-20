@@ -42,7 +42,19 @@ class AdminRepository(
 
     suspend fun resolveReport(id: String, action: String, adminNote: String? = null): Boolean =
         withContext(Dispatchers.IO) {
-            api.adminResolveReport(requireToken(), id, ResolveReportRequest(action, adminNote)).isSuccessful
+            try {
+                val response = api.adminResolveReport(requireToken(), id, ResolveReportRequest(action, adminNote))
+                if (!response.isSuccessful) {
+                    android.util.Log.e(
+                        "AdminRepo",
+                        "resolveReport failed: ${response.code()} ${response.errorBody()?.string()}",
+                    )
+                }
+                response.isSuccessful
+            } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
         }
 
     suspend fun deleteReportedPost(id: String): Boolean = withContext(Dispatchers.IO) {

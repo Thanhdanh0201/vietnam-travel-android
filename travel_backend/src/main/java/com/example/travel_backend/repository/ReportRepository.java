@@ -20,6 +20,12 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
 
     List<Report> findByReportedComment_Id(UUID commentId);
 
+    List<Report> findByReportedPost_IdAndStatus(UUID postId, String status);
+
+    List<Report> findByReportedComment_IdAndStatus(UUID commentId, String status);
+
+    List<Report> findByReportedUser_IdAndStatus(UUID userId, String status);
+
     @Modifying
     @Query("UPDATE Report r SET r.reportedPost = null WHERE r.reportedPost.id = :postId")
     void clearReportedPostReferences(@Param("postId") UUID postId);

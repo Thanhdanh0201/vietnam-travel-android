@@ -57,12 +57,21 @@ class AdminReportsViewModel(
     private fun runAction(id: String, successMsg: String, block: suspend () -> Boolean) {
         _uiState.update { it.copy(actionInProgressId = id, error = null) }
         viewModelScope.launch {
-            val ok = try { block() } catch (e: Exception) { false }
+            val ok = try { block() } catch (e: Exception) {
+                e.printStackTrace()
+                false
+            }
             if (ok) {
+                val list = try {
+                    repository.getReports(_uiState.value.status)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    _uiState.value.reports.filter { r -> r.id != id }
+                }
                 _uiState.update {
                     it.copy(
                         actionInProgressId = null,
-                        reports = it.reports.filter { r -> r.id != id },
+                        reports = list,
                         message = successMsg,
                     )
                 }
