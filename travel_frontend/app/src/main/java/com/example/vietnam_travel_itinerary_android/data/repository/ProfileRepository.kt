@@ -186,17 +186,41 @@ class ProfileRepository(
 
     private suspend fun fetchProfileDto(userId: String, token: String?): UserProfileResponseDto {
         try {
-            return api.getProfile(userId, token)
+            val profile = api.getProfile(userId, token)
+            // Nếu user đã tồn tại nhưng chưa được verify trên backend, ta cần đồng bộ lại
+            if (profile.isVerified != true && token != null) {
+                val user = supabase.auth.currentUserOrNull()
+                if (user != null && user.id == userId) {
+                    val metaName = user.userMetadata?.get("full_name")?.toString()?.takeIf { it.isNotBlank() }
+                        ?: user.userMetadata?.get("name")?.toString()?.takeIf { it.isNotBlank() }
+                        ?: user.email?.substringBefore("@")
+                        ?: "Traveler"
+                    val syncRequest = UserSyncRequest(
+                        id = user.id,
+                        email = user.email ?: "",
+                        name = metaName,
+                    )
+                    val syncResponse = api.syncUser(token, syncRequest)
+                    if (syncResponse.isSuccessful) {
+                        return api.getProfile(userId, token)
+                    }
+                }
+            }
+            return profile
         } catch (e: Exception) {
             e.printStackTrace()
             if (token == null) throw e
 
             val user = supabase.auth.currentUserOrNull()
             if (user != null && user.id == userId) {
+                val metaName = user.userMetadata?.get("full_name")?.toString()?.takeIf { it.isNotBlank() }
+                    ?: user.userMetadata?.get("name")?.toString()?.takeIf { it.isNotBlank() }
+                    ?: user.email?.substringBefore("@")
+                    ?: "Traveler"
                 val syncRequest = UserSyncRequest(
                     id = user.id,
                     email = user.email ?: "",
-                    name = user.email?.substringBefore("@") ?: "Traveler",
+                    name = metaName,
                 )
                 val syncResponse = api.syncUser(token, syncRequest)
                 if (syncResponse.isSuccessful) {

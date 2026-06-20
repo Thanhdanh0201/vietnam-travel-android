@@ -82,41 +82,51 @@ class OtpViewModel(
         viewModelScope.launch {
             try {
                 // 1. Xác thực OTP với Supabase
+                println("OTP: Bắt đầu xác thực OTP cho email: ${state.email}")
                 supabase.auth.verifyEmailOtp(
                     type = if (state.verificationType == VerificationType.REGISTER) OtpType.Email.SIGNUP else OtpType.Email.RECOVERY,
                     email = state.email,
                     token = state.otpCode
                 )
+                println("OTP: Xác thực Supabase thành công!")
 
                 // Đợi một chút để Session ổn định
                 delay(500)
 
                 // 2. Đồng bộ với Spring Boot (Chỉ khi Đăng ký mới)
                 if (state.verificationType == VerificationType.REGISTER) {
-                    val user = supabase.auth.currentUserOrNull()
-                    val token = supabase.auth.currentAccessTokenOrNull()
+                    try {
+                        val user = supabase.auth.currentUserOrNull()
+                        val token = supabase.auth.currentAccessTokenOrNull()
 
-                    if (token != null && user != null) {
-                        // Tạo request với tên thật đã lưu từ bước init
-                        val syncRequest = UserSyncRequest(
-                            id = user.id, // Đảm bảo DTO bên Android dùng String/UUID khớp với Java
-                            email = user.email ?: "",
-                            name = if (savedFullName.isNotBlank()) savedFullName else "Traveler"
-                        )
+                        println("OTP: User = ${user?.id}, Token có = ${token != null}")
 
-                        // Gọi API đồng bộ
-                        val response = api.syncUser(
-                            token = "Bearer $token",
-                            request = syncRequest
-                        )
+                        if (token != null && user != null) {
+                            // Tạo request với tên thật đã lưu từ bước init
+                            val syncRequest = UserSyncRequest(
+                                id = user.id,
+                                email = user.email ?: "",
+                                name = if (savedFullName.isNotBlank()) savedFullName else "Traveler"
+                            )
 
-                        if (response.isSuccessful) {
-                            println("Sync thành công tới Backend với tên: $savedFullName")
+                            // Gọi API đồng bộ
+                            val response = api.syncUser(
+                                token = "Bearer $token",
+                                request = syncRequest
+                            )
+
+                            if (response.isSuccessful) {
+                                println("OTP: Sync thành công tới Backend với tên: $savedFullName")
+                            } else {
+                                println("OTP: Sync thất bại. Mã lỗi: ${response.code()}, Body: ${response.errorBody()?.string()}")
+                            }
                         } else {
-                            println("Sync thất bại. Mã lỗi: ${response.code()}")
+                            println("OTP: Lỗi - Không tìm thấy Session để Sync. User: ${user?.id}, Token: $token")
                         }
-                    } else {
-                        println("Lỗi: Không tìm thấy Session để Sync.")
+                    } catch (syncError: Exception) {
+                        // Lỗi sync không nên chặn flow thành công của OTP
+                        println("OTP: Lỗi khi sync với Backend (không ảnh hưởng flow): ${syncError.message}")
+                        syncError.printStackTrace()
                     }
                 }
 
@@ -128,13 +138,14 @@ class OtpViewModel(
                 }
 
             } catch (e: Exception) {
+                println("OTP Error: ${e.message}")
+                e.printStackTrace()
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         otpError = "Mã OTP không hợp lệ hoặc đã hết hạn"
                     )
                 }
-                println("OTP Error: ${e.message}")
             }
         }
     }

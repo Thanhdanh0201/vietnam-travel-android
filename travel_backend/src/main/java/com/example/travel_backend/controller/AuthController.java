@@ -30,7 +30,27 @@ public class AuthController {
     public ResponseEntity<?> syncUser(@RequestBody SyncUserRequestDto request) {
         Optional<User> existingUser = userRepository.findById(request.getId());
         if (existingUser.isPresent()) {
-            return ResponseEntity.ok(existingUser.get());
+            User user = existingUser.get();
+            
+            // Cập nhật tên từ request (ưu tiên tên thật người dùng nhập)
+            if (request.getName() != null && !request.getName().isBlank()) {
+                user.setName(request.getName());
+            }
+            
+            // Cập nhật hoặc sinh username từ email nếu chưa có
+            if (user.getUsername() == null || user.getUsername().isBlank()) {
+                if (request.getEmail() != null && request.getEmail().contains("@")) {
+                    user.setUsername(
+                        request.getEmail().substring(0, request.getEmail().indexOf("@")).toLowerCase()
+                    );
+                }
+            }
+            
+            // Luôn cập nhật is_verified thành true khi sync được gọi
+            user.setIsVerified(true);
+            
+            userRepository.save(user);
+            return ResponseEntity.ok(user);
         }
 
         User newUser = new User();

@@ -59,6 +59,9 @@ public class UserSyncFilter extends OncePerRequestFilter {
                 newUser.setId(userId);
                 newUser.setEmail(email != null ? email : "");
                 newUser.setName(name != null ? name : "Traveler");
+                if (email != null && email.contains("@")) {
+                    newUser.setUsername(email.substring(0, email.indexOf("@")).toLowerCase());
+                }
                 newUser.setCreatedAt(OffsetDateTime.now());
                 newUser.setIsVerified(true);
                 newUser.setExplorerLevel("newbie");

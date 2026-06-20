@@ -11,6 +11,9 @@ import kotlinx.coroutines.launch
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
 class RegisterViewModel(
     private val supabase: SupabaseClient,
     private val api: VietnamTravelApi
@@ -103,9 +106,14 @@ class RegisterViewModel(
         viewModelScope.launch {
             try {
                 // Step 1: Sign up with Supabase (This sends the 6-digit OTP to Gmail)
+                val fullName = "${state.firstName} ${state.lastName}".trim()
                 supabase.auth.signUpWith(Email) {
                     email = state.email
                     password = state.password
+                    data = buildJsonObject {
+                        put("name", fullName)
+                        put("full_name", fullName)
+                    }
                 }
 
                 // Step 2: Since Confirm Email is ON, we don't have a token yet.
