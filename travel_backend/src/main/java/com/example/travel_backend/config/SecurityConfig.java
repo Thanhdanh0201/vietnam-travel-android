@@ -33,7 +33,7 @@ public class SecurityConfig {
                         .requestMatchers(new RegexRequestMatcher("^/api/events$", "GET")).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/weather/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/users/{id}").permitAll()
+                        .requestMatchers(new RegexRequestMatcher("^/api/users/[0-9a-fA-F\\-]{36}$", "GET")).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/public").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/user/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/posts/*").permitAll()

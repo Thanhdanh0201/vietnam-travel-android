@@ -20,7 +20,7 @@ public class UserController {
     @Autowired
     private UserService userService;
 
-    @GetMapping("/search")
+    @GetMapping("/invite-search")
     public ResponseEntity<java.util.List<UserInviteSearchDto>> searchUsers(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam("q") String query,
@@ -29,8 +29,8 @@ public class UserController {
         return ResponseEntity.ok(userService.searchForInvite(myId, query, limit));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable("id") UUID userId) {
+    @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
+    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable UUID userId) {
         return ResponseEntity.ok(userService.getUserProfile(userId));
     }
 

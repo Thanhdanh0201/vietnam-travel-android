@@ -28,6 +28,7 @@ import com.example.vietnam_travel_itinerary_android.R
 @Composable
 fun ItineraryScreen(
     viewModel: ItineraryViewModel = viewModel(),
+    unreadCount: Int = 0,
     onSearchClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
     onCreateClick: () -> Unit = {},
@@ -63,6 +64,7 @@ fun ItineraryScreen(
                 AppTopBar(
                     onSearchClick = onSearchClick,
                     onNotificationClick = onNotificationClick,
+                    unreadCount = unreadCount,
                     onMenuClick = onMenuClick,
                 )
                 HorizontalDivider(color = Color(0xFFF1F5F9))

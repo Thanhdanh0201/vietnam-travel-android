@@ -274,7 +274,10 @@ fun MainScreen(
             composable("itinerary") {
                 ItineraryScreen(
                     viewModel = itineraryViewModel,
+                    unreadCount = unreadCount,
                     onMenuClick = openDrawer,
+                    onSearchClick = { bottomNavController.navigate("search") },
+                    onNotificationClick = { bottomNavController.navigate("notifications") },
                     onCreateClick = { bottomNavController.navigate("create_itinerary") },
                     onEditClick = { itineraryId -> bottomNavController.navigate("edit_itinerary/$itineraryId") },
                     onShareClick = { itineraryId ->
