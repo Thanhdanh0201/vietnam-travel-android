@@ -221,6 +221,8 @@ private fun ProfileContent(
                     onAvatarClick = if (profile.isOwnProfile) {
                         { onNavigate("edit_profile") }
                     } else null,
+                    onFollowersClick = { onNavigate("follow_list/${profile.id}/followers") },
+                    onFollowingClick = { onNavigate("follow_list/${profile.id}/following") },
                 )
             }
 
@@ -381,6 +383,8 @@ private fun ProfileHeroSection(
     isFollowLoading: Boolean,
     onActionClick: () -> Unit,
     onAvatarClick: (() -> Unit)? = null,
+    onFollowersClick: () -> Unit = {},
+    onFollowingClick: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -481,8 +485,16 @@ private fun ProfileHeroSection(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             StatItem(value = profile.postCount, label = "BÀI VIẾT")
-            StatItem(value = profile.followerCount, label = "NGƯỜI THEO DÕI")
-            StatItem(value = profile.followingCount, label = "ĐANG THEO DÕI")
+            StatItem(
+                value = profile.followerCount,
+                label = "NGƯỜI THEO DÕI",
+                onClick = onFollowersClick,
+            )
+            StatItem(
+                value = profile.followingCount,
+                label = "ĐANG THEO DÕI",
+                onClick = onFollowingClick,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -526,8 +538,19 @@ private fun ProfileHeroSection(
 }
 
 @Composable
-private fun StatItem(value: Int, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatItem(
+    value: Int,
+    label: String,
+    onClick: (() -> Unit)? = null,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = if (onClick != null) {
+            Modifier.clickable(onClick = onClick)
+        } else {
+            Modifier
+        },
+    ) {
         Text(
             text = formatCount(value),
             fontWeight = FontWeight.ExtraBold,

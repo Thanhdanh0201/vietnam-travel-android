@@ -190,6 +190,16 @@ interface VietnamTravelApi {
         @Path("userId") userId: String
     ): Boolean
 
+    @GET("api/follows/{userId}/followers")
+    suspend fun getFollowers(
+        @Path("userId") userId: String
+    ): List<FollowerResponseDto>
+
+    @GET("api/follows/{userId}/following")
+    suspend fun getFollowing(
+        @Path("userId") userId: String
+    ): List<FollowingResponseDto>
+
     // ---- Posts ----
     @GET("api/posts/public")
     suspend fun getPublicFeed(

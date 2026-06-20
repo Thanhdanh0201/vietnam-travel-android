@@ -174,3 +174,15 @@ data class UpdateProfileRequest(
     val coverUrl: String? = null,
     val isPrivate: Boolean? = null
 )
+
+data class FollowerResponseDto(
+    val followerId: String,
+    val createdAt: String? = null,
+    val follower: UserCompactDto? = null,
+)
+
+data class FollowingResponseDto(
+    val followingId: String,
+    val createdAt: String? = null,
+    val following: UserCompactDto? = null,
+)

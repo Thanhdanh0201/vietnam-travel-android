@@ -122,6 +122,47 @@ class ProfileRepository(
         }
     }
 
+    suspend fun getFollowers(userId: String): Result<List<FollowListUser>> = withContext(Dispatchers.IO) {
+        try {
+            val users = api.getFollowers(userId).mapNotNull { item ->
+                item.follower?.toFollowListUser() ?: item.followerId.takeIf { it.isNotBlank() }?.let { id ->
+                    FollowListUser(id = id, name = "Người dùng")
+                }
+            }
+            Result.success(users)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getFollowing(userId: String): Result<List<FollowListUser>> = withContext(Dispatchers.IO) {
+        try {
+            val users = api.getFollowing(userId).mapNotNull { item ->
+                item.following?.toFollowListUser() ?: item.followingId.takeIf { it.isNotBlank() }?.let { id ->
+                    FollowListUser(id = id, name = "Người dùng")
+                }
+            }
+            Result.success(users)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    private fun com.example.vietnam_travel_itinerary_android.data.dto.UserCompactDto.toFollowListUser(): FollowListUser {
+        val displayName = name?.takeIf { it.isNotBlank() } ?: "Người dùng"
+        return FollowListUser(
+            id = id,
+            name = displayName,
+            avatarUrl = avatarUrl ?: "",
+            avatarInitials = getInitials(displayName),
+            avatarColor = getAvatarColor(displayName),
+            isVerified = isVerified ?: false,
+            explorerLevel = ExplorerLevel.from(explorerLevel ?: "newbie"),
+        )
+    }
+
     suspend fun updateProfile(
         name: String? = null,
         username: String? = null,

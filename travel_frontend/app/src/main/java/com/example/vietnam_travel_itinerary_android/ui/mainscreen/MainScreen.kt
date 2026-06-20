@@ -37,8 +37,11 @@ import com.example.vietnam_travel_itinerary_android.ui.itinerary.EditItinerarySc
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryScreen
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.ItineraryViewModel
 import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileScreen
+import com.example.vietnam_travel_itinerary_android.ui.profile.FollowListScreen
+import com.example.vietnam_travel_itinerary_android.ui.profile.FollowListViewModel
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileScreen
 import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
+import com.example.vietnam_travel_itinerary_android.data.model.FollowListType
 import com.example.vietnam_travel_itinerary_android.ui.suggestion.MyPlaceSuggestionsScreen
 import com.example.vietnam_travel_itinerary_android.ui.suggestion.SubmitPlaceSuggestionScreen
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationScreen
@@ -344,6 +347,9 @@ fun MainScreen(
                             route.startsWith("profile/") -> {
                                 navigateToProfile(route.removePrefix("profile/"))
                             }
+                            route.startsWith("follow_list/") -> {
+                                bottomNavController.navigate(route)
+                            }
                             route in mainTabRoutes -> {
                                 navigateToMainTab(route)
                             }
@@ -417,6 +423,7 @@ fun MainScreen(
                                 navigateToMainTab("community")
                             }
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route.startsWith("follow_list/") -> bottomNavController.navigate(route)
                             route == "community" -> {
                                 bottomNavController.navigate("community") {
                                     popUpTo("community?shareItineraryId={shareItineraryId}") {
@@ -431,6 +438,47 @@ fun MainScreen(
                 )
             }
 
+
+            composable(
+                route = "follow_list/{userId}/{listType}",
+                arguments = listOf(
+                    androidx.navigation.navArgument("userId") {
+                        type = androidx.navigation.NavType.StringType
+                    },
+                    androidx.navigation.navArgument("listType") {
+                        type = androidx.navigation.NavType.StringType
+                    },
+                ),
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+                val listType = when (backStackEntry.arguments?.getString("listType")) {
+                    "following" -> FollowListType.FOLLOWING
+                    else -> FollowListType.FOLLOWERS
+                }
+                val followListViewModel: FollowListViewModel = viewModel(factory = AppViewModelProvider.Factory)
+                val followListState by followListViewModel.uiState.collectAsState()
+
+                LaunchedEffect(userId, listType) {
+                    followListViewModel.load(userId, listType)
+                }
+
+                FollowListScreen(
+                    listType = listType,
+                    uiState = followListState,
+                    currentUserId = followListViewModel.currentUserId,
+                    onBack = { bottomNavController.popBackStack() },
+                    onUserClick = { targetUserId ->
+                        if (targetUserId == followListViewModel.currentUserId) {
+                            bottomNavController.navigate("profile") {
+                                launchSingleTop = true
+                            }
+                        } else {
+                            navigateToProfile(targetUserId)
+                        }
+                    },
+                    onRetry = { followListViewModel.load(userId, listType) },
+                )
+            }
 
             composable("my_place_suggestions") {
                 MyPlaceSuggestionsScreen(

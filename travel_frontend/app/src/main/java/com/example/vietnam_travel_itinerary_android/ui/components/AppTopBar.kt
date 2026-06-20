@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 
 // ============================================================
@@ -109,6 +110,7 @@ fun AppTopBar(
 @Composable
 fun AppBackTopBar(
     onBackClick: () -> Unit,
+    title: String? = null,
     onSearchClick: () -> Unit = {},
     onNotificationClick: () -> Unit = {},
     unreadCount: Int = 0,
@@ -140,7 +142,17 @@ fun AppBackTopBar(
                             tint = VNRed,
                         )
                     }
-                    AppTopBarLogo()
+                    if (title != null) {
+                        Text(
+                            text = title,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = SlateGray900,
+                            maxLines = 1,
+                        )
+                    } else {
+                        AppTopBarLogo()
+                    }
                 }
 
                 when {

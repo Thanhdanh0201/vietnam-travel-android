@@ -16,8 +16,9 @@ import com.example.vietnam_travel_itinerary_android.data.repository.AdminReposit
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceSuggestionRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.SearchRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.EventRepository
-import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.profile.EditProfileViewModel
+import com.example.vietnam_travel_itinerary_android.ui.profile.FollowListViewModel
+import com.example.vietnam_travel_itinerary_android.ui.profile.ProfileViewModel
 import com.example.vietnam_travel_itinerary_android.ui.notification.NotificationViewModel
 import com.example.vietnam_travel_itinerary_android.ui.search.SearchViewModel
 import com.example.vietnam_travel_itinerary_android.ui.places.AllPlacesViewModel
@@ -77,6 +78,13 @@ object AppViewModelProvider {
 
         initializer {
             ProfileViewModel(
+                repository = ProfileRepository(SupabaseObject.client),
+                supabase = SupabaseObject.client,
+            )
+        }
+
+        initializer {
+            FollowListViewModel(
                 repository = ProfileRepository(SupabaseObject.client),
                 supabase = SupabaseObject.client,
             )
