@@ -13,6 +13,7 @@ public interface PostService {
     public PostResponseDto createPost(UUID userId, CreatePostRequestDto request);
     PostResponseDto getPostById(UUID postId);
     void deletePost(UUID userId, UUID postId);
+    void forceDeletePost(UUID postId);
 
     void savePost(UUID userId, UUID postId);
     void unsavePost(UUID userId, UUID postId);

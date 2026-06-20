@@ -74,6 +74,7 @@ data class LinkedItinerary(
     val location: String = "",              // Địa điểm chính (tỉnh/thành)
     val durationDays: Int = 0,             // Số ngày
     val isPublic: Boolean = true,          // Có công khai không
+    val startDate: String? = null,         // yyyy-MM-dd — dùng để sắp xếp
     val likeCount: Int = 0,
     val coverImageKey: String = "",        // key ảnh bìa (dùng với ImagePlaceholderBox)
     val authorName: String = "",

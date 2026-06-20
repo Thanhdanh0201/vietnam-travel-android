@@ -13,6 +13,7 @@ import com.example.travel_backend.entity.User;
 import com.example.travel_backend.repository.*;
 import com.example.travel_backend.service.AdminService;
 import com.example.travel_backend.service.NotificationTriggerService;
+import com.example.travel_backend.service.PostService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -30,11 +31,12 @@ public class AdminServiceImpl implements AdminService {
 
     @Autowired private ReportRepository reportRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired private PostRepository postRepository;
     @Autowired private CommentRepository commentRepository;
+    @Autowired private CommentReactionRepository commentReactionRepository;
     @Autowired private PlaceSuggestionRepository placeSuggestionRepository;
     @Autowired private PlaceRepository placeRepository;
     @Autowired private NotificationTriggerService notificationTriggerService;
+    @Autowired private PostService postService;
 
     // ─── Reports ──────────────────────────────────────────────────────────────
 
@@ -64,7 +66,9 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
         if (report.getReportedPost() == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Report has no associated post");
-        postRepository.delete(report.getReportedPost());
+        UUID postId = report.getReportedPost().getId();
+        postService.forceDeletePost(postId);
+        report.setReportedPost(null);
         report.setStatus("resolved");
         report.setReviewedAt(OffsetDateTime.now());
         reportRepository.save(report);
@@ -77,10 +81,21 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Report not found"));
         if (report.getReportedComment() == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Report has no associated comment");
-        commentRepository.delete(report.getReportedComment());
+        forceDeleteCommentTree(report.getReportedComment().getId());
+        report.setReportedComment(null);
         report.setStatus("resolved");
         report.setReviewedAt(OffsetDateTime.now());
         reportRepository.save(report);
+    }
+
+    private void forceDeleteCommentTree(UUID commentId) {
+        List<com.example.travel_backend.entity.Comment> replies =
+                commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
+        for (com.example.travel_backend.entity.Comment reply : replies) {
+            forceDeleteCommentTree(reply.getId());
+        }
+        commentReactionRepository.deleteByComment_Id(commentId);
+        commentRepository.deleteById(commentId);
     }
 
     // ─── Users ────────────────────────────────────────────────────────────────

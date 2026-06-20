@@ -46,11 +46,29 @@ class AdminRepository(
         }
 
     suspend fun deleteReportedPost(id: String): Boolean = withContext(Dispatchers.IO) {
-        api.adminDeleteReportedPost(requireToken(), id).isSuccessful
+        try {
+            val response = api.adminDeleteReportedPost(requireToken(), id)
+            if (!response.isSuccessful) {
+                android.util.Log.e("AdminRepo", "deleteReportedPost failed: ${response.code()} ${response.errorBody()?.string()}")
+            }
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
     suspend fun deleteReportedComment(id: String): Boolean = withContext(Dispatchers.IO) {
-        api.adminDeleteReportedComment(requireToken(), id).isSuccessful
+        try {
+            val response = api.adminDeleteReportedComment(requireToken(), id)
+            if (!response.isSuccessful) {
+                android.util.Log.e("AdminRepo", "deleteReportedComment failed: ${response.code()} ${response.errorBody()?.string()}")
+            }
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 
     // ---- Users ----

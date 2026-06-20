@@ -168,6 +168,7 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             authorAvatarInitials = getInitials(authorNameVal),
             authorAvatarColor = getAvatarColor(authorNameVal),
             timeAgo = formatTimeAgo(createdAt),
+            createdAt = createdAt ?: "",
             content = content ?: "",
             imageUrl = imageUrl ?: "",
             reactionCount = likeCount ?: 0,

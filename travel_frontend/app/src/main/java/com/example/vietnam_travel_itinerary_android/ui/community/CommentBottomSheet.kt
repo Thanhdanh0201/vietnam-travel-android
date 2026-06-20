@@ -57,6 +57,7 @@ fun PostDetailScreen(
     viewModel: CommunityViewModel,
     onBack: () -> Unit = {},
     onItineraryClick: (String) -> Unit = {},
+    onAuthorClick: (String) -> Unit = {},
     highlightCommentId: String? = null,
 ) {
     val allComments by viewModel.comments.collectAsState()
@@ -76,9 +77,19 @@ fun PostDetailScreen(
     var commentToReport by remember { mutableStateOf<Comment?>(null) }
     val reportContext = LocalContext.current
     var quoteText by remember { mutableStateOf("") }
-    
+    var commentSortMode by remember { mutableStateOf(CommentSortMode.TOP) }
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+
+    val displayedComments = remember(allComments, commentSortMode) {
+        sortComments(allComments, commentSortMode)
+    }
+
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
+
+    fun openAuthorProfile(userId: String) {
+        if (userId.isNotBlank()) onAuthorClick(userId)
+    }
 
     val commentPhotoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -90,9 +101,9 @@ fun PostDetailScreen(
         viewModel.loadUserProfile()
     }
 
-    LaunchedEffect(highlightCommentId, allComments) {
+    LaunchedEffect(highlightCommentId, displayedComments) {
         val targetId = highlightCommentId ?: return@LaunchedEffect
-        val commentIndex = allComments.indexOfFirst { comment ->
+        val commentIndex = displayedComments.indexOfFirst { comment ->
             comment.id == targetId || comment.replies.any { it.id == targetId }
         }
         if (commentIndex >= 0) {
@@ -212,20 +223,27 @@ fun PostDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AuthorAvatar(
-                            initials = post.authorAvatarInitials,
-                            color = Color(post.authorAvatarColor),
-                            avatarUrl = post.authorAvatarUrl,
+                            initials = currentPost.authorAvatarInitials,
+                            color = Color(currentPost.authorAvatarColor),
+                            avatarUrl = currentPost.authorAvatarUrl,
                             size = 42,
+                            modifier = Modifier.clickable {
+                                openAuthorProfile(currentPost.userId)
+                            },
                         )
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { openAuthorProfile(currentPost.userId) },
+                        ) {
                             Text(
-                                post.authorName,
+                                currentPost.authorName,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 color = SlateGray900
                             )
                             Text(
-                                post.timeAgo,
+                                currentPost.timeAgo,
                                 fontSize = 11.sp,
                                 color = SlateGray400
                             )
@@ -339,43 +357,77 @@ fun PostDetailScreen(
             // 2. COMMENT SORT BAR (Threads-style)
             // ──────────────────────────────────────────────
             item {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
                         .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable {}
+                        modifier = Modifier.clickable { sortMenuExpanded = true },
                     ) {
                         Text(
-                            "Hàng đầu",
+                            text = when (commentSortMode) {
+                                CommentSortMode.TOP -> "Hàng đầu"
+                                CommentSortMode.NEWEST -> "Mới nhất"
+                            },
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = SlateGray700
+                            color = SlateGray700,
                         )
                         Icon(
-                            Icons.Outlined.KeyboardArrowDown, null,
-                            tint = SlateGray500, modifier = Modifier.size(16.dp)
+                            Icons.Outlined.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = SlateGray500,
+                            modifier = Modifier.size(16.dp),
                         )
                     }
-                    Text(
-                        "Xem hoạt động >",
-                        fontSize = 12.sp,
-                        color = SlateGray400,
-                        modifier = Modifier.clickable {}
-                    )
+                    DropdownMenu(
+                        expanded = sortMenuExpanded,
+                        onDismissRequest = { sortMenuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "Hàng đầu",
+                                    fontWeight = if (commentSortMode == CommentSortMode.TOP) {
+                                        FontWeight.Bold
+                                    } else {
+                                        FontWeight.Normal
+                                    },
+                                )
+                            },
+                            onClick = {
+                                commentSortMode = CommentSortMode.TOP
+                                sortMenuExpanded = false
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "Mới nhất",
+                                    fontWeight = if (commentSortMode == CommentSortMode.NEWEST) {
+                                        FontWeight.Bold
+                                    } else {
+                                        FontWeight.Normal
+                                    },
+                                )
+                            },
+                            onClick = {
+                                commentSortMode = CommentSortMode.NEWEST
+                                sortMenuExpanded = false
+                            },
+                        )
+                    }
                 }
             }
 
             // ──────────────────────────────────────────────
             // 3. COMMENTS LIST — inline, no modal
             // ──────────────────────────────────────────────
-            if (allComments.isEmpty()) {
+            if (displayedComments.isEmpty()) {
                 item {
                     Box(
                         modifier = Modifier
@@ -396,7 +448,7 @@ fun PostDetailScreen(
                     }
                 }
             } else {
-                items(allComments, key = { it.id }) { comment ->
+                items(displayedComments, key = { it.id }) { comment ->
                     ThreadCommentItem(
                         comment = comment,
                         isHighlighted = comment.id == highlightCommentId,
@@ -405,6 +457,7 @@ fun PostDetailScreen(
                             if (comment.isLiked) viewModel.unlikeComment(comment.id)
                             else viewModel.likeComment(comment.id)
                         },
+                        onAuthorClick = { openAuthorProfile(comment.userId) },
                         onReport = if (comment.userId != viewModel.currentUserId) {
                             { commentToReport = comment }
                         } else null,
@@ -420,6 +473,7 @@ fun PostDetailScreen(
                                 if (reply.isLiked) viewModel.unlikeComment(reply.id)
                                 else viewModel.likeComment(reply.id)
                             },
+                            onAuthorClick = { openAuthorProfile(reply.userId) },
                             onReport = if (reply.userId != viewModel.currentUserId) {
                                 { commentToReport = reply }
                             } else null,
@@ -657,6 +711,7 @@ fun ThreadCommentItem(
     isHighlighted: Boolean = false,
     onReply: () -> Unit,
     onLike: () -> Unit,
+    onAuthorClick: () -> Unit = {},
     onReport: (() -> Unit)? = null,
 ) {
     var liked by remember(comment.id) { mutableStateOf(comment.isLiked) }
@@ -687,6 +742,10 @@ fun ThreadCommentItem(
                     color = Color(comment.authorAvatarColor),
                     avatarUrl = comment.authorAvatarUrl,
                     size = if (isReply) 28 else 34,
+                    modifier = Modifier.clickable(
+                        enabled = comment.userId.isNotBlank(),
+                        onClick = onAuthorClick,
+                    ),
                 )
                 // Vertical thread line (only if has replies)
                 if (!isReply && comment.replies.isNotEmpty()) {
@@ -711,7 +770,11 @@ fun ThreadCommentItem(
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable(
+                            enabled = comment.userId.isNotBlank(),
+                            onClick = onAuthorClick,
+                        ),
                     ) {
                         Text(
                             comment.authorName,
@@ -844,5 +907,46 @@ private fun ActionButton(
     ) {
         Icon(icon, label, tint = tint, modifier = Modifier.size(18.dp))
         Text(label, fontSize = 12.sp, color = tint, fontWeight = FontWeight.Medium)
+    }
+}
+
+private enum class CommentSortMode {
+    TOP,
+    NEWEST,
+}
+
+private fun sortComments(comments: List<Comment>, mode: CommentSortMode): List<Comment> {
+    val sortedTopLevel = when (mode) {
+        CommentSortMode.TOP -> comments.sortedWith(
+            compareByDescending<Comment> { it.reactionCount }
+                .thenByDescending { it.createdAtEpochMillis() },
+        )
+        CommentSortMode.NEWEST -> comments.sortedByDescending { it.createdAtEpochMillis() }
+    }
+    return sortedTopLevel.map { comment ->
+        comment.copy(replies = sortReplies(comment.replies, mode))
+    }
+}
+
+private fun sortReplies(replies: List<Comment>, mode: CommentSortMode): List<Comment> {
+    return when (mode) {
+        CommentSortMode.TOP -> replies.sortedWith(
+            compareByDescending<Comment> { it.reactionCount }
+                .thenByDescending { it.createdAtEpochMillis() },
+        )
+        CommentSortMode.NEWEST -> replies.sortedByDescending { it.createdAtEpochMillis() }
+    }
+}
+
+private fun Comment.createdAtEpochMillis(): Long {
+    if (createdAt.isBlank()) return 0L
+    return try {
+        java.time.OffsetDateTime.parse(createdAt).toInstant().toEpochMilli()
+    } catch (_: Exception) {
+        try {
+            java.time.Instant.parse(createdAt).toEpochMilli()
+        } catch (_: Exception) {
+            0L
+        }
     }
 }

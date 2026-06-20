@@ -13,4 +13,6 @@ public interface PostReactionRepository extends JpaRepository<PostReaction, UUID
     List<UUID> findLikedPostIdsByUser(@Param("userId") UUID userId, @Param("postIds") List<UUID> postIds);
 
     void deleteByUserIdAndPostId(UUID userId, UUID postId);
+
+    void deleteByPost_Id(UUID postId);
 }

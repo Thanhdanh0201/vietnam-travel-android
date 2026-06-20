@@ -14,4 +14,6 @@ public interface CommentRepository extends JpaRepository<Comment, UUID> {
 
     Page<Comment> findByPostIdAndParentCommentIsNullOrderByCreatedAtAsc(UUID postId, Pageable pageable);
     List<Comment> findByParentCommentIdOrderByCreatedAtAsc(UUID parentCommentId);
+
+    List<Comment> findByPost_Id(UUID postId);
 }

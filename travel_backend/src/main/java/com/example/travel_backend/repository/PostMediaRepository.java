@@ -10,4 +10,6 @@ import java.util.UUID;
 @Repository
 public interface PostMediaRepository extends JpaRepository<PostMedia, UUID> {
     List<PostMedia> findByPostIdInOrderByOrderIndexAsc(List<UUID> postIds);
+
+    void deleteByPost_Id(UUID postId);
 }

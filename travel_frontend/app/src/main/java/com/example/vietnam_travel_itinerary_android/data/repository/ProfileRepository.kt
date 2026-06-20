@@ -363,6 +363,7 @@ class ProfileRepository(
             location = location ?: "",
             durationDays = durationDays,
             isPublic = isPublic ?: false,
+            startDate = startDate,
             likeCount = shareCount ?: 0,
             coverImageKey = coverUrl ?: title,
             authorName = authorName,

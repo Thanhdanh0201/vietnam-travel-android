@@ -26,4 +26,6 @@ public interface PostRepository extends JpaRepository<Post, UUID> {
     @org.springframework.data.jpa.repository.Modifying
     @Query("DELETE FROM Post p WHERE p.user.id = :userId AND p.originalPost.id = :originalPostId")
     void deleteRepostPost(@Param("userId") UUID userId, @Param("originalPostId") UUID originalPostId);
+
+    List<Post> findByOriginalPost_Id(UUID originalPostId);
 }

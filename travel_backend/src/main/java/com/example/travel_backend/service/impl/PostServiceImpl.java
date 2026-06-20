@@ -60,6 +60,21 @@ public class PostServiceImpl implements PostService {
     @Autowired
     private NotificationTriggerService notificationTriggerService;
 
+    @Autowired
+    private RepostRepository repostRepository;
+
+    @Autowired
+    private PostReactionRepository postReactionRepository;
+
+    @Autowired
+    private CommentRepository commentRepository;
+
+    @Autowired
+    private CommentReactionRepository commentReactionRepository;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
+
     private static final Pattern MENTION_PATTERN = Pattern.compile("@([a-zA-Z0-9_.]+)");
 
 
@@ -221,14 +236,63 @@ public class PostServiceImpl implements PostService {
         System.out.println("Deleting post: " + postId);
 
         Post post = postRepository.findById(postId)
-                .orElseThrow(() -> new RuntimeException("Post not found"));
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Post not found"));
 
         if (!post.getUser().getId().equals(userId)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to delete this post");
         }
 
+        forceDeletePost(postId);
+    }
+
+    @Override
+    @Transactional
+    public void forceDeletePost(UUID postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Post not found"));
+
+        // Xóa các bài quote/repost trỏ về bài này trước (tránh lỗi FK original_post_id)
+        List<Post> derivativePosts = postRepository.findByOriginalPost_Id(postId);
+        for (Post derivative : derivativePosts) {
+            forceDeletePost(derivative.getId());
+        }
+
+        // Xóa comments (reply trước, tránh lỗi FK parent_comment_id)
+        List<com.example.travel_backend.entity.Comment> topLevelComments = commentRepository.findByPost_Id(postId).stream()
+                .filter(c -> c.getParentComment() == null)
+                .toList();
+        for (com.example.travel_backend.entity.Comment comment : topLevelComments) {
+            forceDeleteCommentTree(comment.getId());
+        }
+
+        repostRepository.deleteByPost_Id(postId);
+        postReactionRepository.deleteByPost_Id(postId);
+        savedPostRepository.deleteByPost_Id(postId);
+        postMediaRepository.deleteByPost_Id(postId);
+        mentionRepository.deleteByPost_Id(postId);
+        notificationRepository.deleteByPost_Id(postId);
+
+        UUID authorId = post.getUser().getId();
         postRepository.delete(post);
+
+        userRepository.findById(authorId).ifPresent(user -> {
+            int current = user.getPostCount() != null ? user.getPostCount() : 0;
+            user.setPostCount(Math.max(0, current - 1));
+            userRepository.save(user);
+        });
+    }
+
+    private void forceDeleteCommentTree(UUID commentId) {
+        List<com.example.travel_backend.entity.Comment> replies =
+                commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
+        for (com.example.travel_backend.entity.Comment reply : replies) {
+            forceDeleteCommentTree(reply.getId());
+        }
+        commentReactionRepository.deleteByComment_Id(commentId);
+        commentRepository.deleteById(commentId);
     }
 
     @Override

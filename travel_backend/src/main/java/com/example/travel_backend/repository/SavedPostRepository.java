@@ -20,4 +20,6 @@ public interface SavedPostRepository extends JpaRepository<SavedPost, UUID> {
     List<UUID> findSavedPostIdsByUser(@Param("userId") UUID userId, @Param("postIds") List<UUID> postIds);
 
     void deleteByUserIdAndPostId(UUID userId, UUID postId);
+
+    void deleteByPost_Id(UUID postId);
 }

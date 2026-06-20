@@ -220,7 +220,14 @@ fun CommunityScreen(
                 openedPost = null
                 viewModel.setOpenedPostId(null)
             },
-            onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") }
+            onItineraryClick = { itineraryId -> onNavigate("itinerary_detail/$itineraryId") },
+            onAuthorClick = { userId ->
+                if (userId == viewModel.currentUserId) {
+                    onNavigate("profile")
+                } else {
+                    onNavigate("profile/$userId")
+                }
+            },
         )
         return@CommunityScreen
     }

@@ -12,7 +12,6 @@ import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -138,6 +137,13 @@ private fun ProfileContent(
     var showProfileMenu by remember { mutableStateOf(false) }
     var showReportSheet by remember { mutableStateOf(false) }
     val reportContext = LocalContext.current
+
+    val publicItinerariesGrouped = remember(profile.publicItineraries) {
+        profile.publicItineraries.filter { it.isPublic }.sortedByStartDateDesc()
+    }
+    val privateItinerariesGrouped = remember(profile.publicItineraries) {
+        profile.publicItineraries.filter { !it.isPublic }.sortedByStartDateDesc()
+    }
 
     if (showReportSheet) {
         ReportBottomSheet(
@@ -274,20 +280,27 @@ private fun ProfileContent(
                 }
                 1 -> item { EmptyTabContent("Chưa có câu trả lời nào.") }
                 2 -> {
-                    if (profile.publicItineraries.isEmpty()) {
+                    if (publicItinerariesGrouped.isEmpty() && privateItinerariesGrouped.isEmpty()) {
                         item { EmptyTabContent("Chưa có lịch trình nào.") }
                     } else {
-                        items(profile.publicItineraries, key = { it.id }) { itinerary ->
-                            Column(
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                if (!itinerary.isPublic && profile.isOwnProfile) {
-                                    PrivateItineraryBadge(
-                                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                                    )
-                                }
-                                ItineraryCompactCard(
+                        if (publicItinerariesGrouped.isNotEmpty()) {
+                            item { ItinerarySectionHeader("Công khai") }
+                            items(publicItinerariesGrouped, key = { "public-${it.id}" }) { itinerary ->
+                                ProfileItineraryItem(
+                                    itinerary = itinerary,
+                                    onViewClick = { onNavigate("itinerary_detail/${itinerary.id}") },
+                                )
+                            }
+                        }
+                        if (profile.isOwnProfile && privateItinerariesGrouped.isNotEmpty()) {
+                            item {
+                                ItinerarySectionHeader(
+                                    title = "Chỉ mình tôi",
+                                    modifier = Modifier.padding(top = if (publicItinerariesGrouped.isNotEmpty()) 8.dp else 0.dp),
+                                )
+                            }
+                            items(privateItinerariesGrouped, key = { "private-${it.id}" }) { itinerary ->
+                                ProfileItineraryItem(
                                     itinerary = itinerary,
                                     onViewClick = { onNavigate("itinerary_detail/${itinerary.id}") },
                                 )
@@ -621,27 +634,48 @@ private fun ProfileTabRow(
 }
 
 @Composable
-private fun PrivateItineraryBadge(modifier: Modifier = Modifier) {
-    Row(
+private fun ProfileItineraryItem(
+    itinerary: LinkedItinerary,
+    onViewClick: () -> Unit,
+) {
+    Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+        ItineraryCompactCard(
+            itinerary = itinerary,
+            onViewClick = onViewClick,
+        )
+    }
+}
+
+@Composable
+private fun ItinerarySectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = title,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 13.sp,
+        letterSpacing = 0.5.sp,
+        color = Color(0xFF475569),
         modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(SlateGray100)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Lock,
-            contentDescription = "Riêng tư",
-            tint = SlateGray500,
-            modifier = Modifier.size(12.dp),
-        )
-        Text(
-            text = "Chỉ mình tôi",
-            fontSize = 11.sp,
-            color = SlateGray500,
-            fontWeight = FontWeight.Medium,
-        )
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+    )
+}
+
+private fun List<LinkedItinerary>.sortedByStartDateDesc(): List<LinkedItinerary> {
+    return sortedWith(
+        compareByDescending<LinkedItinerary> { it.sortableStartDate() }
+            .thenBy { it.title.lowercase() },
+    )
+}
+
+private fun LinkedItinerary.sortableStartDate(): java.time.LocalDate {
+    if (startDate.isNullOrBlank()) return java.time.LocalDate.MIN
+    return try {
+        java.time.LocalDate.parse(startDate)
+    } catch (_: Exception) {
+        java.time.LocalDate.MIN
     }
 }
 

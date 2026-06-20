@@ -10,4 +10,6 @@ import java.util.UUID;
 public interface RepostRepository extends JpaRepository<Repost, UUID> {
 
     void deleteByUserIdAndPostId(UUID userId, UUID postId);
+
+    void deleteByPost_Id(UUID postId);
 }

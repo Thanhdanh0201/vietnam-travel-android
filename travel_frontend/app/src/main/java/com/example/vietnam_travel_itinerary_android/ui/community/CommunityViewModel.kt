@@ -615,6 +615,7 @@ class CommunityViewModel(
                 _posts.update { current ->
                     current.filter { it.id != postId }
                 }
+                _error.value = null
             } else {
                 _error.value = "Xoá bài đăng thất bại."
             }

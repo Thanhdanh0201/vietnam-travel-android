@@ -8,4 +8,5 @@ import java.util.UUID;
 
 @Repository
 public interface MentionRepository extends JpaRepository<Mention, UUID> {
+    void deleteByPost_Id(UUID postId);
 }
