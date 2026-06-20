@@ -165,7 +165,7 @@ interface VietnamTravelApi {
         @Header("Authorization") token: String? = null
     ): UserProfileResponseDto
 
-    @GET("api/users/invite-search")
+    @GET("api/invite/members/search")
     suspend fun searchUsersForInvite(
         @Header("Authorization") token: String,
         @Query("q") query: String,
