@@ -2,6 +2,7 @@ package com.example.vietnam_travel_itinerary_android.ui.itinerary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vietnam_travel_itinerary_android.data.dto.ItineraryNoteDto
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
@@ -42,6 +43,10 @@ class ItineraryViewModel(
         val cities: List<String> = emptyList(),
         val isLoadingProvinces: Boolean = false,
         val isRefreshing: Boolean = false,
+        /** Key: "itineraryId-itemId" — ghi chú nhóm gắn với từng địa điểm */
+        val notesMap: Map<String, List<ItineraryNoteDto>> = emptyMap(),
+        /** Key: "itineraryId" — ghi chú chung hiển thị ở cuối timeline */
+        val generalNotesMap: Map<String, List<ItineraryNoteDto>> = emptyMap(),
     )
 
     private val _uiState = MutableStateFlow(ItineraryUiState())
@@ -627,6 +632,130 @@ class ItineraryViewModel(
                 .onFailure {
                     it.printStackTrace()
                     onFailure(it.message ?: "Lỗi cập nhật lịch trình")
+                }
+        }
+    }
+
+    // =================== ITINERARY NOTES ===================
+
+    /** Load ghi chú nhóm của một địa điểm cụ thể. */
+    fun fetchNotesForItem(itineraryId: String, itemId: String) {
+        viewModelScope.launch {
+            itineraryRepo.getNotesForItem(itineraryId, itemId)
+                .onSuccess { notes ->
+                    _uiState.update { state ->
+                        val newMap = state.notesMap.toMutableMap()
+                        newMap["$itineraryId-$itemId"] = notes
+                        state.copy(notesMap = newMap)
+                    }
+                }
+                .onFailure { it.printStackTrace() }
+        }
+    }
+
+    /** Load ghi chú chung (hiển thị ở cuối timeline). */
+    fun fetchGeneralNotes(itineraryId: String) {
+        viewModelScope.launch {
+            itineraryRepo.getGeneralNotes(itineraryId)
+                .onSuccess { notes ->
+                    _uiState.update { state ->
+                        val newMap = state.generalNotesMap.toMutableMap()
+                        newMap[itineraryId] = notes
+                        state.copy(generalNotesMap = newMap)
+                    }
+                }
+                .onFailure { it.printStackTrace() }
+        }
+    }
+
+    /**
+     * Thêm ghi chú nhóm.
+     * - itemId != null → ghi chú gắn với địa điểm cụ thể
+     * - itemId == null → ghi chú chung ở cuối timeline
+     */
+    fun addNote(
+        itineraryId: String,
+        content: String,
+        imageUrl: String? = null,
+        itemId: String? = null,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            itineraryRepo.addNote(itineraryId, content, imageUrl, itemId)
+                .onSuccess { newNote ->
+                    _uiState.update { state ->
+                        if (itemId != null) {
+                            val key = "$itineraryId-$itemId"
+                            val newMap = state.notesMap.toMutableMap()
+                            newMap[key] = (newMap[key] ?: emptyList()) + newNote
+                            state.copy(notesMap = newMap)
+                        } else {
+                            val newMap = state.generalNotesMap.toMutableMap()
+                            newMap[itineraryId] = (newMap[itineraryId] ?: emptyList()) + newNote
+                            state.copy(generalNotesMap = newMap)
+                        }
+                    }
+                    onSuccess()
+                }
+                .onFailure {
+                    it.printStackTrace()
+                    onFailure(it.message ?: "Lỗi thêm ghi chú")
+                }
+        }
+    }
+
+    /** Xóa ghi chú nhóm. */
+    fun deleteNote(
+        itineraryId: String,
+        noteId: String,
+        itemId: String? = null
+    ) {
+        viewModelScope.launch {
+            itineraryRepo.deleteNote(itineraryId, noteId)
+                .onSuccess {
+                    _uiState.update { state ->
+                        if (itemId != null) {
+                            val key = "$itineraryId-$itemId"
+                            val newMap = state.notesMap.toMutableMap()
+                            newMap[key] = (newMap[key] ?: emptyList()).filterNot { it.id == noteId }
+                            state.copy(notesMap = newMap)
+                        } else {
+                            val newMap = state.generalNotesMap.toMutableMap()
+                            newMap[itineraryId] = (newMap[itineraryId] ?: emptyList()).filterNot { it.id == noteId }
+                            state.copy(generalNotesMap = newMap)
+                        }
+                    }
+                }
+                .onFailure { it.printStackTrace() }
+        }
+    }
+
+    /** Cập nhật ghi chú riêng của địa điểm (itinerary_items.note). */
+    fun updateItemNote(
+        itineraryId: String,
+        day: String,
+        itemId: String,
+        note: String?,
+        onSuccess: () -> Unit = {},
+        onFailure: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            itineraryRepo.updateItemNote(itineraryId, itemId, note)
+                .onSuccess { updatedItem ->
+                    _uiState.update { state ->
+                        val key = "$itineraryId-$day"
+                        val newMap = state.timelineMap.toMutableMap()
+                        newMap[key] = (newMap[key] ?: emptyList()).map {
+                            if (it.id == itemId) updatedItem else it
+                        }
+                        state.copy(timelineMap = newMap)
+                    }
+                    onSuccess()
+                }
+                .onFailure {
+                    it.printStackTrace()
+                    onFailure(it.message ?: "Lỗi cập nhật ghi chú")
                 }
         }
     }

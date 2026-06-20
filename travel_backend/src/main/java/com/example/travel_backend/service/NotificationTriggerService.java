@@ -91,6 +91,34 @@ public class NotificationTriggerService {
                 null, null, null);
     }
 
+    /**
+     * Thông báo cho tất cả thành viên của lịch trình khi có người thêm ghi chú nhóm mới.
+     * actorId = người vừa thêm ghi chú.
+     */
+    public void notifyItineraryNote(UUID actorId, UUID itineraryId, String notePreview) {
+        Itinerary itinerary = itineraryRepository.findById(itineraryId).orElse(null);
+        if (itinerary == null) return;
+
+        // Thông báo cho owner (nếu không phải người ghi chú)
+        UUID ownerId = itinerary.getUser().getId();
+        if (!actorId.equals(ownerId) && shouldNotify(actorId, ownerId, "itinerary_updated")) {
+            saveNotification(ownerId, actorId, "itinerary_updated", null, null, itineraryId, null,
+                    truncate(notePreview), "note:" + itineraryId, null);
+        }
+
+        // Thông báo cho tất cả collaborator đã accepted
+        List<ItineraryCollaborator> collaborators = collaboratorRepository
+                .findByItinerary_IdAndStatusIgnoreCase(itineraryId, "accepted");
+        for (ItineraryCollaborator collab : collaborators) {
+            userRepository.findByEmail(collab.getEmail().trim().toLowerCase()).ifPresent(user -> {
+                if (!actorId.equals(user.getId()) && shouldNotify(actorId, user.getId(), "itinerary_updated")) {
+                    saveNotification(user.getId(), actorId, "itinerary_updated", null, null, itineraryId, null,
+                            truncate(notePreview), "note:" + itineraryId, null);
+                }
+            });
+        }
+    }
+
     private boolean shouldNotify(UUID actorId, UUID targetUserId, String notificationType) {
         if (actorId == null || targetUserId == null || actorId.equals(targetUserId)) return false;
         if (userBlockRepository.existsByBlockerIdAndBlockedId(targetUserId, actorId)) return false;

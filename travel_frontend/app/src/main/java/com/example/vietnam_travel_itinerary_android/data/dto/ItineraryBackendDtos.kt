@@ -68,3 +68,26 @@ data class CityDto(
     val name: String
 )
 
+// ---- Itinerary Notes ----
+
+data class ItineraryNoteDto(
+    val id: String,
+    val itineraryId: String,
+    val itineraryItemId: String? = null,   // null = ghi chú chung ở cuối timeline
+    val userId: String,
+    val userName: String,
+    val userAvatar: String? = null,
+    val content: String,
+    val imageUrl: String? = null,
+    val createdAt: String? = null
+)
+
+data class CreateItineraryNoteRequest(
+    val content: String,
+    val imageUrl: String? = null,
+    val itineraryItemId: String? = null    // null = ghi chú chung
+)
+
+data class UpdateItineraryItemNoteRequest(
+    val note: String?
+)
