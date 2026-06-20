@@ -10,7 +10,9 @@ import com.example.travel_backend.service.ReactionService;
 import com.example.travel_backend.entity.Post;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -33,6 +35,9 @@ public class ReactionServiceImpl implements ReactionService {
     @Transactional
     public void likePost(UUID userId, ReactionRequestDto request) {
         System.out.println("Liking post: " + request.getPostId());
+
+        postRepository.findByIdAndIsDeletedFalse(request.getPostId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
 
         PostReaction reaction = new PostReaction();
         reaction.setUser(userRepository.getReferenceById(userId));

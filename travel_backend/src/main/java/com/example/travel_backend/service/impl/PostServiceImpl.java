@@ -61,25 +61,7 @@ public class PostServiceImpl implements PostService {
     private NotificationTriggerService notificationTriggerService;
 
     @Autowired
-    private RepostRepository repostRepository;
-
-    @Autowired
-    private PostReactionRepository postReactionRepository;
-
-    @Autowired
     private CommentRepository commentRepository;
-
-    @Autowired
-    private CommentReactionRepository commentReactionRepository;
-
-    @Autowired
-    private NotificationRepository notificationRepository;
-
-    @Autowired
-    private PostHashtagRepository postHashtagRepository;
-
-    @Autowired
-    private ReportRepository reportRepository;
 
     private static final Pattern MENTION_PATTERN = Pattern.compile("@([a-zA-Z0-9_.]+)");
 
@@ -92,7 +74,7 @@ public class PostServiceImpl implements PostService {
         int page = offset / limit;
         Pageable pageable = PageRequest.of(page, limit);
 
-        Page<Post> postPage = postRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Page<Post> postPage = postRepository.findByUser_IdAndIsDeletedFalseOrderByCreatedAtDesc(userId, pageable);
 
         return mapPostPageToDtoList(postPage.getContent());
     }
@@ -103,7 +85,7 @@ public class PostServiceImpl implements PostService {
     public List<PostResponseDto> getPublicFeed(int limit, int offset) {
         System.out.println("Fetching public feed | limit: " + limit + ", offset: " + offset);
         Pageable pageable = PageRequest.of(offset / limit, limit);
-        Page<Post> postPage = postRepository.findByVisibilityOrderByCreatedAtDesc("public", pageable);
+        Page<Post> postPage = postRepository.findByVisibilityAndIsDeletedFalseOrderByCreatedAtDesc("public", pageable);
         return mapPostPageToDtoList(postPage.getContent());
     }
 
@@ -174,6 +156,7 @@ public class PostServiceImpl implements PostService {
         post.setRepostCount(0);
         post.setIsEdited(false);
         post.setIsPinned(false);
+        post.setIsDeleted(false);
         post.setCreatedAt(java.time.OffsetDateTime.now());
         post.setUpdatedAt(java.time.OffsetDateTime.now());
 
@@ -226,7 +209,7 @@ public class PostServiceImpl implements PostService {
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public PostResponseDto getPostById(UUID postId) {
         System.out.println("Fetching post by ID: " + postId);
-        Post post = postRepository.findById(postId)
+        Post post = postRepository.findByIdAndIsDeletedFalse(postId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Post not found"));
 
@@ -245,6 +228,10 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Post not found"));
 
+        if (Boolean.TRUE.equals(post.getIsDeleted())) {
+            return;
+        }
+
         if (!post.getUser().getId().equals(userId)) {
             throw new org.springframework.web.server.ResponseStatusException(
                     org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to delete this post");
@@ -260,38 +247,29 @@ public class PostServiceImpl implements PostService {
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Post not found"));
 
-        // Xóa các bài quote/repost trỏ về bài này trước (tránh lỗi FK original_post_id)
-        List<Post> derivativePosts = postRepository.findByOriginalPost_Id(postId);
+        if (Boolean.TRUE.equals(post.getIsDeleted())) {
+            return;
+        }
+
+        List<Post> derivativePosts = postRepository.findByOriginalPost_IdAndIsDeletedFalse(postId);
         for (Post derivative : derivativePosts) {
             forceDeletePost(derivative.getId());
         }
 
-        // Xóa comments (reply trước, tránh lỗi FK parent_comment_id)
-        List<com.example.travel_backend.entity.Comment> allComments = commentRepository.findByPost_Id(postId);
-        for (com.example.travel_backend.entity.Comment comment : allComments) {
-            reportRepository.clearReportedCommentReferences(comment.getId());
-        }
-        reportRepository.clearReportedPostReferences(postId);
-
-        List<com.example.travel_backend.entity.Comment> topLevelComments = allComments.stream()
-                .filter(c -> c.getParentComment() == null)
-                .toList();
+        List<com.example.travel_backend.entity.Comment> topLevelComments =
+                commentRepository.findByPost_IdAndIsDeletedFalse(postId).stream()
+                        .filter(c -> c.getParentComment() == null)
+                        .toList();
         for (com.example.travel_backend.entity.Comment comment : topLevelComments) {
             forceDeleteCommentTree(comment.getId());
         }
 
-        postHashtagRepository.deleteByPost_Id(postId);
-
-        repostRepository.deleteByPost_Id(postId);
-        postReactionRepository.deleteByPost_Id(postId);
-        savedPostRepository.deleteByPost_Id(postId);
-        postMediaRepository.deleteByPost_Id(postId);
-        mentionRepository.deleteByPost_Id(postId);
-        notificationRepository.deleteByPost_Id(postId);
+        java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+        post.setIsDeleted(true);
+        post.setUpdatedAt(now);
+        postRepository.save(post);
 
         UUID authorId = post.getUser().getId();
-        postRepository.delete(post);
-
         userRepository.findById(authorId).ifPresent(user -> {
             int current = user.getPostCount() != null ? user.getPostCount() : 0;
             user.setPostCount(Math.max(0, current - 1));
@@ -300,22 +278,50 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Transactional
     public void forceDeleteCommentTree(UUID commentId) {
+        com.example.travel_backend.entity.Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Comment not found"));
+
+        if (Boolean.TRUE.equals(comment.getIsDeleted())) {
+            return;
+        }
+
         List<com.example.travel_backend.entity.Comment> replies =
-                commentRepository.findByParentCommentIdOrderByCreatedAtAsc(commentId);
+                commentRepository.findByParentCommentIdAndIsDeletedFalseOrderByCreatedAtAsc(commentId);
         for (com.example.travel_backend.entity.Comment reply : replies) {
             forceDeleteCommentTree(reply.getId());
         }
-        reportRepository.clearReportedCommentReferences(commentId);
-        notificationRepository.deleteByComment_Id(commentId);
-        mentionRepository.deleteByComment_Id(commentId);
-        commentReactionRepository.deleteByComment_Id(commentId);
-        commentRepository.deleteById(commentId);
+
+        java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+        comment.setIsDeleted(true);
+        comment.setUpdatedAt(now);
+        commentRepository.save(comment);
+
+        if (comment.getPost() != null && !Boolean.TRUE.equals(comment.getPost().getIsDeleted())) {
+            Post post = comment.getPost();
+            int commentCount = post.getCommentCount() != null ? post.getCommentCount() : 0;
+            post.setCommentCount(Math.max(0, commentCount - 1));
+            post.setUpdatedAt(now);
+            postRepository.save(post);
+        }
+
+        if (comment.getParentComment() != null && !Boolean.TRUE.equals(comment.getParentComment().getIsDeleted())) {
+            com.example.travel_backend.entity.Comment parent = comment.getParentComment();
+            int replyCount = parent.getReplyCount() != null ? parent.getReplyCount() : 0;
+            parent.setReplyCount(Math.max(0, replyCount - 1));
+            parent.setUpdatedAt(now);
+            commentRepository.save(parent);
+        }
     }
 
     @Override
     @Transactional
     public void savePost(UUID userId, UUID postId) {
+        postRepository.findByIdAndIsDeletedFalse(postId).orElseThrow(
+                () -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Post not found"));
         if (savedPostRepository.findByUserIdAndPostId(userId, postId).isPresent()) {
             return;
         }
@@ -338,7 +344,7 @@ public class PostServiceImpl implements PostService {
         System.out.println("Fetching saved posts for user: " + userId + " | limit: " + limit + ", offset: " + offset);
         int page = offset / limit;
         Pageable pageable = PageRequest.of(page, limit);
-        Page<SavedPost> savedPostPage = savedPostRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Page<SavedPost> savedPostPage = savedPostRepository.findActiveByUserIdOrderByCreatedAtDesc(userId, pageable);
         List<Post> posts = savedPostPage.getContent().stream()
                 .map(SavedPost::getPost)
                 .collect(Collectors.toList());
@@ -391,7 +397,7 @@ public class PostServiceImpl implements PostService {
             }
             dto.setPlace(placeDto);
         }
-        if (post.getOriginalPost() != null) {
+        if (post.getOriginalPost() != null && !Boolean.TRUE.equals(post.getOriginalPost().getIsDeleted())) {
             PostResponseDto origDto = mapToPostDto(post.getOriginalPost(), itemCountMap);
             List<PostMedia> origMediaList = postMediaRepository.findByPostIdInOrderByOrderIndexAsc(List.of(post.getOriginalPost().getId()));
             origDto.setMedia(origMediaList.stream().map(this::mapToMediaDto).collect(Collectors.toList()));

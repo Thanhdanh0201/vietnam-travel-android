@@ -48,11 +48,11 @@ public class CommentController {
 
         if (postId != null) {
             // Lấy Top-level comments
-            Page<Comment> commentPage = commentRepository.findByPostIdAndParentCommentIsNullOrderByCreatedAtAsc(postId, pageable);
+            Page<Comment> commentPage = commentRepository.findByPostIdAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtAsc(postId, pageable);
             responseList = commentPage.getContent().stream().map(this::mapToDto).collect(Collectors.toList());
         } else if (parentCommentId != null) {
             // Lấy Replies (Thường replies không cần phân trang gắt gao như top-level)
-            List<Comment> replies = commentRepository.findByParentCommentIdOrderByCreatedAtAsc(parentCommentId);
+            List<Comment> replies = commentRepository.findByParentCommentIdAndIsDeletedFalseOrderByCreatedAtAsc(parentCommentId);
             responseList = replies.stream().map(this::mapToDto).collect(Collectors.toList());
         } else {
             return ResponseEntity.badRequest().body("Must provide either post_id or parent_comment_id");

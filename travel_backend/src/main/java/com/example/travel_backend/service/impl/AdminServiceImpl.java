@@ -96,12 +96,17 @@ public class AdminServiceImpl implements AdminService {
             reportRepository.save(report);
             return;
         }
+        if (Boolean.TRUE.equals(report.getReportedPost().getIsDeleted())) {
+            report.setStatus("resolved");
+            report.setReviewedAt(OffsetDateTime.now());
+            reportRepository.save(report);
+            return;
+        }
         UUID postId = report.getReportedPost().getId();
         List<Report> relatedReports = reportRepository.findByReportedPost_Id(postId);
         postService.forceDeletePost(postId);
         OffsetDateTime now = OffsetDateTime.now();
         for (Report r : relatedReports) {
-            r.setReportedPost(null);
             r.setStatus("resolved");
             r.setReviewedAt(now);
         }
@@ -119,12 +124,17 @@ public class AdminServiceImpl implements AdminService {
             reportRepository.save(report);
             return;
         }
+        if (Boolean.TRUE.equals(report.getReportedComment().getIsDeleted())) {
+            report.setStatus("resolved");
+            report.setReviewedAt(OffsetDateTime.now());
+            reportRepository.save(report);
+            return;
+        }
         UUID commentId = report.getReportedComment().getId();
         List<Report> relatedReports = reportRepository.findByReportedComment_Id(commentId);
         postService.forceDeleteCommentTree(commentId);
         OffsetDateTime now = OffsetDateTime.now();
         for (Report r : relatedReports) {
-            r.setReportedComment(null);
             r.setStatus("resolved");
             r.setReviewedAt(now);
         }
@@ -246,7 +256,11 @@ public class AdminServiceImpl implements AdminService {
         }
         if (r.getReportedPost() != null) {
             dto.setReportedPostId(r.getReportedPost().getId());
-            dto.setReportedPostContent(r.getReportedPost().getContent());
+            if (Boolean.TRUE.equals(r.getReportedPost().getIsDeleted())) {
+                dto.setReportedPostContent("[Bài viết đã bị xóa]");
+            } else {
+                dto.setReportedPostContent(r.getReportedPost().getContent());
+            }
             if (r.getReportedPost().getUser() != null) {
                 dto.setReportedPostAuthorId(r.getReportedPost().getUser().getId());
                 dto.setReportedPostAuthorName(r.getReportedPost().getUser().getName());
@@ -255,7 +269,11 @@ public class AdminServiceImpl implements AdminService {
         }
         if (r.getReportedComment() != null) {
             dto.setReportedCommentId(r.getReportedComment().getId());
-            dto.setReportedCommentContent(r.getReportedComment().getContent());
+            if (Boolean.TRUE.equals(r.getReportedComment().getIsDeleted())) {
+                dto.setReportedCommentContent("[Bình luận đã bị xóa]");
+            } else {
+                dto.setReportedCommentContent(r.getReportedComment().getContent());
+            }
             if (r.getReportedComment().getPost() != null) {
                 dto.setReportedCommentPostId(r.getReportedComment().getPost().getId());
             }

@@ -76,6 +76,10 @@ public class Post {
     @Column(name = "is_pinned")
     private Boolean isPinned;
 
+    @ColumnDefault("false")
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
+
     @ColumnDefault("now()")
     @Column(name = "created_at")
     private OffsetDateTime createdAt;

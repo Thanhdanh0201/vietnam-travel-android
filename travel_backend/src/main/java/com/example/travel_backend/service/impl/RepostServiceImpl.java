@@ -10,7 +10,9 @@ import com.example.travel_backend.service.NotificationTriggerService;
 import com.example.travel_backend.service.RepostService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -34,8 +36,8 @@ public class RepostServiceImpl implements RepostService {
     public void createRepost(UUID userId, RepostRequestDto request) {
         System.out.println("Creating repost for post: " + request.getPostId());
 
-        Post originalPost = postRepository.findById(request.getPostId())
-                .orElseThrow(() -> new RuntimeException("Original post not found"));
+        Post originalPost = postRepository.findByIdAndIsDeletedFalse(request.getPostId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Original post not found"));
 
         Repost repost = new Repost();
         repost.setUser(userRepository.getReferenceById(userId));
@@ -59,6 +61,7 @@ public class RepostServiceImpl implements RepostService {
         newPost.setRepostCount(0);
         newPost.setIsEdited(false);
         newPost.setIsPinned(false);
+        newPost.setIsDeleted(false);
         newPost.setCreatedAt(java.time.OffsetDateTime.now());
         newPost.setUpdatedAt(java.time.OffsetDateTime.now());
         postRepository.save(newPost);
@@ -74,14 +77,18 @@ public class RepostServiceImpl implements RepostService {
         System.out.println("Deleting repost for post: " + postId);
 
         // 1. Decrement repost count on the original post
-        Post originalPost = postRepository.findById(postId).orElse(null);
+        Post originalPost = postRepository.findByIdAndIsDeletedFalse(postId).orElse(null);
         if (originalPost != null) {
             originalPost.setRepostCount(Math.max(0, (originalPost.getRepostCount() != null ? originalPost.getRepostCount() : 0) - 1));
             postRepository.save(originalPost);
         }
 
-        // 2. Delete the created Post from posts table
-        postRepository.deleteRepostPost(userId, postId);
+        // 2. Soft-delete the repost/quote post created by this user
+        postRepository.findActiveRepostPost(userId, postId).ifPresent(repostPost -> {
+            repostPost.setIsDeleted(true);
+            repostPost.setUpdatedAt(java.time.OffsetDateTime.now());
+            postRepository.save(repostPost);
+        });
 
         // 3. Delete from reposts table
         repostRepository.deleteByUserIdAndPostId(userId, postId);

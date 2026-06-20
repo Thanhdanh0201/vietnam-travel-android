@@ -13,7 +13,9 @@ import com.example.travel_backend.service.CommentService;
 import com.example.travel_backend.service.NotificationTriggerService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -41,34 +43,39 @@ public class CommentServiceImpl implements CommentService {
     public Comment createComment(UUID userId, CommentRequestDto request) {
         System.out.println("Creating comment for post: " + request.getPostId());
 
+        Post post = postRepository.findByIdAndIsDeletedFalse(request.getPostId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Post not found"));
+
         Comment comment = new Comment();
         comment.setUser(userRepository.getReferenceById(userId));
-        comment.setPost(postRepository.getReferenceById(request.getPostId()));
+        comment.setPost(post);
         comment.setContent(request.getContent());
         comment.setImageUrl(request.getImageUrl());
 
         // Kiểm tra nếu là Reply (có parent_comment_id)
         if (request.getParentCommentId() != null) {
-            comment.setParentComment(commentRepository.getReferenceById(request.getParentCommentId()));
+            Comment parent = commentRepository.findByIdAndIsDeletedFalse(request.getParentCommentId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parent comment not found"));
+            comment.setParentComment(parent);
         }
 
         // Set mặc định các chỉ số và thời gian để tránh null khi trả về DTO
         comment.setReactionCount(0);
         comment.setReplyCount(0);
         comment.setIsEdited(false);
+        comment.setIsDeleted(false);
         comment.setCreatedAt(java.time.OffsetDateTime.now());
         comment.setUpdatedAt(java.time.OffsetDateTime.now());
 
         Comment saved = commentRepository.save(comment);
 
-        Post post = postRepository.findById(request.getPostId()).orElse(null);
-        if (post != null && post.getUser() != null) {
+        if (post.getUser() != null) {
             notificationTriggerService.notifyComment(
                     userId, post.getUser().getId(), request.getPostId(), saved.getId(), request.getContent());
         }
 
         if (request.getParentCommentId() != null) {
-            commentRepository.findById(request.getParentCommentId()).ifPresent(parent -> {
+            commentRepository.findByIdAndIsDeletedFalse(request.getParentCommentId()).ifPresent(parent -> {
                 if (parent.getUser() != null) {
                     notificationTriggerService.notifyComment(
                             userId, parent.getUser().getId(), request.getPostId(), saved.getId(), request.getContent());
@@ -84,6 +91,9 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     public void likeComment(UUID userId, CommentReactionRequestDto request) {
         System.out.println("Liking comment: " + request.getCommentId());
+
+        commentRepository.findByIdAndIsDeletedFalse(request.getCommentId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Comment not found"));
 
         CommentReaction reaction = new CommentReaction();
         reaction.setUser(userRepository.getReferenceById(userId));

@@ -53,6 +53,10 @@ public class Comment {
     @Column(name = "is_edited")
     private Boolean isEdited;
 
+    @ColumnDefault("false")
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
+
     @ColumnDefault("now()")
     @Column(name = "created_at")
     private OffsetDateTime createdAt;
