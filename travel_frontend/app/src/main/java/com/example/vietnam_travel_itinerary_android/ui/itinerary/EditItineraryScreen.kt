@@ -18,13 +18,17 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.layout.ContentScale
@@ -34,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.example.vietnam_travel_itinerary_android.data.dto.ItineraryNoteDto
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
@@ -45,6 +50,7 @@ import java.util.Locale
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 
 
 fun parseItineraryDays(dateRange: String): List<Pair<String, String>> {
@@ -152,6 +158,7 @@ fun EditItineraryScreen(
             viewModel.fetchPlacesForProvince(province)
             viewModel.fetchCollaborators(it.id)
             viewModel.fetchItineraryItems(it.id)
+            viewModel.fetchGeneralNotes(it.id)
         }
     }
 
@@ -435,19 +442,54 @@ fun EditItineraryScreen(
                         }
                     } else {
                         timelineItems.forEachIndexed { index, item ->
+                            val itemNotes = uiState.notesMap["${itinerary.id}-${item.id}"] ?: emptyList()
+                            val isLastItem = index == timelineItems.size - 1
+
                             TimelineItem(
                                 data = item,
-                                isLast = index == timelineItems.size - 1,
+                                isLast = false, // Đường kẻ dọc luôn vẽ vì còn có phần ghi chú bên dưới
                                 canModify = canModify,
+                                notes = itemNotes,
+                                itineraryId = itinerary.id,
+                                currentUserId = uiState.itineraries
+                                    .find { it.id == itinerary.id }?.myRole
+                                    ?.let { if (it == "OWNER") itinerary.id else null },
+                                isItineraryOwner = isOwner,
                                 onDeleteClick = {
-                                    itinerary?.let { it ->
-                                        viewModel.removePlaceFromItinerary(it.id, selectedDay, item)
+                                    viewModel.removePlaceFromItinerary(itinerary.id, selectedDay, item)
+                                },
+                                onEditNoteClick = { newNote ->
+                                    viewModel.updateItemNote(
+                                        itineraryId = itinerary.id,
+                                        day = selectedDay,
+                                        itemId = item.id,
+                                        note = newNote
+                                    )
+                                },
+                                onLoadNotes = {
+                                    if (item.id.isNotBlank()) {
+                                        viewModel.fetchNotesForItem(itinerary.id, item.id)
                                     }
-                                }
+                                },
+                                onAddNote = { content ->
+                                    viewModel.addNote(
+                                        itineraryId = itinerary.id,
+                                        content = content,
+                                        itemId = item.id
+                                    )
+                                },
+                                onDeleteNote = { noteId ->
+                                    viewModel.deleteNote(
+                                        itineraryId = itinerary.id,
+                                        noteId = noteId,
+                                        itemId = item.id
+                                    )
+                                },
+                                showBottomLine = !isLastItem
                             )
                         }
                     }
-                    
+
                     // Nút Thêm Địa Điểm ở cuối - Chỉ hiện với OWNER/EDIT
                     if (canModify) {
                         Row(modifier = Modifier.fillMaxWidth().height(60.dp)) {
@@ -463,7 +505,7 @@ fun EditItineraryScreen(
                                         .align(Alignment.Center)
                                 )
                             }
-                            
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -497,6 +539,31 @@ fun EditItineraryScreen(
                         }
                     }
                 }
+            }
+
+            // ======== Section Ghi chú chung — luôn ở cuối timeline ========
+            item {
+                val generalNotes = uiState.generalNotesMap[itinerary.id] ?: emptyList()
+                GeneralNotesSection(
+                    itineraryId = itinerary.id,
+                    notes = generalNotes,
+                    isItineraryOwner = isOwner,
+                    onLoadNotes = { viewModel.fetchGeneralNotes(itinerary.id) },
+                    onAddNote = { content ->
+                        viewModel.addNote(
+                            itineraryId = itinerary.id,
+                            content = content,
+                            itemId = null
+                        )
+                    },
+                    onDeleteNote = { noteId ->
+                        viewModel.deleteNote(
+                            itineraryId = itinerary.id,
+                            noteId = noteId,
+                            itemId = null
+                        )
+                    }
+                )
             }
         }
     }
@@ -1147,7 +1214,28 @@ data class TimelineItemData(
 )
 
 @Composable
-fun TimelineItem(data: TimelineItemData, isLast: Boolean, canModify: Boolean = true, onDeleteClick: () -> Unit = {}) {
+fun TimelineItem(
+    data: TimelineItemData,
+    isLast: Boolean,
+    canModify: Boolean = true,
+    notes: List<ItineraryNoteDto> = emptyList(),
+    itineraryId: String = "",
+    currentUserId: String? = null,
+    isItineraryOwner: Boolean = false,
+    showBottomLine: Boolean = true,
+    onDeleteClick: () -> Unit = {},
+    onEditNoteClick: (String?) -> Unit = {},
+    onLoadNotes: () -> Unit = {},
+    onAddNote: (String) -> Unit = {},
+    onDeleteNote: (String) -> Unit = {}
+) {
+    var showEditNoteDialog by remember { mutableStateOf(false) }
+    var showNotesExpanded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(data.id) {
+        if (data.id.isNotBlank()) onLoadNotes()
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1179,116 +1267,543 @@ fun TimelineItem(data: TimelineItemData, isLast: Boolean, canModify: Boolean = t
                         .background(VNRed)
                 )
             }
-            if (!isLast) {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .padding(vertical = 4.dp)
-                        .background(SlateGray200)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .fillMaxHeight()
-                        .padding(vertical = 4.dp)
-                        .background(Color.Transparent)
-                )
-            }
+            // Đường kẻ dọc luôn hiện — sẽ nối xuống phần group notes
+            Box(
+                modifier = Modifier
+                    .width(2.dp)
+                    .fillMaxHeight()
+                    .padding(vertical = 4.dp)
+                    .background(if (showBottomLine || notes.isNotEmpty()) SlateGray200 else Color.Transparent)
+            )
         }
-        
-        // Cột bên phải: Card hiển thị thông tin
-        Card(
+
+        // Cột bên phải: Card + Notes section
+        Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(bottom = 24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-            border = BorderStroke(1.dp, SlateGray200.copy(alpha = 0.5f))
+                .padding(bottom = 8.dp)
         ) {
-            Row(modifier = Modifier.height(100.dp)) {
-                // Hình ảnh
-                AsyncImage(
-                    model = data.imageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(100.dp)
-                )
-                
-                // Chi tiết
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
+            // Card chính của địa điểm
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, SlateGray200.copy(alpha = 0.5f))
+            ) {
+                Row(modifier = Modifier.height(100.dp)) {
+                    // Hình ảnh
+                    AsyncImage(
+                        model = data.imageUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .width(100.dp)
+                    )
+
+                    // Chi tiết
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = data.title,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = SlateGray900,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = data.location,
-                                fontSize = 11.sp,
-                                color = SlateGray500,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (!data.note.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "📝 ${data.note}",
-                                    fontSize = 11.sp,
-                                    color = SlateGray600,
-                                    maxLines = 2,
+                                    text = data.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = SlateGray900,
+                                    maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = data.location,
+                                    fontSize = 11.sp,
+                                    color = SlateGray500,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (!data.note.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "📝 ${data.note}",
+                                        fontSize = 11.sp,
+                                        color = SlateGray600,
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                // Icon Edit mở dialog chỉnh sửa ghi chú cá nhân
+                                if (canModify) {
+                                    Icon(
+                                        Icons.Outlined.Edit,
+                                        contentDescription = "Sửa ghi chú",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable { showEditNoteDialog = true },
+                                        tint = SlateGray400
+                                    )
+                                    Icon(
+                                        Icons.Outlined.Delete,
+                                        contentDescription = "Xóa",
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable { onDeleteClick() },
+                                        tint = SlateGray400
+                                    )
+                                }
+                                Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = VNRed)
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(16.dp), tint = SlateGray400)
-                            if (canModify) {
-                                Icon(
-                                    Icons.Outlined.Delete,
-                                    contentDescription = "Xóa",
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clickable { onDeleteClick() },
-                                    tint = SlateGray400
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = VNRed.copy(alpha = 0.1f)
+                            ) {
+                                Text(
+                                    text = data.tag,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = VNRed,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
-                            Icon(Icons.Outlined.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = VNRed)
                         }
                     }
-                    
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = VNRed.copy(alpha = 0.1f)
-                    ) {
-                        Text(
-                            text = data.tag,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = VNRed,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ---- Phần Ghi chú nhóm bên dưới card ----
+            GroupNotesSection(
+                notes = notes,
+                isItineraryOwner = isItineraryOwner,
+                currentUserId = currentUserId,
+                onAddNote = onAddNote,
+                onDeleteNote = onDeleteNote
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+
+    // Dialog chỉnh sửa ghi chú cá nhân của địa điểm
+    if (showEditNoteDialog) {
+        var noteText by remember { mutableStateOf(data.note ?: "") }
+        AlertDialog(
+            onDismissRequest = { showEditNoteDialog = false },
+            title = {
+                Text(
+                    text = "Ghi chú địa điểm",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = SlateGray900
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = data.title,
+                        fontSize = 13.sp,
+                        color = VNRed,
+                        fontWeight = FontWeight.Bold
+                    )
+                    OutlinedTextField(
+                        value = noteText,
+                        onValueChange = { noteText = it },
+                        placeholder = { Text("Thêm ghi chú cho địa điểm này...", fontSize = 13.sp) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 80.dp),
+                        maxLines = 5,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = VNRed,
+                            unfocusedBorderColor = SlateGray300,
+                            focusedLabelColor = VNRed
                         )
-                    }
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onEditNoteClick(noteText.trim().ifBlank { null })
+                        showEditNoteDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = VNRed),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditNoteDialog = false }) {
+                    Text("Hủy", color = SlateGray500)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+}
+
+// ---- Ghi chú nhóm gắn với một địa điểm ----
+@Composable
+fun GroupNotesSection(
+    notes: List<ItineraryNoteDto>,
+    isItineraryOwner: Boolean,
+    currentUserId: String?,
+    onAddNote: (String) -> Unit,
+    onDeleteNote: (String) -> Unit
+) {
+    var showInput by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp)
+    ) {
+        notes.forEach { note ->
+            GroupNoteCard(
+                note = note,
+                canDelete = isItineraryOwner || note.userId == currentUserId,
+                onDeleteNote = { onDeleteNote(note.id) }
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+
+        if (showInput) {
+            AddGroupNoteInput(
+                onSend = { content ->
+                    onAddNote(content)
+                    showInput = false
+                },
+                onCancel = { showInput = false }
+            )
+        } else {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFFF1F5F9),
+                modifier = Modifier.clickable { showInput = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = SlateGray500
+                    )
+                    Text(
+                        "Thêm ghi chú nhóm",
+                        fontSize = 11.sp,
+                        color = SlateGray500,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
     }
 }
+
+// ---- Card hiển thị một ghi chú nhóm ----
+@Composable
+fun GroupNoteCard(
+    note: ItineraryNoteDto,
+    canDelete: Boolean,
+    onDeleteNote: () -> Unit
+) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, SlateGray200.copy(alpha = 0.6f))
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Avatar chữ cái đầu
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(VNRed.copy(alpha = 0.8f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = note.userName.take(1).uppercase(),
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = note.userName,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SlateGray700
+                    )
+                    // Thời gian
+                    note.createdAt?.let { timeStr ->
+                        val display = remember(timeStr) {
+                            try {
+                                val dt = java.time.OffsetDateTime.parse(timeStr)
+                                val now = java.time.OffsetDateTime.now()
+                                val minutes = java.time.Duration.between(dt, now).toMinutes()
+                                when {
+                                    minutes < 1 -> "vừa xong"
+                                    minutes < 60 -> "${minutes}p trước"
+                                    minutes < 1440 -> "${minutes / 60}g trước"
+                                    else -> "${minutes / 1440}ng trước"
+                                }
+                            } catch (e: Exception) { "" }
+                        }
+                        Text(text = display, fontSize = 10.sp, color = SlateGray400)
+                    }
+                }
+
+                if (canDelete) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = "Xóa ghi chú",
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clickable { showDeleteConfirm = true },
+                        tint = SlateGray400
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = note.content,
+                fontSize = 13.sp,
+                color = SlateGray700,
+                lineHeight = 18.sp
+            )
+
+            // Ảnh đính kèm (nếu có)
+            if (!note.imageUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                AsyncImage(
+                    model = note.imageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Xóa ghi chú?", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = SlateGray900) },
+            text = { Text("Ghi chú này sẽ bị xóa vĩnh viễn.", fontSize = 13.sp, color = SlateGray600) },
+            confirmButton = {
+                Button(
+                    onClick = { onDeleteNote(); showDeleteConfirm = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = VNRed),
+                    shape = RoundedCornerShape(10.dp)
+                ) { Text("Xóa", color = Color.White) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Hủy", color = SlateGray500) }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+}
+
+// ---- Input thêm ghi chú nhóm ----
+@Composable
+fun AddGroupNoteInput(
+    onSend: (String) -> Unit,
+    onCancel: () -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        focusRequester.requestFocus()
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = { Text("Ghi chú nhóm...", fontSize = 12.sp) },
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester),
+            maxLines = 3,
+            shape = RoundedCornerShape(10.dp),
+            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = VNRed,
+                unfocusedBorderColor = SlateGray300
+            )
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            IconButton(
+                onClick = { if (text.isNotBlank()) onSend(text.trim()) },
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(VNRed, CircleShape)
+            ) {
+                Icon(Icons.Outlined.Send, contentDescription = "Gửi", tint = Color.White, modifier = Modifier.size(16.dp))
+            }
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.size(36.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("Hủy", fontSize = 10.sp, color = SlateGray400)
+            }
+        }
+    }
+}
+
+// ---- Section ghi chú chung ở cuối timeline ----
+@Composable
+fun GeneralNotesSection(
+    itineraryId: String,
+    notes: List<ItineraryNoteDto>,
+    isItineraryOwner: Boolean,
+    onLoadNotes: () -> Unit,
+    onAddNote: (String) -> Unit,
+    onDeleteNote: (String) -> Unit
+) {
+    LaunchedEffect(itineraryId) { onLoadNotes() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        HorizontalDivider(color = SlateGray200, thickness = 1.dp)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(20.dp)
+                    .clip(CircleShape)
+                    .background(VNRed)
+            )
+            Text(
+                text = "💬 Ghi chú chung",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 16.sp,
+                color = SlateGray900
+            )
+            Text(
+                text = "(${notes.size})",
+                fontSize = 12.sp,
+                color = SlateGray500
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (notes.isEmpty()) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFF8FAFC),
+                border = BorderStroke(1.dp, SlateGray200.copy(alpha = 0.5f))
+            ) {
+                Text(
+                    text = "Chưa có ghi chú nào. Hãy là người đầu tiên ghi chú!",
+                    fontSize = 13.sp,
+                    color = SlateGray400,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        } else {
+            notes.forEach { note ->
+                GroupNoteCard(
+                    note = note,
+                    canDelete = isItineraryOwner,
+                    onDeleteNote = { onDeleteNote(note.id) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Input thêm ghi chú chung
+        var showGeneralInput by remember { mutableStateOf(false) }
+
+        if (showGeneralInput) {
+            AddGroupNoteInput(
+                onSend = { content ->
+                    onAddNote(content)
+                    showGeneralInput = false
+                },
+                onCancel = { showGeneralInput = false }
+            )
+        } else {
+            Button(
+                onClick = { showGeneralInput = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = VNRed.copy(alpha = 0.08f)),
+                shape = RoundedCornerShape(12.dp),
+                elevation = ButtonDefaults.buttonElevation(0.dp)
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null, tint = VNRed, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Thêm ghi chú chung", color = VNRed, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+

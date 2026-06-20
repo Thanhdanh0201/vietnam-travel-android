@@ -490,6 +490,35 @@ interface VietnamTravelApi {
         @Path("itemId") itemId: String
     ): Response<okhttp3.ResponseBody>
 
+    @PATCH("api/itineraries/{id}/items/{itemId}")
+    suspend fun updateItineraryItemNote(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Path("itemId") itemId: String,
+        @Body request: UpdateItineraryItemNoteRequest
+    ): ItineraryItemResponseDto
+
+    @GET("api/itineraries/{id}/notes")
+    suspend fun getItineraryNotes(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Query("item_id") itemId: String? = null
+    ): List<ItineraryNoteDto>
+
+    @POST("api/itineraries/{id}/notes")
+    suspend fun addItineraryNote(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Body request: CreateItineraryNoteRequest
+    ): ItineraryNoteDto
+
+    @DELETE("api/itineraries/{id}/notes/{noteId}")
+    suspend fun deleteItineraryNote(
+        @Header("Authorization") token: String,
+        @Path("id") id: String,
+        @Path("noteId") noteId: String
+    ): Response<okhttp3.ResponseBody>
+
     @GET("api/itineraries/{id}/collaborators")
     suspend fun getCollaborators(
         @Header("Authorization") token: String,

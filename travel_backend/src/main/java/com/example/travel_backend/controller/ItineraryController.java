@@ -338,4 +338,66 @@ public class ItineraryController {
         collaboratorRepository.deleteByItinerary_IdAndEmail(itineraryId, email.trim());
         return ResponseEntity.ok().build();
     }
+
+    // ===================== ITINERARY NOTES =====================
+
+    /**
+     * GET /api/itineraries/{id}/notes?item_id=
+     * Lấy danh sách ghi chú nhóm.
+     * - ?item_id=xxx → ghi chú của địa điểm cụ thể
+     * - không có item_id → ghi chú chung của cả lịch trình
+     */
+    @GetMapping("/{id}/notes")
+    public ResponseEntity<List<com.example.travel_backend.dto.response.ItineraryNoteResponseDto>> getItineraryNotes(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @RequestParam(value = "item_id", required = false) UUID itemId) {
+
+        UUID requesterId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
+        return ResponseEntity.ok(itineraryService.getItineraryNotes(itineraryId, itemId, requesterId));
+    }
+
+    /**
+     * POST /api/itineraries/{id}/notes
+     * Thêm ghi chú nhóm mới — tất cả thành viên.
+     */
+    @PostMapping("/{id}/notes")
+    public ResponseEntity<com.example.travel_backend.dto.response.ItineraryNoteResponseDto> addItineraryNote(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @RequestBody com.example.travel_backend.dto.request.ItineraryNoteRequestDto request) {
+
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(itineraryService.addItineraryNote(itineraryId, requesterId, request));
+    }
+
+    /**
+     * DELETE /api/itineraries/{id}/notes/{noteId}
+     * Xóa ghi chú — chỉ tác giả hoặc owner.
+     */
+    @DeleteMapping("/{id}/notes/{noteId}")
+    public ResponseEntity<Void> deleteItineraryNote(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @PathVariable("noteId") UUID noteId) {
+
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+        itineraryService.deleteItineraryNote(itineraryId, noteId, requesterId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * PATCH /api/itineraries/{id}/items/{itemId}
+     * Cập nhật ghi chú riêng của địa điểm trong lịch trình.
+     */
+    @PatchMapping("/{id}/items/{itemId}")
+    public ResponseEntity<com.example.travel_backend.dto.response.ItineraryItemResponseDto> updateItineraryItemNote(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID itineraryId,
+            @PathVariable("itemId") UUID itemId,
+            @RequestBody com.example.travel_backend.dto.request.UpdateItineraryItemDto request) {
+
+        UUID requesterId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(itineraryService.updateItineraryItemNote(itineraryId, itemId, requesterId, request));
+    }
 }

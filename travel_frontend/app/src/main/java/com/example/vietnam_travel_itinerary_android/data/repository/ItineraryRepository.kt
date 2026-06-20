@@ -330,4 +330,75 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
                 Result.failure(e)
             }
         }
+
+    // ---- Itinerary Notes ----
+
+    suspend fun getNotesForItem(itineraryId: String, itemId: String): Result<List<ItineraryNoteDto>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) return@withContext Result.success(emptyList())
+                Result.success(api.getItineraryNotes(token, itineraryId, itemId))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun getGeneralNotes(itineraryId: String): Result<List<ItineraryNoteDto>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) return@withContext Result.success(emptyList())
+                Result.success(api.getItineraryNotes(token, itineraryId, null))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun addNote(
+        itineraryId: String,
+        content: String,
+        imageUrl: String? = null,
+        itineraryItemId: String? = null
+    ): Result<ItineraryNoteDto> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                val request = CreateItineraryNoteRequest(
+                    content = content,
+                    imageUrl = imageUrl,
+                    itineraryItemId = itineraryItemId
+                )
+                Result.success(api.addItineraryNote(token, itineraryId, request))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun deleteNote(itineraryId: String, noteId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                api.deleteItineraryNote(token, itineraryId, noteId)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+
+    suspend fun updateItemNote(itineraryId: String, itemId: String, note: String?): Result<TimelineItemData> =
+        withContext(Dispatchers.IO) {
+            try {
+                val token = getAuthToken()
+                if (token.isBlank()) throw Exception("Chưa đăng nhập")
+                val response = api.updateItineraryItemNote(
+                    token, itineraryId, itemId, UpdateItineraryItemNoteRequest(note)
+                )
+                Result.success(response.toTimelineItemData())
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 }

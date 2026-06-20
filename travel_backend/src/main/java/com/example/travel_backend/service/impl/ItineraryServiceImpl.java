@@ -36,6 +36,9 @@ public class ItineraryServiceImpl {
     private com.example.travel_backend.repository.ItineraryCollaboratorRepository collaboratorRepository;
 
     @Autowired
+    private com.example.travel_backend.repository.ItineraryNoteRepository itineraryNoteRepository;
+
+    @Autowired
     private NotificationTriggerService notificationTriggerService;
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -346,6 +349,189 @@ public class ItineraryServiceImpl {
         long itemCount = itineraryItemRepository.findByItineraryIdOrderByOrderIndexAsc(itineraryId).size();
 
         return mapToDto(itinerary, requesterId, itemCount, role);
+    }
+
+    // =================== ITINERARY NOTES ===================
+
+    /**
+     * Lấy ghi chú nhóm:
+     * - itemId != null → ghi chú của địa điểm cụ thể
+     * - itemId == null → ghi chú chung của cả lịch trình
+     */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<com.example.travel_backend.dto.response.ItineraryNoteResponseDto> getItineraryNotes(
+            UUID itineraryId, UUID itemId, UUID requesterId) {
+
+        Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        // Kiểm tra quyền truy cập: phải là thành viên hoặc lịch trình public
+        if (!itinerary.getIsPublic()) {
+            requireMembership(itinerary, requesterId);
+        }
+
+        List<com.example.travel_backend.entity.ItineraryNote> notes;
+        if (itemId != null) {
+            notes = itineraryNoteRepository
+                    .findByItinerary_IdAndItineraryItem_IdOrderByCreatedAtAsc(itineraryId, itemId);
+        } else {
+            notes = itineraryNoteRepository
+                    .findByItinerary_IdAndItineraryItemIsNullOrderByCreatedAtAsc(itineraryId);
+        }
+        return notes.stream().map(this::mapNoteToDto).collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Thêm ghi chú nhóm — tất cả thành viên đều được phép.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public com.example.travel_backend.dto.response.ItineraryNoteResponseDto addItineraryNote(
+            UUID itineraryId, UUID requesterId,
+            com.example.travel_backend.dto.request.ItineraryNoteRequestDto request) {
+
+        Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        // Kiểm tra: phải là thành viên (owner hoặc collaborator accepted)
+        requireMembership(itinerary, requesterId);
+
+        if (request.getContent() == null || request.getContent().isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Content is required");
+        }
+
+        com.example.travel_backend.entity.User actor = userRepository.findById(requesterId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "User not found"));
+
+        com.example.travel_backend.entity.ItineraryNote note = new com.example.travel_backend.entity.ItineraryNote();
+        note.setItinerary(itinerary);
+        note.setUser(actor);
+        note.setContent(request.getContent().trim());
+        note.setImageUrl(request.getImageUrl());
+        note.setCreatedAt(java.time.OffsetDateTime.now());
+
+        // Gắn vào itinerary item nếu có
+        if (request.getItineraryItemId() != null) {
+            com.example.travel_backend.entity.ItineraryItem item =
+                    itineraryItemRepository.findById(request.getItineraryItemId())
+                            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                                    org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary item not found"));
+            if (!item.getItinerary().getId().equals(itineraryId)) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.BAD_REQUEST, "Item does not belong to this itinerary");
+            }
+            note.setItineraryItem(item);
+        }
+
+        com.example.travel_backend.entity.ItineraryNote saved = itineraryNoteRepository.save(note);
+
+        // Gửi notification cho các thành viên khác
+        notificationTriggerService.notifyItineraryNote(requesterId, itineraryId, request.getContent());
+
+        return mapNoteToDto(saved);
+    }
+
+    /**
+     * Xóa ghi chú — chỉ tác giả hoặc owner lịch trình.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteItineraryNote(UUID itineraryId, UUID noteId, UUID requesterId) {
+        Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        com.example.travel_backend.entity.ItineraryNote note = itineraryNoteRepository.findById(noteId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Note not found"));
+
+        if (!note.getItinerary().getId().equals(itineraryId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Note does not belong to this itinerary");
+        }
+
+        boolean isAuthor = note.getUser().getId().equals(requesterId);
+        boolean isOwner = itinerary.getUser().getId().equals(requesterId);
+
+        if (!isAuthor && !isOwner) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Only the note author or itinerary owner can delete this note");
+        }
+
+        itineraryNoteRepository.delete(note);
+    }
+
+    /**
+     * Cập nhật ghi chú riêng của một địa điểm (itinerary_items.note).
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public com.example.travel_backend.dto.response.ItineraryItemResponseDto updateItineraryItemNote(
+            UUID itineraryId, UUID itemId, UUID requesterId,
+            com.example.travel_backend.dto.request.UpdateItineraryItemDto request) {
+
+        Itinerary itinerary = itineraryRepository.findById(itineraryId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary not found"));
+
+        if (!hasModifyPermission(itinerary, requesterId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "You do not have permission to modify this itinerary");
+        }
+
+        com.example.travel_backend.entity.ItineraryItem item = itineraryItemRepository.findById(itemId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND, "Itinerary item not found"));
+
+        if (!item.getItinerary().getId().equals(itineraryId)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Item does not belong to this itinerary");
+        }
+
+        item.setNote(request.getNote());
+        com.example.travel_backend.entity.ItineraryItem saved = itineraryItemRepository.save(item);
+        return mapItemToDto(saved);
+    }
+
+    /**
+     * Kiểm tra người dùng có phải thành viên của lịch trình không (owner hoặc collaborator accepted).
+     */
+    private void requireMembership(Itinerary itinerary, UUID requesterId) {
+        boolean isOwner = itinerary.getUser().getId().equals(requesterId);
+        if (isOwner) return;
+
+        com.example.travel_backend.entity.User user = userRepository.findById(requesterId).orElse(null);
+        if (user == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Access denied");
+        }
+        String email = user.getEmail() != null ? user.getEmail().trim().toLowerCase() : "";
+        boolean isCollaborator = !email.isEmpty() &&
+                collaboratorRepository.findAcceptedByItinerary_IdAndEmail(itinerary.getId(), email).isPresent();
+
+        if (!isCollaborator) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN,
+                    "You are not a member of this itinerary");
+        }
+    }
+
+    private com.example.travel_backend.dto.response.ItineraryNoteResponseDto mapNoteToDto(
+            com.example.travel_backend.entity.ItineraryNote note) {
+        com.example.travel_backend.dto.response.ItineraryNoteResponseDto dto =
+                new com.example.travel_backend.dto.response.ItineraryNoteResponseDto();
+        dto.setId(note.getId());
+        dto.setItineraryId(note.getItinerary().getId());
+        dto.setItineraryItemId(note.getItineraryItem() != null ? note.getItineraryItem().getId() : null);
+        dto.setUserId(note.getUser().getId());
+        dto.setUserName(note.getUser().getName() != null ? note.getUser().getName() : "Thành viên");
+        dto.setUserAvatar(note.getUser().getAvatarUrl());
+        dto.setContent(note.getContent());
+        dto.setImageUrl(note.getImageUrl());
+        dto.setCreatedAt(note.getCreatedAt());
+        return dto;
     }
 
     // PURE FUNCTION: Đã loại bỏ hoàn toàn các lời gọi đến Repository bên trong hàm này
