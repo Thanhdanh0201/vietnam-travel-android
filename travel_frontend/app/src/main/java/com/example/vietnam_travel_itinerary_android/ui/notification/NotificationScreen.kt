@@ -3,6 +3,8 @@ package com.example.vietnam_travel_itinerary_android.ui.notification
 import android.widget.Toast
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material3.*
@@ -35,6 +39,7 @@ import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAva
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRedContainer
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NotificationScreen(
     onBack: () -> Unit,
@@ -47,31 +52,106 @@ fun NotificationScreen(
     val tabUnreadCounts by viewModel.tabUnreadCounts.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+
     LaunchedEffect(Unit) {
         viewModel.refreshAll()
     }
 
+    fun exitSelectionMode() {
+        isSelectionMode = false
+        selectedIds = emptySet()
+    }
+
     Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF8F6F6))) {
         AppBackTopBar(
-            onBackClick = onBack,
+            onBackClick = {
+                if (isSelectionMode) exitSelectionMode() else onBack()
+            },
             trailingContent = {
-                IconButton(onClick = { viewModel.markAllAsRead() }) {
-                    Icon(
-                        imageVector = Icons.Outlined.DoneAll,
-                        contentDescription = "Đọc tất cả",
-                        tint = VNRed,
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isSelectionMode) {
+                        TextButton(
+                            onClick = {
+                                selectedIds = if (selectedIds.size == notifications.size) {
+                                    emptySet()
+                                } else {
+                                    notifications.map { it.id }.toSet()
+                                }
+                            },
+                        ) {
+                            Text(
+                                if (selectedIds.size == notifications.size && notifications.isNotEmpty()) {
+                                    "Bỏ chọn"
+                                } else {
+                                    "Chọn tất cả"
+                                },
+                                color = VNRed,
+                                fontSize = 13.sp,
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                if (selectedIds.isEmpty()) return@IconButton
+                                viewModel.deleteNotifications(selectedIds) { success ->
+                                    if (success) {
+                                        Toast.makeText(context, "Đã xóa ${selectedIds.size} thông báo", Toast.LENGTH_SHORT).show()
+                                        exitSelectionMode()
+                                    } else {
+                                        Toast.makeText(context, "Không thể xóa thông báo", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            enabled = selectedIds.isNotEmpty(),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Delete,
+                                contentDescription = "Xóa đã chọn",
+                                tint = if (selectedIds.isNotEmpty()) VNRed else Color(0xFFCBD5E1),
+                            )
+                        }
+                    } else {
+                        IconButton(onClick = { viewModel.markAllAsRead() }) {
+                            Icon(
+                                imageVector = Icons.Outlined.DoneAll,
+                                contentDescription = "Đọc tất cả",
+                                tint = VNRed,
+                            )
+                        }
+                        if (notifications.isNotEmpty()) {
+                            IconButton(onClick = { isSelectionMode = true }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.DeleteOutline,
+                                    contentDescription = "Chọn để xóa",
+                                    tint = VNRed,
+                                )
+                            }
+                        }
+                    }
                 }
             },
         )
 
-        Text(
-            text = "Thông báo",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1E293B),
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = if (isSelectionMode) "Đã chọn ${selectedIds.size}" else "Thông báo",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B),
+            )
+            if (isSelectionMode) {
+                TextButton(onClick = { exitSelectionMode() }) {
+                    Text("Huỷ", color = Color(0xFF64748B))
+                }
+            }
+        }
 
         NotificationFilterTabs(
             selectedTab = selectedTab,
@@ -94,11 +174,28 @@ fun NotificationScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(notifications, key = { it.id }) { notif ->
+                    val isSelected = selectedIds.contains(notif.id)
                     NotificationCard(
                         notif = notif,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = isSelected,
                         onClick = {
-                            if (!notif.isRead) viewModel.markAsRead(notif.id)
-                            navigateFromNotification(notif, onNavigate)
+                            if (isSelectionMode) {
+                                selectedIds = if (isSelected) {
+                                    selectedIds - notif.id
+                                } else {
+                                    selectedIds + notif.id
+                                }
+                            } else {
+                                if (!notif.isRead) viewModel.markAsRead(notif.id)
+                                navigateFromNotification(notif, onNavigate)
+                            }
+                        },
+                        onLongClick = {
+                            if (!isSelectionMode) {
+                                isSelectionMode = true
+                                selectedIds = setOf(notif.id)
+                            }
                         },
                         onFollowBack = { notif.actorId?.let { viewModel.followBack(it) } },
                         onAcceptInvite = {
@@ -182,10 +279,14 @@ private fun NotificationFilterTabs(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun NotificationCard(
     notif: NotificationUiModel,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     onFollowBack: () -> Unit,
     onAcceptInvite: () -> Unit,
     onDeclineInvite: () -> Unit,
@@ -209,15 +310,26 @@ private fun NotificationCard(
         modifier = Modifier
             .fillMaxWidth()
             .then(borderModifier)
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            ),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White.copy(alpha = 0.92f),
+        color = if (isSelected) VNRed.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.92f),
         shadowElevation = 1.dp,
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
         ) {
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    colors = CheckboxDefaults.colors(checkedColor = VNRed),
+                )
+            }
             Box {
                 if (isSystem) {
                     SystemNotifIcon(type = notif.type)
@@ -280,33 +392,37 @@ private fun NotificationCard(
 
                 when (notif.type) {
                     NotificationType.FOLLOW -> {
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = onFollowBack,
-                            border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(VNRed, VNRed))),
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        ) {
-                            Text("THEO DÕI LẠI", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VNRed)
+                        if (!isSelectionMode) {
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = onFollowBack,
+                                border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(VNRed, VNRed))),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            ) {
+                                Text("THEO DÕI LẠI", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VNRed)
+                            }
                         }
                     }
                     NotificationType.ITINERARY_INVITE -> {
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = onAcceptInvite,
-                                colors = ButtonDefaults.buttonColors(containerColor = VNRed),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            ) {
-                                Text("CHẤP NHẬN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                            OutlinedButton(
-                                onClick = onDeclineInvite,
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            ) {
-                                Text("TỪ CHỐI", fontSize = 11.sp, color = Color(0xFF64748B))
+                        if (!isSelectionMode) {
+                            Spacer(Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = onAcceptInvite,
+                                    colors = ButtonDefaults.buttonColors(containerColor = VNRed),
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                ) {
+                                    Text("CHẤP NHẬN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                                OutlinedButton(
+                                    onClick = onDeclineInvite,
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                ) {
+                                    Text("TỪ CHỐI", fontSize = 11.sp, color = Color(0xFF64748B))
+                                }
                             }
                         }
                     }

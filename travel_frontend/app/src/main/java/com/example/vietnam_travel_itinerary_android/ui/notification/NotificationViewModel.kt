@@ -8,9 +8,20 @@ import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRep
 import com.example.vietnam_travel_itinerary_android.data.repository.ProfileRepository
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.RealtimeChannel
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Duration
@@ -41,12 +52,30 @@ class NotificationViewModel(
     private var currentOffset = 0
     private val pageSize = 30
     private var hasMore = true
+    private var notificationChannel: RealtimeChannel? = null
+    private var realtimeRefreshJob: Job? = null
 
     private val currentUserId: String
         get() = supabase.auth.currentUserOrNull()?.id ?: ""
 
     init {
-        refreshAll()
+        viewModelScope.launch {
+            supabase.auth.sessionStatus.collect { status ->
+                when (status) {
+                    is SessionStatus.Authenticated -> {
+                        refreshAll()
+                        subscribeToRealtimeNotifications()
+                    }
+                    is SessionStatus.NotAuthenticated -> {
+                        unsubscribeFromRealtimeNotifications()
+                        _notifications.value = emptyList()
+                        _unreadCount.value = 0
+                        _tabUnreadCounts.value = emptyMap()
+                    }
+                    else -> Unit
+                }
+            }
+        }
     }
 
     fun refreshAll() {
@@ -161,6 +190,26 @@ class NotificationViewModel(
         }
     }
 
+    fun deleteNotifications(ids: Set<String>, onDone: (Boolean) -> Unit = {}) {
+        if (ids.isEmpty()) {
+            onDone(true)
+            return
+        }
+        viewModelScope.launch {
+            val deletedUnread = _notifications.value.count { it.id in ids && !it.isRead }
+            val success = repository.deleteNotifications(ids.toList())
+            if (success) {
+                _notifications.update { list -> list.filter { it.id !in ids } }
+                if (deletedUnread > 0) {
+                    _unreadCount.update { (it - deletedUnread).coerceAtLeast(0) }
+                }
+                refreshTabUnreadCounts()
+                loadUnreadCount()
+            }
+            onDone(success)
+        }
+    }
+
     fun followBack(userId: String) {
         viewModelScope.launch {
             profileRepository.followUser(userId)
@@ -193,6 +242,56 @@ class NotificationViewModel(
                 onDone(false)
             }
         }
+    }
+
+    private fun subscribeToRealtimeNotifications() {
+        unsubscribeFromRealtimeNotifications()
+        if (currentUserId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                supabase.realtime.connect()
+                notificationChannel = supabase.channel("notification-vm-${currentUserId.take(8)}")
+                val notifFlow = notificationChannel!!.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+                    table = "notifications"
+                    filter("user_id", FilterOperator.EQ, currentUserId)
+                }
+                notifFlow.onEach {
+                    scheduleRealtimeRefresh()
+                }.launchIn(viewModelScope)
+                notificationChannel!!.subscribe()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun scheduleRealtimeRefresh() {
+        realtimeRefreshJob?.cancel()
+        realtimeRefreshJob = viewModelScope.launch {
+            delay(400)
+            loadUnreadCount()
+            refreshTabUnreadCounts()
+            loadNotifications()
+        }
+    }
+
+    private fun unsubscribeFromRealtimeNotifications() {
+        realtimeRefreshJob?.cancel()
+        notificationChannel?.let { channel ->
+            viewModelScope.launch {
+                try {
+                    channel.unsubscribe()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+        notificationChannel = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        unsubscribeFromRealtimeNotifications()
     }
 
     private fun groupNotifications(items: List<NotificationUiModel>): List<NotificationUiModel> {

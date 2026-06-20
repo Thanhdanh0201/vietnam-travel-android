@@ -357,6 +357,18 @@ interface VietnamTravelApi {
         @Body request: NotificationPatchDto
     ): Response<ResponseBody>
 
+    @DELETE("api/notifications/{id}")
+    suspend fun deleteNotification(
+        @Header("Authorization") token: String,
+        @Path("id") notifId: String,
+    ): Response<ResponseBody>
+
+    @POST("api/notifications/delete-batch")
+    suspend fun deleteNotificationsBatch(
+        @Header("Authorization") token: String,
+        @Body request: DeleteNotificationsRequestDto,
+    ): Response<ResponseBody>
+
     // ---- Reports ----
     @POST("api/reports")
     suspend fun report(

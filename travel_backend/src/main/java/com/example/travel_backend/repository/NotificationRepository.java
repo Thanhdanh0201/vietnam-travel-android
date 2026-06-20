@@ -15,21 +15,31 @@ import java.util.UUID;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
 
-    Page<Notification> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    @Query("SELECT n FROM Notification n WHERE n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL) ORDER BY n.createdAt DESC")
+    Page<Notification> findActiveByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId, Pageable pageable);
 
-    Page<Notification> findByUserIdAndTypeInOrderByCreatedAtDesc(UUID userId, List<String> types, Pageable pageable);
+    @Query("SELECT n FROM Notification n WHERE n.user.id = :userId AND n.type IN :types AND (n.isDeleted = false OR n.isDeleted IS NULL) ORDER BY n.createdAt DESC")
+    Page<Notification> findActiveByUserIdAndTypeInOrderByCreatedAtDesc(
+            @Param("userId") UUID userId,
+            @Param("types") List<String> types,
+            Pageable pageable);
 
-    long countByUserIdAndIsReadFalse(UUID userId);
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.user.id = :userId AND n.isRead = false AND (n.isDeleted = false OR n.isDeleted IS NULL)")
+    long countActiveUnreadByUserId(@Param("userId") UUID userId);
 
     @Modifying
-    @Query("UPDATE Notification n SET n.isRead = true WHERE n.user.id = :userId AND n.isRead = false")
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.user.id = :userId AND n.isRead = false AND (n.isDeleted = false OR n.isDeleted IS NULL)")
     void markAllAsRead(@Param("userId") UUID userId);
 
     @Modifying
-    @Query("UPDATE Notification n SET n.isRead = true WHERE n.id = :notifId AND n.user.id = :userId")
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.id = :notifId AND n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL)")
     void markAsRead(@Param("notifId") UUID notifId, @Param("userId") UUID userId);
 
-    void deleteByPost_Id(UUID postId);
+    @Modifying
+    @Query("UPDATE Notification n SET n.isDeleted = true WHERE n.id = :notifId AND n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL)")
+    void softDeleteByIdAndUserId(@Param("notifId") UUID notifId, @Param("userId") UUID userId);
 
-    void deleteByComment_Id(UUID commentId);
+    @Modifying
+    @Query("UPDATE Notification n SET n.isDeleted = true WHERE n.id IN :ids AND n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL)")
+    void softDeleteByIdInAndUserId(@Param("ids") List<UUID> ids, @Param("userId") UUID userId);
 }

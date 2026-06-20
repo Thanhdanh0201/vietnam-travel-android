@@ -88,8 +88,6 @@ class AdminReportsViewModel(
         }
     }
 
-    fun resolve(id: String) = runAction(id, "Đã đánh dấu xử lý.") { repository.resolveReport(id, "resolved") }
-
     fun dismiss(id: String) = runAction(id, "Đã bỏ qua báo cáo.") { repository.resolveReport(id, "dismissed") }
 
     fun deletePost(id: String) = runAction(id, "Đã xóa bài viết.") { repository.deleteReportedPost(id) }

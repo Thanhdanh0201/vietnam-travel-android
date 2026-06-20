@@ -137,6 +137,10 @@ data class NotificationPatchDto(
     val isRead: Boolean
 )
 
+data class DeleteNotificationsRequestDto(
+    val ids: List<String>,
+)
+
 // Request DTO for report
 data class ReportRequest(
     val reason: String,

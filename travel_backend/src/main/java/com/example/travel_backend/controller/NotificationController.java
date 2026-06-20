@@ -1,5 +1,6 @@
 package com.example.travel_backend.controller;
 
+import com.example.travel_backend.dto.request.DeleteNotificationsRequestDto;
 import com.example.travel_backend.dto.request.NotificationPatchDto;
 import com.example.travel_backend.dto.response.NotificationResponseDto;
 import com.example.travel_backend.dto.response.UnreadCountResponseDto;
@@ -61,5 +62,25 @@ public class NotificationController {
             notificationService.markAllAsRead(myId);
         }
         return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteNotification(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable("id") UUID notifId) {
+        UUID myId = UUID.fromString(jwt.getSubject());
+        notificationService.deleteNotification(notifId, myId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/delete-batch")
+    public ResponseEntity<Void> deleteNotificationsBatch(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody DeleteNotificationsRequestDto request) {
+        UUID myId = UUID.fromString(jwt.getSubject());
+        if (request.getIds() != null && !request.getIds().isEmpty()) {
+            notificationService.deleteNotifications(request.getIds(), myId);
+        }
+        return ResponseEntity.noContent().build();
     }
 }

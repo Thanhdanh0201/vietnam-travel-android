@@ -13,6 +13,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
+import retrofit2.HttpException
 import java.time.Duration
 
 class CommunityRepository(private val supabase: SupabaseClient) {
@@ -284,6 +285,8 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             } else emptySet()
 
             postDto.toCommunityPost(currentUserId, likedPostIds, savedPostIds)
+        } catch (e: HttpException) {
+            if (e.code() == 404) null else throw e
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
@@ -612,6 +615,30 @@ class CommunityRepository(private val supabase: SupabaseClient) {
             val request = NotificationPatchDto(isRead = true)
             val response = api.markNotificationsAsRead(token, request)
             response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun deleteNotification(notifId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            api.deleteNotification(token, notifId).isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun deleteNotifications(notifIds: List<String>): Boolean = withContext(Dispatchers.IO) {
+        if (notifIds.isEmpty()) return@withContext true
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" } ?: return@withContext false
+            if (notifIds.size == 1) {
+                return@withContext api.deleteNotification(token, notifIds.first()).isSuccessful
+            }
+            api.deleteNotificationsBatch(token, DeleteNotificationsRequestDto(notifIds)).isSuccessful
         } catch (e: Exception) {
             e.printStackTrace()
             false

@@ -33,14 +33,14 @@ public class HealthController {
                 SELECT table_name || '.' || column_name
                 FROM information_schema.columns
                 WHERE table_schema = 'public'
-                  AND table_name IN ('posts', 'comments')
+                  AND table_name IN ('posts', 'comments', 'notifications')
                   AND column_name = 'is_deleted'
                 ORDER BY table_name
                 """,
                 (rs, rowNum) -> rs.getString(1)
         );
         result.put("is_deleted_columns", columns);
-        result.put("schema_ok", columns.size() == 2);
+        result.put("schema_ok", columns.size() == 3);
         return result;
     }
 }

@@ -67,6 +67,10 @@ public class Notification {
     @Column(name = "is_read")
     private Boolean isRead;
 
+    @ColumnDefault("false")
+    @Column(name = "is_deleted")
+    private Boolean isDeleted;
+
     @ColumnDefault("now()")
     @Column(name = "created_at")
     private OffsetDateTime createdAt;

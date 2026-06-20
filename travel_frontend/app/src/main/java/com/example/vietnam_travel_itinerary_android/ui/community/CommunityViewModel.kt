@@ -790,6 +790,18 @@ class CommunityViewModel(
         }
     }
 
+    private fun removePostFromFeed(postId: String) {
+        _posts.update { it.filter { post -> post.id != postId } }
+        if (_openedPostId.value == postId) {
+            _openedPostId.value = null
+        }
+    }
+
+    private fun isSoftDeletedPostUpdate(action: PostgresAction.Update): Boolean {
+        val flag = action.record["is_deleted"]?.jsonPrimitive?.content
+        return flag == "true" || flag == "t"
+    }
+
     // --- Realtime Subscriptions ---
     private fun subscribeToRealtimeFeed() {
         unsubscribeFromRealtimeFeed()
@@ -803,12 +815,16 @@ class CommunityViewModel(
                 }
                 postFlow.onEach { action ->
                     val newPostId = action.record["id"]?.jsonPrimitive?.content ?: return@onEach
-                    val detailedPost = repository.getPostDetails(newPostId, currentUserId)
-                    if (detailedPost != null) {
-                        _posts.update { currentList ->
-                            if (currentList.any { it.id == detailedPost.id }) currentList
-                            else listOf(detailedPost) + currentList
+                    try {
+                        val detailedPost = repository.getPostDetails(newPostId, currentUserId)
+                        if (detailedPost != null) {
+                            _posts.update { currentList ->
+                                if (currentList.any { it.id == detailedPost.id }) currentList
+                                else listOf(detailedPost) + currentList
+                            }
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }.launchIn(viewModelScope)
 
@@ -818,13 +834,24 @@ class CommunityViewModel(
                 }
                 updateFlow.onEach { action ->
                     val updatedPostId = action.record["id"]?.jsonPrimitive?.content ?: return@onEach
-                    val detailedPost = repository.getPostDetails(updatedPostId, currentUserId)
-                    if (detailedPost != null) {
-                        _posts.update { currentList ->
-                            currentList.map { post ->
-                                if (post.id == detailedPost.id) detailedPost else post
+                    if (isSoftDeletedPostUpdate(action)) {
+                        removePostFromFeed(updatedPostId)
+                        return@onEach
+                    }
+                    try {
+                        val detailedPost = repository.getPostDetails(updatedPostId, currentUserId)
+                        if (detailedPost != null) {
+                            _posts.update { currentList ->
+                                currentList.map { post ->
+                                    if (post.id == detailedPost.id) detailedPost else post
+                                }
                             }
+                        } else {
+                            removePostFromFeed(updatedPostId)
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        removePostFromFeed(updatedPostId)
                     }
                 }.launchIn(viewModelScope)
 
@@ -875,12 +902,18 @@ class CommunityViewModel(
                     table = "post_reactions"
                     filter("post_id", FilterOperator.EQ, postId)
                 }
-                reactionFlow.onEach { action ->
-                    val updatedPost = repository.getPostDetails(postId, currentUserId)
-                    if (updatedPost != null) {
-                        _posts.update { list ->
-                            list.map { if (it.id == postId) updatedPost else it }
+                reactionFlow.onEach {
+                    try {
+                        val updatedPost = repository.getPostDetails(postId, currentUserId)
+                        if (updatedPost != null) {
+                            _posts.update { list ->
+                                list.map { if (it.id == postId) updatedPost else it }
+                            }
+                        } else {
+                            removePostFromFeed(postId)
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }.launchIn(viewModelScope)
 

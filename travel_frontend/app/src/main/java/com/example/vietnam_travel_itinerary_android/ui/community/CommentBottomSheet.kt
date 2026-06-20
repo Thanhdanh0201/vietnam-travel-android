@@ -75,6 +75,9 @@ fun PostDetailScreen(
     var replyingTo by remember { mutableStateOf<Comment?>(null) }
     var showShareDialog by remember { mutableStateOf(false) }
     var commentToReport by remember { mutableStateOf<Comment?>(null) }
+    var postToReport by remember { mutableStateOf(false) }
+    var showDeletePostDialog by remember { mutableStateOf(false) }
+    var showPostMenu by remember { mutableStateOf(false) }
     val reportContext = LocalContext.current
     var quoteText by remember { mutableStateOf("") }
     var commentSortMode by remember { mutableStateOf(CommentSortMode.TOP) }
@@ -83,6 +86,8 @@ fun PostDetailScreen(
     val displayedComments = remember(allComments, commentSortMode) {
         sortComments(allComments, commentSortMode)
     }
+
+    val isOwnPost = currentPost.userId == viewModel.currentUserId
 
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
@@ -248,7 +253,52 @@ fun PostDetailScreen(
                                 color = SlateGray400
                             )
                         }
-                        Icon(Icons.Default.MoreHoriz, null, tint = SlateGray400)
+                        Box {
+                            Icon(
+                                Icons.Default.MoreHoriz,
+                                contentDescription = "Tuỳ chọn",
+                                tint = SlateGray400,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable { showPostMenu = true },
+                            )
+                            DropdownMenu(
+                                expanded = showPostMenu,
+                                onDismissRequest = { showPostMenu = false },
+                            ) {
+                                if (isOwnPost) {
+                                    DropdownMenuItem(
+                                        text = { Text("Xoá bài viết", color = Color.Red) },
+                                        onClick = {
+                                            showPostMenu = false
+                                            showDeletePostDialog = true
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Outlined.Delete,
+                                                contentDescription = null,
+                                                tint = Color.Red,
+                                            )
+                                        },
+                                    )
+                                } else {
+                                    DropdownMenuItem(
+                                        text = { Text("Báo cáo") },
+                                        onClick = {
+                                            showPostMenu = false
+                                            postToReport = true
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Outlined.Flag,
+                                                contentDescription = null,
+                                                tint = SlateGray400,
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     // Content
@@ -496,6 +546,47 @@ fun PostDetailScreen(
                     )
                     commentToReport = null
                     android.widget.Toast.makeText(reportContext, "Đã gửi báo cáo. Cảm ơn bạn!", android.widget.Toast.LENGTH_SHORT).show()
+                },
+            )
+        }
+
+        if (postToReport) {
+            ReportBottomSheet(
+                target = ReportTarget.POST,
+                onDismiss = { postToReport = false },
+                onSubmit = { reason, description ->
+                    viewModel.reportPostOrComment(
+                        reason = reason,
+                        reportedPostId = currentPost.id,
+                        reportedCommentId = null,
+                        description = description,
+                    )
+                    postToReport = false
+                    android.widget.Toast.makeText(reportContext, "Đã gửi báo cáo. Cảm ơn bạn!", android.widget.Toast.LENGTH_SHORT).show()
+                },
+            )
+        }
+
+        if (showDeletePostDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeletePostDialog = false },
+                title = { Text("Xoá bài viết", fontWeight = FontWeight.Bold) },
+                text = { Text("Bạn có chắc chắn muốn xoá bài viết này không? Hành động này không thể hoàn tác.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deletePost(currentPost.id)
+                            showDeletePostDialog = false
+                            onBack()
+                        },
+                    ) {
+                        Text("Xoá", color = VNRed, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeletePostDialog = false }) {
+                        Text("Huỷ", color = SlateGray500)
+                    }
                 },
             )
         }

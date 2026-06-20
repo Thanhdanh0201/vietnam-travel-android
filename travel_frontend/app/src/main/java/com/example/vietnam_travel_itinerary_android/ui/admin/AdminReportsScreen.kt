@@ -279,7 +279,6 @@ private fun ReportCard(
                         onDeletePost = { viewModel.deletePost(report.id) },
                         onDeleteComment = { viewModel.deleteComment(report.id) },
                         onBanUser = { showBanDialog = true },
-                        onResolve = { viewModel.resolve(report.id) },
                         onDismiss = { viewModel.dismiss(report.id) },
                     )
                 }
@@ -370,7 +369,6 @@ private fun FlowActions(
     onDeletePost: () -> Unit,
     onDeleteComment: () -> Unit,
     onBanUser: () -> Unit,
-    onResolve: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Column(
@@ -407,12 +405,7 @@ private fun FlowActions(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text("Bỏ qua") }
-            Button(
-                onClick = onResolve,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF15803D)),
-            ) { Text("Đã xử lý") }
+            OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("Bỏ qua") }
         }
     }
 }

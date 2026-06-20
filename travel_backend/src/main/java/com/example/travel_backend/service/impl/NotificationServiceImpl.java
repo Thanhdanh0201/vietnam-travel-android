@@ -36,12 +36,12 @@ public class NotificationServiceImpl implements NotificationService {
         if (category != null && !category.isBlank() && !"all".equalsIgnoreCase(category)) {
             List<String> types = CATEGORY_TYPES.get(category.toLowerCase());
             if (types == null) {
-                notifPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+                notifPage = notificationRepository.findActiveByUserIdOrderByCreatedAtDesc(userId, pageable);
             } else {
-                notifPage = notificationRepository.findByUserIdAndTypeInOrderByCreatedAtDesc(userId, types, pageable);
+                notifPage = notificationRepository.findActiveByUserIdAndTypeInOrderByCreatedAtDesc(userId, types, pageable);
             }
         } else {
-            notifPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+            notifPage = notificationRepository.findActiveByUserIdOrderByCreatedAtDesc(userId, pageable);
         }
 
         return notifPage.getContent().stream().map(this::mapToDto).collect(Collectors.toList());
@@ -49,7 +49,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public long getUnreadCount(UUID userId) {
-        return notificationRepository.countByUserIdAndIsReadFalse(userId);
+        return notificationRepository.countActiveUnreadByUserId(userId);
     }
 
     @Override
@@ -62,6 +62,21 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional
     public void markAllAsRead(UUID userId) {
         notificationRepository.markAllAsRead(userId);
+    }
+
+    /** Soft delete: sets is_deleted = true; row stays in DB (same pattern as posts/comments). */
+    @Override
+    @Transactional
+    public void deleteNotification(UUID notifId, UUID userId) {
+        notificationRepository.softDeleteByIdAndUserId(notifId, userId);
+    }
+
+    /** Soft delete batch: sets is_deleted = true for each id owned by user. */
+    @Override
+    @Transactional
+    public void deleteNotifications(List<UUID> ids, UUID userId) {
+        if (ids == null || ids.isEmpty()) return;
+        notificationRepository.softDeleteByIdInAndUserId(ids, userId);
     }
 
     private NotificationResponseDto mapToDto(Notification notif) {

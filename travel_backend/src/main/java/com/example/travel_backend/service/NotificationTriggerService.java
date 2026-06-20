@@ -86,8 +86,9 @@ public class NotificationTriggerService {
     }
 
     public void notifyPlaceSuggestionApproved(UUID adminId, UUID suggesterId, UUID suggestionId) {
-        if (!shouldNotify(adminId, suggesterId, "place_suggestion_approved")) return;
-        saveNotification(suggesterId, adminId, "place_suggestion_approved", null, null, null, suggestionId,
+        if (suggesterId == null) return;
+        UUID actorId = adminId != null ? adminId : suggesterId;
+        saveNotification(suggesterId, actorId, "place_suggestion_approved", null, null, null, suggestionId,
                 null, null, null);
     }
 
