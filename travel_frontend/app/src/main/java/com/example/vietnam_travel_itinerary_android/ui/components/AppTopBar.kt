@@ -52,7 +52,7 @@ fun AppTopBarLogo(modifier: Modifier = Modifier) {
             }
         }
         Text(
-            text = "VIETNAM TRAVEL",
+            text = "VIETNAM",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.ExtraBold,
             color = VNRed,

@@ -1,7 +1,6 @@
 package com.example.vietnam_travel_itinerary_android.ui.itinerary
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,7 +12,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material3.*
@@ -32,6 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
+import com.example.vietnam_travel_itinerary_android.data.model.Province
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.theme.*
 import java.time.Instant
@@ -377,50 +376,14 @@ fun CreateItineraryScreen(
                     fontSize = 12.sp,
                     color = SlateGray500
                 )
-                
-                var expandedProvince by remember { mutableStateOf(false) }
-
-                Text(
-                    text = "Tỉnh/Thành phố",
-                    fontSize = 12.sp,
-                    color = SlateGray600
+                ProvinceSelectorDropdown(
+                    provinces = provinces,
+                    selectedName = selectedProvinceName,
+                    onSelect = { province ->
+                        selectedProvinceName = province.name
+                        selectedProvinceCode = province.code
+                    }
                 )
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = SlateGray50.copy(alpha = 0.5f),
-                        border = borderStroke(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .clickable { expandedProvince = true }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(selectedProvinceName.ifBlank { "Chọn Tỉnh/Thành" }, color = SlateGray900, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = SlateGray500)
-                        }
-                    }
-                    DropdownMenu(
-                        expanded = expandedProvince,
-                        onDismissRequest = { expandedProvince = false },
-                        modifier = Modifier.fillMaxWidth(0.9f).background(Color.White)
-                    ) {
-                        provinces.forEach { province ->
-                            DropdownMenuItem(
-                                text = { Text(province.name) },
-                                onClick = {
-                                    selectedProvinceName = province.name
-                                    selectedProvinceCode = province.code
-                                    expandedProvince = false
-                                }
-                            )
-                        }
-                    }
-                }
             }
             
             Spacer(modifier = Modifier.height(24.dp)) // padding for bottom bar
@@ -493,6 +456,52 @@ fun DateRangePickerDialog(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun borderStroke() = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF1F5F9))
+private fun ProvinceSelectorDropdown(
+    provinces: List<Province>,
+    selectedName: String,
+    onSelect: (Province) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        OutlinedTextField(
+            value = selectedName,
+            onValueChange = {},
+            readOnly = true,
+            placeholder = { Text("Chọn Tỉnh/Thành", color = SlateGray400, fontSize = 14.sp) },
+            label = { Text("Tỉnh/Thành phố", fontSize = 12.sp) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = VNRed,
+                unfocusedBorderColor = Color.Transparent,
+                focusedContainerColor = Color.White,
+                unfocusedContainerColor = Color.White,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.heightIn(max = 320.dp),
+        ) {
+            provinces.forEach { province ->
+                DropdownMenuItem(
+                    text = { Text(province.name) },
+                    onClick = {
+                        onSelect(province)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
 

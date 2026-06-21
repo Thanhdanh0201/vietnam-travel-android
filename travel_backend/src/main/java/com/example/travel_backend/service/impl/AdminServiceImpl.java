@@ -196,16 +196,16 @@ public class AdminServiceImpl implements AdminService {
 
         if (suggestion.getProvince() == null)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Suggestion has no province; cannot create place");
-        if (suggestion.getLat() == null || suggestion.getLng() == null)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Suggestion has no coordinates; cannot create place");
         if (suggestion.getType() == null || suggestion.getType().isBlank())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Suggestion has no type; cannot create place");
+
+        double[] coordinates = resolveCoordinates(suggestion);
 
         Place place = new Place();
         place.setProvince(suggestion.getProvince());
         place.setName(suggestion.getName());
-        place.setLat(suggestion.getLat());
-        place.setLng(suggestion.getLng());
+        place.setLat(coordinates[0]);
+        place.setLng(coordinates[1]);
         place.setType(suggestion.getType());
         place.setDescription(suggestion.getDescription());
         place.setImageUrl(suggestion.getImageUrl());
@@ -232,6 +232,22 @@ public class AdminServiceImpl implements AdminService {
         suggestion.setReviewedAt(OffsetDateTime.now());
         suggestion.setReviewedBy(userRepository.getReferenceById(adminId));
         placeSuggestionRepository.save(suggestion);
+    }
+
+    /** Ưu tiên tọa độ đề xuất; thiếu thì lấy tọa độ tỉnh; cuối cùng mặc định trung tâm VN. */
+    private double[] resolveCoordinates(PlaceSuggestion suggestion) {
+        if (suggestion.getLat() != null && suggestion.getLng() != null) {
+            return new double[] { suggestion.getLat(), suggestion.getLng() };
+        }
+        if (suggestion.getProvince() != null
+                && suggestion.getProvince().getLat() != null
+                && suggestion.getProvince().getLng() != null) {
+            return new double[] {
+                    suggestion.getProvince().getLat(),
+                    suggestion.getProvince().getLng(),
+            };
+        }
+        return new double[] { 16.0544, 108.2022 };
     }
 
     // ─── Converters ───────────────────────────────────────────────────────────

@@ -91,7 +91,7 @@ class AdminPlaceSuggestionsViewModel(
                 _uiState.update {
                     it.copy(
                         actionInProgressId = null,
-                        error = "Không thể duyệt. Đề xuất cần có tỉnh, tọa độ và loại địa điểm.",
+                        error = "Không thể duyệt. Đề xuất cần có tỉnh và loại địa điểm.",
                     )
                 }
             }
