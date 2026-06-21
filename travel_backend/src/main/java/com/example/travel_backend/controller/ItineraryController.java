@@ -253,12 +253,14 @@ public class ItineraryController {
                 ? displayName.trim()
                 : resolvedEmail.split("@")[0];
 
+        final String finalEmail = resolvedEmail;
+
         com.example.travel_backend.entity.ItineraryCollaborator collaborator =
-                collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, resolvedEmail.trim())
+                collaboratorRepository.findByItinerary_IdAndEmail(itineraryId, finalEmail.trim())
                 .orElseGet(() -> {
                     com.example.travel_backend.entity.ItineraryCollaborator c = new com.example.travel_backend.entity.ItineraryCollaborator();
                     c.setItinerary(itinerary);
-                    c.setEmail(resolvedEmail.trim().toLowerCase());
+                    c.setEmail(finalEmail.trim().toLowerCase());
                     return c;
                 });
         collaborator.setName(displayName);

@@ -2,6 +2,7 @@ package com.example.travel_backend.service.impl;
 
 import com.example.travel_backend.dto.response.UserInviteSearchDto;
 import com.example.travel_backend.dto.response.UserProfileResponseDto;
+import com.example.travel_backend.dto.request.UpdateProfileRequestDto;
 import com.example.travel_backend.entity.User;
 import com.example.travel_backend.repository.UserRepository;
 import com.example.travel_backend.service.UserService;
