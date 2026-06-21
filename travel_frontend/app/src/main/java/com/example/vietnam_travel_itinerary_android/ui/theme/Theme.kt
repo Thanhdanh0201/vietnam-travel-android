@@ -84,7 +84,11 @@ fun VietnamTravelTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = Color.Transparent.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.navigationBarColor = Color.Transparent.toArgb() // Ensure Navigation Bar is transparent
+
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            insetsController.isAppearanceLightStatusBars = !darkTheme // Dark icons in light theme, light icons in dark theme
+            insetsController.isAppearanceLightNavigationBars = !darkTheme // Dark navigation icons in light theme
         }
     }
 
