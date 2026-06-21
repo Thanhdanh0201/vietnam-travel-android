@@ -152,19 +152,20 @@ adb shell am start -n com.example.vietnam_travel_itinerary_android/.MainActivity
 
 ### Yêu cầu hệ thống
 
-- **Android 8.0 (API 26)** trở lên
+- **Android 11.0 (API 30)** trở lên
 - Kết nối Internet để đăng nhập và đồng bộ dữ liệu
-- Backend/Supabase cần được bật để sử dụng đầy đủ tính năng
+- Cả Backend (Spring Boot) và dịch vụ Supabase cần hoạt động để sử dụng đầy đủ tính năng
 
 ---
 
 ## Công nghệ
 
-| Thành phần | Công nghệ |
-|---|---|
-| Mobile | Android — Kotlin, Jetpack Compose |
-| Backend | Supabase (PostgreSQL, Auth, Storage, RPC) |
-| Thời tiết | Open-Meteo API |
+| Thành phần | Công nghệ / Thư viện | Chi tiết |
+|---|---|---|
+| **Mobile (Frontend)** | Android (Kotlin) | Jetpack Compose, Retrofit, Coroutines, OkHttp, Supabase Kotlin SDK (Auth, Storage, Realtime, Postgrest) |
+| **Backend API** | Spring Boot (Java 17) | Spring Web, Spring Data JPA (Hibernate), Spring Security (OAuth2 Resource Server để xác thực JWT của Supabase) |
+| **Database & Services** | Supabase | PostgreSQL (Cơ sở dữ liệu chính), Supabase Auth (Quản lý tài khoản & xác thực), Supabase Storage (Lưu trữ ảnh/media) |
+| **Thời tiết & Dữ liệu** | Open-Meteo API | API dự báo thời tiết cho các tỉnh thành |
 
 ---
 
