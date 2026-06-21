@@ -26,6 +26,9 @@ class ProfileViewModel(
         val isFollowLoading: Boolean = false,
     )
 
+    private var lastLoadedUserId: String? = null
+    private var lastLoadedAtMs: Long = 0L
+
     private val _uiState = MutableStateFlow(
         ProfileUiState(
             isLoading = UserSessionCache.get() == null,
@@ -37,7 +40,7 @@ class ProfileViewModel(
     val currentUserId: String?
         get() = supabase.auth.currentUserOrNull()?.id
 
-    fun loadProfile(userId: String? = null) {
+    fun loadProfile(userId: String? = null, force: Boolean = false) {
         val targetUserId = userId ?: currentUserId
         if (targetUserId.isNullOrBlank()) {
             _uiState.value = ProfileUiState(
@@ -47,30 +50,81 @@ class ProfileViewModel(
             return
         }
 
-        val cachedProfile = UserSessionCache.get()
-        if (cachedProfile != null && cachedProfile.id == targetUserId) {
-            // Giữ thông tin header tạm thời nhưng không hiển thị bài cũ từ cache (tránh soft-delete lệch)
+        val existingProfile = _uiState.value.profile
+        val hasExistingProfile = existingProfile?.id == targetUserId
+        val cachedProfile = UserSessionCache.get()?.takeIf {
+            it.id == targetUserId && userId == null
+        }
+
+        if (!force && hasExistingProfile && !shouldReload(targetUserId)) {
+            return
+        }
+
+        if (!force && (hasExistingProfile || cachedProfile != null)) {
             _uiState.update {
                 it.copy(
-                    isLoading = true,
-                    profile = cachedProfile.copy(posts = emptyList(), savedPosts = emptyList()),
+                    isLoading = false,
+                    profile = existingProfile ?: cachedProfile,
                     error = null,
                 )
             }
-        } else {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            fetchProfileInBackground(targetUserId, showRefreshingIndicator = hasExistingProfile)
+            return
         }
 
+        _uiState.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            try {
-                val profile = repository.getProfile(targetUserId, currentUserId)
-                _uiState.value = ProfileUiState(isLoading = false, profile = profile)
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uiState.value = ProfileUiState(
-                    isLoading = false,
-                    error = "Không thể tải hồ sơ: ${e.message}",
-                )
+            fetchAndApplyProfile(targetUserId, showRefreshingIndicator = false)
+        }
+    }
+
+    private fun shouldReload(userId: String): Boolean {
+        if (lastLoadedUserId != userId) return true
+        return System.currentTimeMillis() - lastLoadedAtMs > PROFILE_RELOAD_INTERVAL_MS
+    }
+
+    private fun fetchProfileInBackground(
+        targetUserId: String,
+        showRefreshingIndicator: Boolean,
+    ) {
+        if (_uiState.value.isRefreshing) return
+
+        viewModelScope.launch {
+            if (showRefreshingIndicator) {
+                _uiState.update { it.copy(isRefreshing = true, error = null) }
+            }
+            fetchAndApplyProfile(targetUserId, showRefreshingIndicator = showRefreshingIndicator)
+        }
+    }
+
+    private suspend fun fetchAndApplyProfile(
+        targetUserId: String,
+        showRefreshingIndicator: Boolean,
+    ) {
+        try {
+            val profile = repository.getProfile(targetUserId, currentUserId)
+            lastLoadedUserId = targetUserId
+            lastLoadedAtMs = System.currentTimeMillis()
+            _uiState.value = ProfileUiState(isLoading = false, profile = profile)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _uiState.update { state ->
+                if (state.profile != null) {
+                    state.copy(
+                        isLoading = false,
+                        isRefreshing = false,
+                        error = "Không thể làm mới hồ sơ: ${e.message}",
+                    )
+                } else {
+                    ProfileUiState(
+                        isLoading = false,
+                        error = "Không thể tải hồ sơ: ${e.message}",
+                    )
+                }
+            }
+        } finally {
+            if (showRefreshingIndicator) {
+                _uiState.update { it.copy(isRefreshing = false) }
             }
         }
     }
@@ -81,15 +135,7 @@ class ProfileViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true, error = null) }
-            try {
-                val profile = repository.getProfile(targetUserId, currentUserId)
-                _uiState.update { it.copy(profile = profile) }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uiState.update { it.copy(error = "Không thể làm mới hồ sơ: ${e.message}") }
-            } finally {
-                _uiState.update { it.copy(isRefreshing = false) }
-            }
+            fetchAndApplyProfile(targetUserId, showRefreshingIndicator = true)
         }
     }
 
@@ -292,5 +338,9 @@ class ProfileViewModel(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    companion object {
+        private const val PROFILE_RELOAD_INTERVAL_MS = 30_000L
     }
 }

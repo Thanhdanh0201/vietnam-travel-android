@@ -348,9 +348,8 @@ fun MainScreen(
             }
 
             composable("profile") {
-                val profileViewModel: ProfileViewModel = viewModel(factory = AppViewModelProvider.Factory)
                 ProfileScreen(
-                    viewModel = profileViewModel,
+                    viewModel = sessionProfileViewModel,
                     unreadCount = unreadCount,
                     onMenuClick = openDrawer,
                     onBack = { bottomNavController.popBackStack() },
@@ -379,22 +378,11 @@ fun MainScreen(
                 )
             }
 
-            composable("edit_profile") { backStackEntry ->
-                val profileParentEntry = remember(backStackEntry) {
-                    try {
-                        bottomNavController.getBackStackEntry("profile")
-                    } catch (e: Exception) {
-                        backStackEntry
-                    }
-                }
-                val profileViewModel: ProfileViewModel = viewModel(
-                    factory = AppViewModelProvider.Factory,
-                    viewModelStoreOwner = profileParentEntry,
-                )
+            composable("edit_profile") {
                 EditProfileScreen(
                     onBack = { bottomNavController.popBackStack() },
                     onSaved = {
-                        profileViewModel.loadProfile()
+                        sessionProfileViewModel.loadProfile(force = true)
                         bottomNavController.popBackStack()
                     },
                 )

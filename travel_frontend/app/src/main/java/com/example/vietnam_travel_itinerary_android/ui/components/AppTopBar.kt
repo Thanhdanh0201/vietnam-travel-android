@@ -20,7 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray600
 import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
+import com.example.vietnam_travel_itinerary_android.ui.theme.VNIconLight
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 
 // ============================================================
@@ -36,7 +38,7 @@ fun AppTopBarLogo(modifier: Modifier = Modifier) {
     ) {
         Surface(
             shape = RoundedCornerShape(8.dp),
-            color = VNRed,
+            color = Color(0xFFBE1E2D),
             modifier = Modifier.size(36.dp),
         ) {
             Box(
@@ -47,17 +49,11 @@ fun AppTopBarLogo(modifier: Modifier = Modifier) {
                     imageVector = Icons.Filled.Star,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
-        Text(
-            text = "VIETNAM",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold,
-            color = VNRed,
-            letterSpacing = 0.5.sp,
-        )
+        AnimatedVietnamLogo(width = 132.dp)
     }
 }
 
@@ -71,12 +67,15 @@ fun AppTopBar(
     Column {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.background.copy(alpha = 0.9f),
+            color = Color.White,
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            shadowElevation = 1.dp,
+            tonalElevation = 0.dp,
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 16.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -89,7 +88,7 @@ fun AppTopBar(
                             Icon(
                                 imageVector = Icons.Filled.Menu,
                                 contentDescription = "Menu",
-                                tint = VNRed,
+                                tint = SlateGray600,
                             )
                         }
                     } else {
@@ -104,7 +103,7 @@ fun AppTopBar(
                 )
             }
         }
-        HorizontalDivider(color = VNRed.copy(alpha = 0.05f))
+        HorizontalDivider(color = Color(0xFFDBEAFE).copy(alpha = 0.6f))
     }
 }
 
@@ -168,7 +167,7 @@ fun AppBackTopBar(
                 }
             }
         }
-        HorizontalDivider(color = VNRed.copy(alpha = 0.05f))
+        HorizontalDivider(color = Color(0xFFDBEAFE).copy(alpha = 0.6f))
     }
 }
 
@@ -198,8 +197,8 @@ private fun AppTopBarActions(
             FilledIconButton(
                 onClick = onNotificationClick,
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = VNRed.copy(alpha = 0.1f),
-                    contentColor = VNRed,
+                    containerColor = VNIconLight,
+                    contentColor = Color(0xFFBE1E2D),
                 ),
                 modifier = Modifier.size(40.dp),
             ) {
@@ -213,8 +212,8 @@ private fun AppTopBarActions(
         FilledIconButton(
             onClick = onSearchClick,
             colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = VNRed.copy(alpha = 0.1f),
-                contentColor = VNRed,
+                containerColor = VNIconLight,
+                contentColor = Color(0xFFBE1E2D),
             ),
             modifier = Modifier.size(40.dp),
         ) {

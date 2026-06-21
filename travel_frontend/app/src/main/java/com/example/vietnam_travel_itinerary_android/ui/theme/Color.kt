@@ -11,6 +11,7 @@ val VNRed = Color(0xFFC6102E)
 val VNRedLight = Color(0xFFE8475E)
 val VNRedDark = Color(0xFF8E0B20)
 val VNRedContainer = Color(0xFFFDE8EB)
+val VNIconLight = Color(0xFFFDECEC)
 val VNRedOnContainer = Color(0xFF3F0510)
 
 // Backgrounds

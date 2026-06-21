@@ -19,14 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.Thunderstorm
-import androidx.compose.material.icons.outlined.WaterDrop
-import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,21 +32,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vietnam_travel_itinerary_android.data.model.WeatherData
+import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray500
+import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray600
+import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray900
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
-import com.example.vietnam_travel_itinerary_android.ui.theme.VNRedLight
 import kotlin.math.roundToInt
 
-val WeatherWidgetHeight = 124.dp
+val WeatherWidgetHeight = 132.dp
 private val WidgetHeight = WeatherWidgetHeight
-private val WidgetRadius = 18.dp
-private val LocationHeaderHeight = 36.dp
-private val WeatherBodyMainHeight = 56.dp
+private val WidgetRadius = 20.dp
+private val LocationHeaderHeight = 34.dp
+private val WeatherBodyMainHeight = 64.dp
 
 @Composable
 fun WeatherWidget(
@@ -69,7 +65,7 @@ fun WeatherWidget(
             .fillMaxWidth()
             .height(WidgetHeight),
         shape = RoundedCornerShape(WidgetRadius),
-        shadowElevation = 4.dp,
+        shadowElevation = 6.dp,
         color = Color.Transparent,
     ) {
         when {
@@ -101,15 +97,22 @@ fun WeatherWidget(
 @Composable
 private fun WeatherFavoriteButton(
     isFavorite: Boolean,
+    theme: WeatherTheme,
     onFavoriteClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     if (onFavoriteClick == null) return
     Box(
         modifier = modifier
-            .size(32.dp)
+            .size(34.dp)
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = if (isFavorite) 0.35f else 0.18f))
+            .background(
+                if (theme.isDark) {
+                    Color.White.copy(alpha = if (isFavorite) 0.28f else 0.14f)
+                } else {
+                    VNRed.copy(alpha = if (isFavorite) 0.18f else 0.1f)
+                },
+            )
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() },
@@ -117,10 +120,14 @@ private fun WeatherFavoriteButton(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
+        androidx.compose.material3.Icon(
             imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
             contentDescription = if (isFavorite) "Đã đặt làm mặc định" else "Đặt làm thành phố mặc định",
-            tint = if (isFavorite) Color.White else Color.White.copy(alpha = 0.9f),
+            tint = if (theme.isDark) {
+                if (isFavorite) Color.White else Color.White.copy(alpha = 0.92f)
+            } else {
+                if (isFavorite) VNRed else VNRed.copy(alpha = 0.75f)
+            },
             modifier = Modifier.size(18.dp),
         )
     }
@@ -141,20 +148,54 @@ private fun WeatherWidgetGradientBox(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Brush.linearGradient(theme.gradient)),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .offset(y = 36.dp)
-                .size(width = 320.dp, height = 110.dp)
-                .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
-                        colors = theme.gradient.map { it.copy(alpha = 0.85f) },
+                        colors = theme.gradient,
+                        start = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY),
+                        end = androidx.compose.ui.geometry.Offset(Float.POSITIVE_INFINITY, 0f),
                     ),
                 ),
         )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 24.dp, y = (-12).dp)
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(theme.glowColor.copy(alpha = 0.22f)),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-20).dp, y = 20.dp)
+                .size(72.dp)
+                .clip(CircleShape)
+                .background(theme.glowColor.copy(alpha = 0.12f)),
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = if (theme.isDark) {
+                            listOf(
+                                Color.White.copy(alpha = 0.08f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.06f),
+                            )
+                        } else {
+                            listOf(
+                                Color.White.copy(alpha = 0.45f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.03f),
+                            )
+                        },
+                    ),
+                ),
+        )
+
         content()
     }
 }
@@ -163,35 +204,44 @@ private fun WeatherWidgetGradientBox(
 private fun WeatherWidgetLocationHeader(
     locationName: String,
     locationSubtitle: String?,
+    theme: WeatherTheme,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(LocationHeaderHeight)
-            .padding(end = 36.dp),
+            .padding(end = 40.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = Icons.Outlined.LocationOn,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.9f),
-            modifier = Modifier.size(13.dp),
-        )
-        Spacer(modifier = Modifier.width(3.dp))
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(CircleShape)
+                .background(theme.iconSurface),
+            contentAlignment = Alignment.Center,
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = Icons.Outlined.LocationOn,
+                contentDescription = null,
+                tint = theme.iconTint,
+                modifier = Modifier.size(13.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = locationName,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = theme.primaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = locationSubtitle?.takeIf { it.isNotBlank() } ?: "\u00A0",
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.75f),
+                color = theme.secondaryText,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontSize = 10.sp,
@@ -214,21 +264,23 @@ private fun WeatherWidgetFrame(
         Box(modifier = Modifier.fillMaxSize()) {
             WeatherFavoriteButton(
                 isFavorite = isFavorite,
+                theme = theme,
                 onFavoriteClick = onFavoriteClick,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp),
+                    .padding(10.dp),
             )
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
                 WeatherWidgetLocationHeader(
                     locationName = locationName,
                     locationSubtitle = locationSubtitle,
+                    theme = theme,
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -250,25 +302,27 @@ private fun WeatherWidgetLoading(
     onFavoriteClick: (() -> Unit)?,
 ) {
     WeatherWidgetFrame(
-        theme = weatherThemes("partly_cloudy"),
+        theme = weatherTheme(isDark = false),
         locationName = locationName,
         locationSubtitle = locationSubtitle,
         isFavorite = isFavorite,
         onFavoriteClick = onFavoriteClick,
         bodyMain = {
+            val theme = weatherTheme(isDark = false)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                WeatherConditionIllustration(condition = "partly_cloudy")
                 CircularProgressIndicator(
-                    modifier = Modifier.size(28.dp),
-                    color = Color.White,
+                    modifier = Modifier.size(24.dp),
+                    color = theme.accent,
                     strokeWidth = 2.5.dp,
                 )
                 Text(
                     text = "Đang tải thời tiết…",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = theme.secondaryText,
                 )
             }
         },
@@ -283,19 +337,26 @@ private fun WeatherWidgetError(
     onFavoriteClick: (() -> Unit)?,
 ) {
     WeatherWidgetFrame(
-        theme = weatherThemes("partly_cloudy"),
+        theme = weatherTheme(isDark = false),
         locationName = locationName,
         locationSubtitle = locationSubtitle,
         isFavorite = isFavorite,
         onFavoriteClick = onFavoriteClick,
         bodyMain = {
-            Text(
-                text = "Chưa có dữ liệu — bật backend và thử lại",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.White.copy(alpha = 0.85f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val theme = weatherTheme(isDark = false)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                WeatherConditionIllustration(condition = "cloudy")
+                Text(
+                    text = "Chưa có dữ liệu — bật backend và thử lại",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = theme.secondaryText,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         },
     )
 }
@@ -308,10 +369,15 @@ private fun WeatherWidgetContent(
     isFavorite: Boolean,
     onFavoriteClick: (() -> Unit)?,
 ) {
-    val theme = weatherThemes(weather.condition)
+    val theme = weatherTheme(isDark = weather.condition == "stormy")
     val tempNow = ((weather.tempMax + weather.tempMin) / 2.0).roundToInt()
     val conditionText = getConditionText(weather.condition)
-    val conditionIcon = getConditionIcon(weather.condition)
+    val rainMm = weather.rainMm.coerceAtLeast(0.0)
+    val detailText = when {
+        rainMm > 0.1 -> "Mưa ~${rainMm.roundToInt()} mm"
+        weather.humidity != null -> "Độ ẩm ${weather.humidity}%"
+        else -> "\u00A0"
+    }
 
     WeatherWidgetFrame(
         theme = theme,
@@ -323,46 +389,64 @@ private fun WeatherWidgetContent(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(
-                    imageVector = conditionIcon,
-                    contentDescription = conditionText,
-                    modifier = Modifier.size(32.dp),
-                    tint = Color.White,
+                WeatherConditionIllustration(
+                    condition = weather.condition,
+                    modifier = Modifier.size(52.dp),
                 )
-                Row(verticalAlignment = Alignment.Top) {
-                    Text(
-                        text = "$tempNow",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        letterSpacing = (-0.5).sp,
-                    )
-                    Text(
-                        text = "°C",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.padding(top = 4.dp, start = 1.dp),
-                    )
-                }
+
                 Column(
-                    horizontalAlignment = Alignment.End,
-                    modifier = Modifier.width(88.dp),
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center,
                 ) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text(
+                            text = "$tempNow",
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Black,
+                            color = theme.primaryText,
+                            letterSpacing = (-1).sp,
+                            lineHeight = 36.sp,
+                        )
+                        Text(
+                            text = "°C",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = theme.mutedText,
+                            modifier = Modifier.padding(top = 4.dp, start = 2.dp),
+                        )
+                    }
                     Text(
                         text = conditionText,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
+                        color = theme.primaryText.copy(alpha = 0.92f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    val rainMm = weather.rainMm.coerceAtLeast(0.0)
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.width(92.dp),
+                ) {
                     Text(
-                        text = if (rainMm > 0.1) "Mưa ~${rainMm.roundToInt()} mm" else "\u00A0",
+                        text = "H:${weather.tempMax.roundToInt()}°",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = theme.primaryText.copy(alpha = 0.88f),
+                    )
+                    Text(
+                        text = "L:${weather.tempMin.roundToInt()}°",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = theme.mutedText,
+                    )
+                    Text(
+                        text = detailText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = theme.secondaryText,
                         fontSize = 10.sp,
                         maxLines = 1,
                         modifier = Modifier.height(14.dp),
@@ -373,15 +457,42 @@ private fun WeatherWidgetContent(
     )
 }
 
-private data class WeatherTheme(val gradient: List<Color>)
+private data class WeatherTheme(
+    val gradient: List<Color>,
+    val glowColor: Color,
+    val isDark: Boolean,
+    val primaryText: Color,
+    val secondaryText: Color,
+    val mutedText: Color,
+    val iconSurface: Color,
+    val iconTint: Color,
+    val accent: Color,
+)
 
-private fun weatherThemes(condition: String): WeatherTheme = when (condition) {
-    "sunny" -> WeatherTheme(listOf(Color(0xFFFFB347), Color(0xFFE8475E), VNRed))
-    "partly_cloudy" -> WeatherTheme(listOf(Color(0xFF9BF8F4), Color(0xFF6F7BF7)))
-    "cloudy" -> WeatherTheme(listOf(Color(0xFF94A3B8), Color(0xFF64748B), Color(0xFF475569)))
-    "rainy" -> WeatherTheme(listOf(Color(0xFF9BF8F4), Color(0xFF6F7BF7)))
-    "stormy" -> WeatherTheme(listOf(Color(0xFF0E0E11), Color(0xFF383C47)))
-    else -> WeatherTheme(listOf(Color(0xFF9BF8F4), VNRedLight))
+private fun weatherTheme(isDark: Boolean): WeatherTheme = if (isDark) {
+    WeatherTheme(
+        gradient = listOf(Color(0xFF082276), Color(0xFF030F34)),
+        glowColor = Color(0xFF713FFD),
+        isDark = true,
+        primaryText = Color.White,
+        secondaryText = Color.White.copy(alpha = 0.78f),
+        mutedText = Color.White.copy(alpha = 0.72f),
+        iconSurface = Color.White.copy(alpha = 0.16f),
+        iconTint = Color.White.copy(alpha = 0.95f),
+        accent = Color.White,
+    )
+} else {
+    WeatherTheme(
+        gradient = listOf(Color(0xFFEBEBEB), Color(0xFFEEEEEE)),
+        glowColor = Color(0xFFCBD5E1),
+        isDark = false,
+        primaryText = SlateGray900,
+        secondaryText = SlateGray600,
+        mutedText = SlateGray500,
+        iconSurface = VNRed.copy(alpha = 0.1f),
+        iconTint = VNRed,
+        accent = VNRed,
+    )
 }
 
 private fun getConditionText(condition: String): String = when (condition) {
@@ -391,13 +502,4 @@ private fun getConditionText(condition: String): String = when (condition) {
     "rainy" -> "Có mưa"
     "stormy" -> "Có giông"
     else -> "Trời đẹp"
-}
-
-private fun getConditionIcon(condition: String): ImageVector = when (condition) {
-    "sunny" -> Icons.Outlined.WbSunny
-    "partly_cloudy" -> Icons.Outlined.Cloud
-    "cloudy" -> Icons.Outlined.Cloud
-    "rainy" -> Icons.Outlined.WaterDrop
-    "stormy" -> Icons.Outlined.Thunderstorm
-    else -> Icons.Outlined.WbSunny
 }
