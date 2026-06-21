@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -20,6 +22,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/itineraries")
 public class ItineraryController {
+
+    private static final Logger log = LoggerFactory.getLogger(ItineraryController.class);
 
     @Autowired
     private ItineraryServiceImpl itineraryService;
@@ -279,11 +283,15 @@ public class ItineraryController {
 
         collaboratorRepository.save(collaborator);
 
-        if (invitedUserId != null) {
-            notificationTriggerService.notifyItineraryInvite(requesterId, invitedUserId, itineraryId);
-        } else {
-            userRepository.findByEmailIgnoreCase(collaborator.getEmail()).ifPresent(invitedUser ->
-                    notificationTriggerService.notifyItineraryInvite(requesterId, invitedUser.getId(), itineraryId));
+        try {
+            if (invitedUserId != null) {
+                notificationTriggerService.notifyItineraryInvite(requesterId, invitedUserId, itineraryId);
+            } else {
+                userRepository.findByEmailIgnoreCase(collaborator.getEmail()).ifPresent(invitedUser ->
+                        notificationTriggerService.notifyItineraryInvite(requesterId, invitedUser.getId(), itineraryId));
+            }
+        } catch (Exception e) {
+            log.error("Failed to send itinerary invite notification for collaborator: {}", collaborator.getEmail(), e);
         }
 
         return ResponseEntity.ok(new CollaboratorDto(
