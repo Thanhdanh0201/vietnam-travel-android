@@ -172,6 +172,7 @@ fun EditItineraryScreen(
     val timelineItems = uiState.timelineMap["${itinerary?.id}-$selectedDay"] ?: emptyList()
     // participantsMap là reactive từ collectAsState() — sẽ tự recompose khi fetchCollaborators xong
     val participants = uiState.participantsMap[itinerary?.id] ?: emptyList()
+    val invitedMembers = participants.filter { !it.inviteStatus.equals("rejected", ignoreCase = true) }
     
     // Kiểm tra quyền chỉnh sửa của user hiện tại với itinerary này
     val canModify = remember(itinerary?.myRole) {
@@ -751,15 +752,18 @@ fun EditItineraryScreen(
     // Modal / Dialog Quản lý Người Tham Gia & Phân Quyền
     if (showParticipantsDialog) {
         var memberSearchQuery by remember { mutableStateOf("") }
-        var selectedMember by remember { mutableStateOf<InviteMemberCandidate?>(null) }
+        var pendingInvites by remember { mutableStateOf<List<InviteMemberCandidate>>(emptyList()) }
         var newMemberRole by remember { mutableStateOf(ParticipantRole.VIEW_ONLY) }
         val memberSearchState by viewModel.memberSearchState.collectAsState()
 
         LaunchedEffect(showParticipantsDialog) {
             if (showParticipantsDialog) {
                 viewModel.prepareMemberSearch()
+                itinerary?.id?.let { viewModel.fetchCollaborators(it) }
             } else {
                 viewModel.clearMemberSearch()
+                pendingInvites = emptyList()
+                memberSearchQuery = ""
             }
         }
 
@@ -807,13 +811,24 @@ fun EditItineraryScreen(
                                 onSearchQueryChange = { memberSearchQuery = it },
                                 friends = memberSearchState.friends,
                                 community = memberSearchState.community,
-                                selectedMember = selectedMember,
-                                onSelectMember = {
-                                    selectedMember = it
+                                excludeUserIds = (
+                                    pendingInvites.map { it.id } +
+                                        invitedMembers.mapNotNull { it.userId }
+                                    ).toSet(),
+                                onSelectMember = { member ->
+                                    if (pendingInvites.none { it.id == member.id }) {
+                                        pendingInvites = pendingInvites + member
+                                    }
                                     memberSearchQuery = ""
                                 },
-                                onClearSelection = { selectedMember = null },
                                 isLoading = memberSearchState.isLoading,
+                            )
+
+                            PendingInviteList(
+                                pendingInvites = pendingInvites,
+                                onRemove = { member ->
+                                    pendingInvites = pendingInvites.filter { it.id != member.id }
+                                },
                             )
                             
                             // Phân Quyền
@@ -845,42 +860,47 @@ fun EditItineraryScreen(
                             
                             Button(
                                 onClick = {
-                                    val member = selectedMember ?: return@Button
+                                    val invites = pendingInvites
+                                    if (invites.isEmpty()) return@Button
                                     itinerary?.let { it ->
-                                        viewModel.addParticipant(
+                                        viewModel.addParticipants(
                                             itineraryId = it.id,
-                                            userId = member.id,
-                                            name = member.name,
+                                            members = invites,
                                             role = newMemberRole,
                                         )
                                     }
-                                    selectedMember = null
+                                    pendingInvites = emptyList()
                                     memberSearchQuery = ""
                                 },
-                                enabled = selectedMember != null,
+                                enabled = pendingInvites.isNotEmpty(),
                                 colors = ButtonDefaults.buttonColors(containerColor = VNRed),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("THÊM THÀNH VIÊN", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                val label = if (pendingInvites.size <= 1) {
+                                    "THÊM THÀNH VIÊN"
+                                } else {
+                                    "MỜI ${pendingInvites.size} THÀNH VIÊN"
+                                }
+                                Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                     
                     HorizontalDivider(color = SlateGray200)
 
-                    // Danh sách thành viên hiện tại
+                    // Danh sách thành viên đã mời (từ server: pending / accepted)
                     Text(
-                        text = "Danh sách thành viên (${participants.size})",
+                        text = "Danh sách thành viên đã mời (${invitedMembers.size})",
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         color = SlateGray700
                     )
                     
-                    if (participants.isEmpty()) {
-                        Text("Chưa có thành viên nào tham gia.", fontSize = 12.sp, color = SlateGray500)
+                    if (invitedMembers.isEmpty()) {
+                        Text("Chưa mời thành viên nào.", fontSize = 12.sp, color = SlateGray500)
                     } else {
-                        participants.forEach { participant ->
+                        invitedMembers.forEach { participant ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -918,27 +938,52 @@ fun EditItineraryScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    val isEdit = participant.role == ParticipantRole.EDIT
+                                    val statusLabel = when {
+                                        participant.isAccepted -> "Đã tham gia"
+                                        participant.isPending -> "Chờ xác nhận"
+                                        else -> "Đã từ chối"
+                                    }
+                                    val statusColor = when {
+                                        participant.isAccepted -> Color(0xFF2E7D32)
+                                        participant.isPending -> Color(0xFFF57C00)
+                                        else -> SlateGray500
+                                    }
                                     Surface(
                                         shape = RoundedCornerShape(4.dp),
-                                        color = if (isEdit) Color(0xFFE8F5E9) else Color(0xFFECEFF1),
-                                        modifier = Modifier.clickable {
-                                            itinerary?.let { it ->
-                                                viewModel.updateParticipantRole(
-                                                    itineraryId = it.id,
-                                                    email = participant.email,
-                                                    newRole = if (isEdit) ParticipantRole.VIEW_ONLY else ParticipantRole.EDIT
-                                                )
-                                            }
-                                        }
+                                        color = statusColor.copy(alpha = 0.12f),
                                     ) {
                                         Text(
-                                            text = if (isEdit) "CHỈNH SỬA" else "CHỈ XEM",
+                                            text = statusLabel,
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (isEdit) Color(0xFF2E7D32) else Color(0xFF455A64),
+                                            color = statusColor,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
+                                    }
+
+                                    if (participant.isAccepted) {
+                                        val isEdit = participant.role == ParticipantRole.EDIT
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = if (isEdit) Color(0xFFE8F5E9) else Color(0xFFECEFF1),
+                                            modifier = Modifier.clickable {
+                                                itinerary?.let { it ->
+                                                    viewModel.updateParticipantRole(
+                                                        itineraryId = it.id,
+                                                        email = participant.email,
+                                                        newRole = if (isEdit) ParticipantRole.VIEW_ONLY else ParticipantRole.EDIT
+                                                    )
+                                                }
+                                            }
+                                        ) {
+                                            Text(
+                                                text = if (isEdit) "CHỈNH SỬA" else "CHỈ XEM",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isEdit) Color(0xFF2E7D32) else Color(0xFF455A64),
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
                                     }
                                     
                                     IconButton(
@@ -951,7 +996,7 @@ fun EditItineraryScreen(
                                     ) {
                                         Icon(
                                             Icons.Outlined.Delete,
-                                            contentDescription = "Xóa thành viên",
+                                            contentDescription = "Xóa lời mời",
                                             tint = Color.Red,
                                             modifier = Modifier.size(16.dp)
                                         )

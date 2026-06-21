@@ -24,8 +24,11 @@ public interface ItineraryRepository extends JpaRepository<Itinerary, UUID> {
     java.util.List<Itinerary> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     // THÊM JOIN FETCH i.user
+        // Chỉ hiện lịch trình được share sau khi collaborator đã chấp nhận lời mời
     @Query("SELECT DISTINCT i FROM Itinerary i JOIN FETCH i.user " +
-           "WHERE i.user.id = :userId OR i.id IN (SELECT c.itinerary.id FROM ItineraryCollaborator c WHERE LOWER(c.email) = LOWER(:email) AND :email <> '') " +
-           "ORDER BY i.createdAt DESC")
+           "WHERE i.user.id = :userId OR i.id IN (" +
+           "  SELECT c.itinerary.id FROM ItineraryCollaborator c " +
+           "  WHERE LOWER(c.email) = LOWER(:email) AND LOWER(c.status) = 'accepted' AND :email <> ''" +
+           ") ORDER BY i.createdAt DESC")
     java.util.List<Itinerary> findMyAndCollaborativeItineraries(@Param("userId") UUID userId, @Param("email") String email);
 }

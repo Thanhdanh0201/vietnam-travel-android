@@ -44,6 +44,7 @@ import com.example.vietnam_travel_itinerary_android.ui.theme.VNRedContainer
 fun NotificationScreen(
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
+    onItineraryInviteHandled: () -> Unit = {},
     viewModel: NotificationViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val context = LocalContext.current
@@ -185,6 +186,7 @@ fun NotificationScreen(
                             val itineraryId = notif.itineraryId ?: return@NotificationCard
                             viewModel.acceptItineraryInvite(notif.id, itineraryId) { success ->
                                 if (success) {
+                                    onItineraryInviteHandled()
                                     onNavigate("itinerary_detail/$itineraryId")
                                 } else {
                                     Toast.makeText(context, "Chấp nhận lời mời thất bại", Toast.LENGTH_SHORT).show()

@@ -30,9 +30,14 @@ data class Participant(
     val name: String,
     val email: String,
     val initials: String,
-    val avatarColor: Long, // Màu nền của avatar (dạng Hex Long)
-    val role: ParticipantRole
-)
+    val avatarColor: Long,
+    val role: ParticipantRole,
+    val inviteStatus: String = "pending",
+    val userId: String? = null,
+) {
+    val isAccepted: Boolean get() = inviteStatus.equals("accepted", ignoreCase = true)
+    val isPending: Boolean get() = inviteStatus.equals("pending", ignoreCase = true)
+}
 
 class ItineraryViewModel(
     private val placeRepo: PlaceRepository = PlaceRepository(),
@@ -527,7 +532,9 @@ class ItineraryViewModel(
                                 role = when (c.role) {
                                     "EDIT" -> ParticipantRole.EDIT
                                     else -> ParticipantRole.VIEW_ONLY
-                                }
+                                },
+                                inviteStatus = c.status ?: "pending",
+                                userId = c.userId,
                             )
                         }
                         val newMap = state.participantsMap.toMutableMap()
@@ -591,6 +598,18 @@ class ItineraryViewModel(
                 .onFailure {
                     it.printStackTrace()
                 }
+        }
+    }
+
+    fun addParticipants(itineraryId: String, members: List<InviteMemberCandidate>, role: ParticipantRole) {
+        if (members.isEmpty()) return
+        viewModelScope.launch {
+            val roleStr = if (role == ParticipantRole.EDIT) "EDIT" else "VIEW"
+            members.forEach { member ->
+                itineraryRepo.addCollaboratorByUserId(itineraryId, member.id, member.name, roleStr)
+                    .onFailure { it.printStackTrace() }
+            }
+            fetchCollaborators(itineraryId)
         }
     }
 

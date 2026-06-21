@@ -1,11 +1,9 @@
 package com.example.vietnam_travel_itinerary_android.ui.itinerary
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -17,7 +15,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -43,156 +40,202 @@ fun MemberSearchPicker(
     onSearchQueryChange: (String) -> Unit,
     friends: List<InviteMemberCandidate>,
     community: List<InviteMemberCandidate>,
-    selectedMember: InviteMemberCandidate?,
     onSelectMember: (InviteMemberCandidate) -> Unit,
-    onClearSelection: () -> Unit,
     isLoading: Boolean,
+    excludeUserIds: Set<String> = emptySet(),
+    modifier: Modifier = Modifier,
+) {
+    val visibleFriends = friends.filter { it.id !in excludeUserIds }
+    val visibleCommunity = community.filter { it.id !in excludeUserIds }
+
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(10.dp),
+            color = Color.White,
+            border = androidx.compose.foundation.BorderStroke(1.dp, SlateGray200),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Icons.Outlined.Search, null, tint = SlateGray400, modifier = Modifier.size(18.dp))
+                Box(modifier = Modifier.weight(1f)) {
+                    if (searchQuery.isEmpty()) {
+                        Text("Tìm theo tên người dùng...", color = SlateGray400, fontSize = 13.sp)
+                    }
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = TextStyle(fontSize = 13.sp, color = SlateGray900),
+                        cursorBrush = SolidColor(VNRed),
+                        singleLine = true,
+                    )
+                }
+                if (searchQuery.isNotEmpty()) {
+                    Icon(
+                        Icons.Outlined.Close,
+                        contentDescription = "Xóa",
+                        tint = SlateGray400,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clickable { onSearchQueryChange("") },
+                    )
+                }
+            }
+        }
+
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = VNRed, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                }
+            }
+            searchQuery.length < 2 -> {
+                Text(
+                    "Nhập ít nhất 2 ký tự để tìm",
+                    fontSize = 12.sp,
+                    color = SlateGray400,
+                    modifier = Modifier.padding(vertical = 4.dp),
+                )
+            }
+            visibleFriends.isEmpty() && visibleCommunity.isEmpty() -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Outlined.SearchOff, null, tint = SlateGray300, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        if (friends.isNotEmpty() || community.isNotEmpty()) {
+                            "Người dùng đã có trong danh sách mời"
+                        } else {
+                            "Không tìm thấy người dùng"
+                        },
+                        fontSize = 12.sp,
+                        color = SlateGray400,
+                    )
+                }
+            }
+            else -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 180.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    if (visibleFriends.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Bạn bè",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = SlateGray500,
+                                modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                            )
+                        }
+                        items(visibleFriends, key = { "friend-${it.id}" }) { user ->
+                            MemberSearchResultRow(user = user, onClick = { onSelectMember(user) })
+                        }
+                    }
+                    if (visibleCommunity.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Cộng đồng",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = SlateGray500,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
+                            )
+                        }
+                        items(visibleCommunity, key = { "community-${it.id}" }) { user ->
+                            MemberSearchResultRow(user = user, onClick = { onSelectMember(user) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PendingInviteList(
+    pendingInvites: List<InviteMemberCandidate>,
+    onRemove: (InviteMemberCandidate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (selectedMember != null) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = VNRed.copy(alpha = 0.08f),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    AuthorAvatar(
-                        initials = selectedMember.avatarInitials,
-                        color = Color(selectedMember.avatarColor),
-                        avatarUrl = selectedMember.avatarUrl,
-                        size = 32,
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(selectedMember.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = SlateGray900)
-                        if (selectedMember.username.isNotBlank()) {
-                            Text(selectedMember.username, fontSize = 11.sp, color = SlateGray500)
-                        }
-                    }
-                    Icon(
-                        Icons.Outlined.Close,
-                        contentDescription = "Bỏ chọn",
-                        tint = SlateGray400,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clickable(onClick = onClearSelection),
-                    )
-                }
-            }
+        Text(
+            text = "Danh sách thành viên mời (${pendingInvites.size})",
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            color = SlateGray700,
+        )
+        if (pendingInvites.isEmpty()) {
+            Text(
+                "Chọn người dùng từ kết quả tìm kiếm để thêm vào danh sách mời.",
+                fontSize = 12.sp,
+                color = SlateGray500,
+            )
         } else {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                color = Color.White,
-                border = androidx.compose.foundation.BorderStroke(1.dp, SlateGray200),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+            pendingInvites.forEach { member ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = VNRed.copy(alpha = 0.08f),
                 ) {
-                    Icon(Icons.Outlined.Search, null, tint = SlateGray400, modifier = Modifier.size(18.dp))
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (searchQuery.isEmpty()) {
-                            Text("Tìm theo tên người dùng...", color = SlateGray400, fontSize = 13.sp)
-                        }
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = onSearchQueryChange,
-                            modifier = Modifier.fillMaxWidth(),
-                            textStyle = TextStyle(fontSize = 13.sp, color = SlateGray900),
-                            cursorBrush = SolidColor(VNRed),
-                            singleLine = true,
-                        )
-                    }
-                    if (searchQuery.isNotEmpty()) {
-                        Icon(
-                            Icons.Outlined.Close,
-                            contentDescription = "Xóa",
-                            tint = SlateGray400,
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clickable { onSearchQueryChange("") },
-                        )
-                    }
-                }
-            }
-
-            when {
-                isLoading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = VNRed, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    }
-                }
-                searchQuery.length < 2 -> {
-                    Text(
-                        "Nhập ít nhất 2 ký tự để tìm",
-                        fontSize = 12.sp,
-                        color = SlateGray400,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                friends.isEmpty() && community.isEmpty() -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.Center,
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(Icons.Outlined.SearchOff, null, tint = SlateGray300, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Không tìm thấy người dùng", fontSize = 12.sp, color = SlateGray400)
-                    }
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 180.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                    ) {
-                        if (friends.isNotEmpty()) {
-                            item {
+                        AuthorAvatar(
+                            initials = member.avatarInitials,
+                            color = Color(member.avatarColor),
+                            avatarUrl = member.avatarUrl,
+                            size = 32,
+                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                member.name,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = SlateGray900,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            if (member.username.isNotBlank()) {
                                 Text(
-                                    "Bạn bè",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
+                                    member.username,
+                                    fontSize = 11.sp,
                                     color = SlateGray500,
-                                    modifier = Modifier.padding(top = 4.dp, bottom = 6.dp),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            items(friends, key = { "friend-${it.id}" }) { user ->
-                                MemberSearchResultRow(user = user, onClick = { onSelectMember(user) })
-                            }
                         }
-                        if (community.isNotEmpty()) {
-                            item {
-                                Text(
-                                    "Cộng đồng",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = SlateGray500,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 6.dp),
-                                )
-                            }
-                            items(community, key = { "community-${it.id}" }) { user ->
-                                MemberSearchResultRow(user = user, onClick = { onSelectMember(user) })
-                            }
-                        }
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = "Xóa khỏi danh sách mời",
+                            tint = SlateGray400,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable { onRemove(member) },
+                        )
                     }
                 }
             }

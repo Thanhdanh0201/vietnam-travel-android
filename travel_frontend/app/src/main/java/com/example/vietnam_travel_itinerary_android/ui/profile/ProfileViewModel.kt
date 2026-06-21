@@ -49,7 +49,14 @@ class ProfileViewModel(
 
         val cachedProfile = UserSessionCache.get()
         if (cachedProfile != null && cachedProfile.id == targetUserId) {
-            _uiState.update { it.copy(isLoading = false, profile = cachedProfile, error = null) }
+            // Giữ thông tin header tạm thời nhưng không hiển thị bài cũ từ cache (tránh soft-delete lệch)
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    profile = cachedProfile.copy(posts = emptyList(), savedPosts = emptyList()),
+                    error = null,
+                )
+            }
         } else {
             _uiState.update { it.copy(isLoading = true, error = null) }
         }

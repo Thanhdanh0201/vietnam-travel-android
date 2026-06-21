@@ -33,6 +33,6 @@ public interface ItineraryCollaboratorRepository extends JpaRepository<Itinerary
     @org.springframework.data.jpa.repository.Query("DELETE FROM ItineraryCollaborator c WHERE c.itinerary.id = :itineraryId")
     void deleteByItineraryId(@org.springframework.data.repository.query.Param("itineraryId") UUID itineraryId);
 
-    @Query("SELECT c.itinerary.id, c.role FROM ItineraryCollaborator c WHERE c.email = :email AND c.itinerary.id IN :itineraryIds AND LOWER(c.status) = 'accepted'")
+    @Query("SELECT c.itinerary.id, c.role FROM ItineraryCollaborator c WHERE LOWER(c.email) = LOWER(:email) AND c.itinerary.id IN :itineraryIds AND LOWER(c.status) = 'accepted'")
     List<Object[]> findRolesByItineraryIdsAndEmail(@Param("itineraryIds") List<UUID> itineraryIds, @Param("email") String email);
 }

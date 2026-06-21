@@ -197,7 +197,12 @@ public class ItineraryController {
 
         List<com.example.travel_backend.entity.ItineraryCollaborator> list = collaboratorRepository.findByItinerary_Id(itineraryId);
         List<CollaboratorDto> dtoList = list.stream()
-                .map(c -> new CollaboratorDto(c.getEmail(), c.getName(), c.getRole(), c.getStatus()))
+                .map(c -> {
+                    CollaboratorDto dto = new CollaboratorDto(c.getEmail(), c.getName(), c.getRole(), c.getStatus());
+                    userRepository.findByEmail(c.getEmail()).ifPresent(user ->
+                            dto.setUserId(user.getId().toString()));
+                    return dto;
+                })
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtoList);
     }
@@ -223,6 +228,7 @@ public class ItineraryController {
         // Không cho phép add chính mình làm collaborator
         String resolvedEmail = request.getEmail();
         String displayName = request.getName();
+        UUID invitedUserId = null;
 
         if (request.getUserId() != null && !request.getUserId().isBlank()) {
             UUID inviteUserId = UUID.fromString(request.getUserId().trim());
@@ -237,6 +243,7 @@ public class ItineraryController {
                 throw new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.BAD_REQUEST, "User has no email");
             }
+            invitedUserId = inviteUserId;
             resolvedEmail = invitedUser.getEmail().trim().toLowerCase();
             if (displayName == null || displayName.isBlank()) {
                 displayName = invitedUser.getName();
@@ -272,8 +279,12 @@ public class ItineraryController {
 
         collaboratorRepository.save(collaborator);
 
-        userRepository.findByEmail(collaborator.getEmail()).ifPresent(invitedUser ->
-                notificationTriggerService.notifyItineraryInvite(requesterId, invitedUser.getId(), itineraryId));
+        if (invitedUserId != null) {
+            notificationTriggerService.notifyItineraryInvite(requesterId, invitedUserId, itineraryId);
+        } else {
+            userRepository.findByEmailIgnoreCase(collaborator.getEmail()).ifPresent(invitedUser ->
+                    notificationTriggerService.notifyItineraryInvite(requesterId, invitedUser.getId(), itineraryId));
+        }
 
         return ResponseEntity.ok(new CollaboratorDto(
                 collaborator.getEmail(),

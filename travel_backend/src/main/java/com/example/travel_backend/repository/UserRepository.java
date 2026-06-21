@@ -15,6 +15,8 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByEmailIgnoreCase(String email);
+
     Optional<User> findByUsernameIgnoreCase(String username);
 
     @Query("SELECT u FROM User u WHERE u.id <> :excludeId " +

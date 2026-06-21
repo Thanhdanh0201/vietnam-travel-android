@@ -60,6 +60,8 @@ import androidx.compose.runtime.setValue
 import com.example.vietnam_travel_itinerary_android.ui.components.introduction.PlaceIntroductionOverlay
 import com.example.vietnam_travel_itinerary_android.ui.components.introduction.FestivalIntroductionOverlay
 import com.example.vietnam_travel_itinerary_android.data.session.UserSessionCache
+import com.example.vietnam_travel_itinerary_android.SupabaseObject
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
 
 private val mainTabRoutes: Set<String> by lazy {
@@ -68,6 +70,7 @@ private val mainTabRoutes: Set<String> by lazy {
 
 @Composable
 fun MainScreen(
+    onLogout: () -> Unit = {},
     itineraryViewModel: ItineraryViewModel = viewModel(factory = AppViewModelProvider.Factory),
     communityViewModel: CommunityViewModel = viewModel(factory = AppViewModelProvider.Factory),
     notificationViewModel: NotificationViewModel = viewModel(factory = AppViewModelProvider.Factory),
@@ -171,6 +174,18 @@ fun MainScreen(
                 profile = sessionState.profile ?: UserSessionCache.get(),
                 currentRoute = currentDestination?.route?.substringBefore("?") ?: "home",
                 onDestination = { route -> navigateFromDrawer(route) },
+                onLogout = {
+                    scope.launch {
+                        drawerState.close()
+                        try {
+                            SupabaseObject.client.auth.signOut()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                        UserSessionCache.clear()
+                        onLogout()
+                    }
+                },
             )
         },
     ) {
@@ -388,6 +403,7 @@ fun MainScreen(
             composable("notifications") {
                 NotificationScreen(
                     onBack = { bottomNavController.popBackStack() },
+                    onItineraryInviteHandled = { itineraryViewModel.fetchItineraries() },
                     onNavigate = { route ->
                         when {
                             route.startsWith("post_detail/") -> {

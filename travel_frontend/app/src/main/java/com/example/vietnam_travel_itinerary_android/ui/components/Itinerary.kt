@@ -212,7 +212,7 @@ fun ItineraryCard(
                         modifier = Modifier.offset(x = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        participants.take(3).forEachIndexed { index, participant ->
+                        participants.filter { it.isAccepted }.take(3).forEachIndexed { index, participant ->
                             Box(
                                 modifier = Modifier
                                     .offset(x = (-8 * index).dp)

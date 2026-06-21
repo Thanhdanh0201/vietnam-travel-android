@@ -65,7 +65,13 @@ fun AppNavigation() {
         // ===== MAIN TABS SCREEN (Gồm Home, Itinerary, Profile...) =====
         // 3. XÓA composable(Routes.HOME) cũ và thay bằng composable(Routes.MAIN)
         composable(Routes.MAIN) {
-            MainScreen()
+            MainScreen(
+                onLogout = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                    }
+                },
+            )
         }
         // ===== REGISTER SCREEN =====
         composable(Routes.REGISTER) {

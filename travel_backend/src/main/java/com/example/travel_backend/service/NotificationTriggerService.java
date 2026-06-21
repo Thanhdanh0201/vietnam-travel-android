@@ -157,6 +157,7 @@ public class NotificationTriggerService {
         notification.setGroupKey(groupKey);
         notification.setReactionType(reactionType);
         notification.setIsRead(false);
+        notification.setIsDeleted(false);
         notification.setCreatedAt(OffsetDateTime.now());
         notificationRepository.save(notification);
     }

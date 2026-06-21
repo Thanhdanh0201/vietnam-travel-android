@@ -17,15 +17,21 @@ public class DatabaseSchemaInitializer {
     private JdbcTemplate jdbcTemplate;
 
     @EventListener(ApplicationReadyEvent.class)
-    public void ensureNotificationSoftDeleteColumn() {
+    public void ensureSoftDeleteColumns() {
         if (jdbcTemplate == null) return;
+        ensureColumn("notifications", "is_deleted", "boolean NOT NULL DEFAULT false");
+        ensureColumn("posts", "is_deleted", "boolean NOT NULL DEFAULT false");
+        ensureColumn("comments", "is_deleted", "boolean NOT NULL DEFAULT false");
+    }
+
+    private void ensureColumn(String table, String column, String definition) {
         try {
             jdbcTemplate.execute(
-                    "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS is_deleted boolean NOT NULL DEFAULT false"
+                    "ALTER TABLE " + table + " ADD COLUMN IF NOT EXISTS " + column + " " + definition
             );
-            log.info("Ensured notifications.is_deleted column exists");
+            log.info("Ensured {}.{} column exists", table, column);
         } catch (Exception e) {
-            log.error("Could not ensure notifications.is_deleted column", e);
+            log.error("Could not ensure {}.{} column", table, column, e);
         }
     }
 }

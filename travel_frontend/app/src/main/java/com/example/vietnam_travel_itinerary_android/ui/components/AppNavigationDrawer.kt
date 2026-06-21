@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AddLocationAlt
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Home
@@ -34,45 +35,63 @@ fun AppNavigationDrawer(
     profile: UserProfile?,
     currentRoute: String,
     onDestination: (String) -> Unit,
+    onLogout: () -> Unit,
 ) {
     val isAdmin = profile?.role == "admin"
 
     val entries = if (isAdmin) {
         listOf(
             DrawerEntry("home", "Trang chủ", Icons.Filled.Home),
-            DrawerEntry("my_place_suggestions", "Đề xuất địa điểm", Icons.AutoMirrored.Filled.ListAlt),
-            DrawerEntry("admin_place_suggestions", "Quản lý đề xuất", Icons.Filled.AddLocationAlt),
+            DrawerEntry("my_place_suggestions", "Đề xuất địa điểm", Icons.Filled.AddLocationAlt),
+            DrawerEntry("admin_place_suggestions", "Quản lý đề xuất", Icons.AutoMirrored.Filled.ListAlt),
             DrawerEntry("admin_reports", "Quản lý báo cáo", Icons.Filled.Flag),
         )
     } else {
         listOf(
             DrawerEntry("home", "Trang chủ", Icons.Filled.Home),
-            DrawerEntry("my_place_suggestions", "Đề xuất địa điểm", Icons.AutoMirrored.Filled.ListAlt),
+            DrawerEntry("my_place_suggestions", "Đề xuất địa điểm", Icons.Filled.AddLocationAlt),
         )
     }
 
     ModalDrawerSheet(
         drawerContainerColor = Color.White,
     ) {
-        Spacer(Modifier.height(8.dp))
-        DrawerHeader(profile = profile, isAdmin = isAdmin)
-        HorizontalDivider(color = VNRed.copy(alpha = 0.08f))
-        Spacer(Modifier.height(8.dp))
+        Column(modifier = Modifier.fillMaxHeight()) {
+            Spacer(Modifier.height(8.dp))
+            DrawerHeader(profile = profile, isAdmin = isAdmin)
+            HorizontalDivider(color = VNRed.copy(alpha = 0.08f))
+            Spacer(Modifier.height(8.dp))
 
-        entries.forEach { entry ->
+            Column(modifier = Modifier.weight(1f)) {
+                entries.forEach { entry ->
+                    NavigationDrawerItem(
+                        label = { Text(entry.label, fontWeight = FontWeight.SemiBold) },
+                        icon = { Icon(entry.icon, contentDescription = entry.label) },
+                        selected = currentRoute == entry.route,
+                        onClick = { onDestination(entry.route) },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = VNRed.copy(alpha = 0.1f),
+                            selectedIconColor = VNRed,
+                            selectedTextColor = VNRed,
+                            unselectedIconColor = SlateGray500,
+                            unselectedTextColor = SlateGray900,
+                        ),
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                }
+            }
+
+            HorizontalDivider(color = VNRed.copy(alpha = 0.08f))
             NavigationDrawerItem(
-                label = { Text(entry.label, fontWeight = FontWeight.SemiBold) },
-                icon = { Icon(entry.icon, contentDescription = entry.label) },
-                selected = currentRoute == entry.route,
-                onClick = { onDestination(entry.route) },
+                label = { Text("Đăng xuất", fontWeight = FontWeight.SemiBold) },
+                icon = { Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Đăng xuất") },
+                selected = false,
+                onClick = onLogout,
                 colors = NavigationDrawerItemDefaults.colors(
-                    selectedContainerColor = VNRed.copy(alpha = 0.1f),
-                    selectedIconColor = VNRed,
-                    selectedTextColor = VNRed,
-                    unselectedIconColor = SlateGray500,
-                    unselectedTextColor = SlateGray900,
+                    unselectedIconColor = VNRed,
+                    unselectedTextColor = VNRed,
                 ),
-                modifier = Modifier.padding(horizontal = 12.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             )
         }
     }
