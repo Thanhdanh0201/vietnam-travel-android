@@ -101,6 +101,17 @@ class ProfileRepository(
         }
     }
 
+    suspend fun isFollowing(targetUserId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
+                ?: return@withContext false
+            api.checkIsFollowing(token, targetUserId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
     suspend fun followUser(targetUserId: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }

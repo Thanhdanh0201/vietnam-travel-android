@@ -1,5 +1,16 @@
 package com.example.vietnam_travel_itinerary_android.ui.notification
 
+enum class FollowBackStatus {
+    SHOW_BUTTON, FOLLOWED;
+
+    companion object {
+        fun fromGroupKey(groupKey: String?): FollowBackStatus = when (groupKey?.lowercase()) {
+            "follow:back" -> FOLLOWED
+            else -> SHOW_BUTTON
+        }
+    }
+}
+
 enum class ItineraryInviteStatus {
     PENDING, ACCEPTED, DECLINED;
 
@@ -37,6 +48,7 @@ data class NotificationUiModel(
     val actorId: String? = null,
     val groupKey: String? = null,
     val inviteStatus: ItineraryInviteStatus = ItineraryInviteStatus.PENDING,
+    val followBackStatus: FollowBackStatus = FollowBackStatus.SHOW_BUTTON,
 )
 
 enum class NotificationType {

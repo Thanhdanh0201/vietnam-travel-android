@@ -109,7 +109,9 @@ class NotificationViewModel(
                 currentOffset = raw.size
                 hasMore = raw.size >= pageSize
                 _notifications.value = groupNotifications(
-                    enrichInviteStatuses(raw.map { it.toUiModel() })
+                    enrichFollowStatuses(
+                        enrichInviteStatuses(raw.map { it.toUiModel() })
+                    )
                 )
                 refreshTabUnreadCounts()
             } catch (e: Exception) {
@@ -215,9 +217,36 @@ class NotificationViewModel(
         }
     }
 
-    fun followBack(userId: String) {
+    fun followBack(notifId: String, userId: String, onDone: (Boolean) -> Unit = {}) {
         viewModelScope.launch {
-            profileRepository.followUser(userId)
+            val success = profileRepository.followUser(userId)
+            if (success) {
+                markFollowBackDone(notifId, userId)
+                repository.markNotificationAsRead(notifId)
+                loadUnreadCount()
+                refreshTabUnreadCounts()
+                onDone(true)
+            } else {
+                onDone(false)
+            }
+        }
+    }
+
+    private fun markFollowBackDone(notifId: String, actorId: String) {
+        _notifications.update { list ->
+            list.map { notif ->
+                if (notif.id == notifId ||
+                    (notif.type == NotificationType.FOLLOW && notif.actorId == actorId)
+                ) {
+                    notif.copy(
+                        followBackStatus = FollowBackStatus.FOLLOWED,
+                        isRead = true,
+                        groupKey = "follow:back",
+                    )
+                } else {
+                    notif
+                }
+            }
         }
     }
 
@@ -288,6 +317,33 @@ class NotificationViewModel(
                 notif.itineraryId in joinedItineraryIds
             ) {
                 notif.copy(inviteStatus = ItineraryInviteStatus.ACCEPTED, isRead = true)
+            } else {
+                notif
+            }
+        }
+    }
+
+    private suspend fun enrichFollowStatuses(items: List<NotificationUiModel>): List<NotificationUiModel> {
+        val pendingFollows = items.filter {
+            it.type == NotificationType.FOLLOW &&
+                it.followBackStatus == FollowBackStatus.SHOW_BUTTON &&
+                !it.actorId.isNullOrBlank()
+        }
+        if (pendingFollows.isEmpty()) return items
+
+        val followedActorIds = pendingFollows
+            .mapNotNull { it.actorId }
+            .distinct()
+            .filter { profileRepository.isFollowing(it) }
+            .toSet()
+        if (followedActorIds.isEmpty()) return items
+
+        return items.map { notif ->
+            if (notif.type == NotificationType.FOLLOW &&
+                notif.followBackStatus == FollowBackStatus.SHOW_BUTTON &&
+                notif.actorId in followedActorIds
+            ) {
+                notif.copy(followBackStatus = FollowBackStatus.FOLLOWED, isRead = true)
             } else {
                 notif
             }
@@ -404,12 +460,17 @@ class NotificationViewModel(
             commentId = comment_id,
             itineraryId = itinerary_id,
             itineraryTitle = itinerary_title,
-            actorId = actor_id,
+            actorId = actor_id?.takeIf { it.isNotBlank() } ?: actor?.id?.takeIf { it.isNotBlank() },
             groupKey = group_key,
             inviteStatus = if (NotificationType.fromBackend(notif_type) == NotificationType.ITINERARY_INVITE) {
                 ItineraryInviteStatus.fromGroupKey(group_key)
             } else {
                 ItineraryInviteStatus.PENDING
+            },
+            followBackStatus = if (NotificationType.fromBackend(notif_type) == NotificationType.FOLLOW) {
+                FollowBackStatus.fromGroupKey(group_key)
+            } else {
+                FollowBackStatus.SHOW_BUTTON
             },
         )
     }

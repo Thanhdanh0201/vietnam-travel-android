@@ -196,7 +196,14 @@ fun NotificationScreen(
                                 selectedIds = setOf(notif.id)
                             }
                         },
-                        onFollowBack = { notif.actorId?.let { viewModel.followBack(it) } },
+                        onFollowBack = {
+                            val actorId = notif.actorId ?: return@NotificationCard
+                            viewModel.followBack(notif.id, actorId) { success ->
+                                if (!success) {
+                                    Toast.makeText(context, "Theo dõi thất bại", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
                         onAcceptInvite = {
                             val itineraryId = notif.itineraryId ?: return@NotificationCard
                             viewModel.acceptItineraryInvite(notif.id, itineraryId) { success ->
@@ -326,8 +333,7 @@ private fun NotificationCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .then(borderModifier)
-            .then(cardClickModifier),
+            .then(borderModifier),
         shape = RoundedCornerShape(16.dp),
         color = if (isSelected) VNRed.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.92f),
         shadowElevation = if (isSelectionMode) 0.dp else 1.dp,
@@ -343,6 +349,11 @@ private fun NotificationCard(
                     onCheckedChange = null,
                     enabled = false,
                     colors = CheckboxDefaults.colors(checkedColor = VNRed),
+                    modifier = Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onClick,
+                    ),
                 )
             }
             Box {
@@ -385,37 +396,51 @@ private fun NotificationCard(
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = buildNotifMessage(notif),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF1E293B),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                notif.previewText?.takeIf { it.isNotBlank() }?.let { preview ->
-                    Spacer(Modifier.height(4.dp))
+                Column(modifier = cardClickModifier) {
                     Text(
-                        text = "\"$preview\"",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF64748B),
-                        maxLines = 2,
+                        text = buildNotifMessage(notif),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF1E293B),
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    notif.previewText?.takeIf { it.isNotBlank() }?.let { preview ->
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "\"$preview\"",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF64748B),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(notif.timeAgo, fontSize = 12.sp, color = Color(0xFF94A3B8))
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(notif.timeAgo, fontSize = 12.sp, color = Color(0xFF94A3B8))
 
                 when (notif.type) {
                     NotificationType.FOLLOW -> {
                         if (!isSelectionMode) {
                             Spacer(Modifier.height(8.dp))
-                            OutlinedButton(
-                                onClick = onFollowBack,
-                                border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(VNRed, VNRed))),
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            ) {
-                                Text("THEO DÕI LẠI", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VNRed)
+                            when (notif.followBackStatus) {
+                                FollowBackStatus.SHOW_BUTTON -> {
+                                    OutlinedButton(
+                                        onClick = onFollowBack,
+                                        border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(VNRed, VNRed))),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    ) {
+                                        Text("THEO DÕI LẠI", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = VNRed)
+                                    }
+                                }
+                                FollowBackStatus.FOLLOWED -> {
+                                    Text(
+                                        "✓ Đã theo dõi lại",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2E7D32),
+                                    )
+                                }
                             }
                         }
                     }
@@ -499,7 +524,10 @@ private fun buildNotifMessage(notif: NotificationUiModel): String {
     val actor = notif.actorUsername?.let { "@$it" } ?: notif.actorName
     val extra = if (notif.groupedCount > 0) " và ${notif.groupedCount} người khác" else ""
     return when (notif.type) {
-        NotificationType.FOLLOW -> "$actor đã bắt đầu theo dõi bạn"
+        NotificationType.FOLLOW -> when (notif.followBackStatus) {
+            FollowBackStatus.FOLLOWED -> "Bạn đã theo dõi lại $actor"
+            FollowBackStatus.SHOW_BUTTON -> "$actor đã bắt đầu theo dõi bạn"
+        }
         NotificationType.REACTION -> "$actor$extra đã thả tim bài viết của bạn"
         NotificationType.COMMENT -> "$actor đã bình luận bài viết của bạn"
         NotificationType.COMMENT_REACTION -> "$actor đã thích bình luận của bạn"
