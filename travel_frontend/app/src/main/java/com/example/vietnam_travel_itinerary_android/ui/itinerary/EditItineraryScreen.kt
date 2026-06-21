@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Delete
@@ -56,8 +57,220 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.net.Uri
+import android.widget.Toast
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.draw.alpha
+import kotlinx.coroutines.launch
 
+// ============================================================
+//  SCROLL TIME PICKER — Drum/Wheel style (như app đồng hồ)
+// ============================================================
+
+private val HOURS_12  = (1..12).map { it.toString().padStart(2, '0') }
+private val MINUTES   = (0..59 step 5).map { it.toString().padStart(2, '0') }
+private val PERIODS   = listOf("AM", "PM")
+
+/** Hiển thị một cột cuộn (giờ / phút / AM-PM) kiểu drum picker */
+@Composable
+private fun PickerColumn(
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedIndexChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    itemHeight: Int = 48,
+) {
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    val coroutineScope = rememberCoroutineScope()
+    val itemHeightDp = itemHeight.dp
+
+    // Khi người dùng cuộn xong, snap về phần tử gần nhất và cập nhật state
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (!listState.isScrollInProgress) {
+            val center = listState.firstVisibleItemIndex +
+                    if (listState.firstVisibleItemScrollOffset > itemHeightDp.value / 2) 1 else 0
+            val clamped = center.coerceIn(0, items.size - 1)
+            if (clamped != selectedIndex) onSelectedIndexChange(clamped)
+            coroutineScope.launch {
+                listState.animateScrollToItem(clamped)
+            }
+        }
+    }
+
+    // Đồng bộ khi selectedIndex thay đổi từ bên ngoài
+    LaunchedEffect(selectedIndex) {
+        if (listState.firstVisibleItemIndex != selectedIndex) {
+            listState.animateScrollToItem(selectedIndex)
+        }
+    }
+
+    Box(modifier = modifier.height(itemHeightDp * 3)) {
+        // Thanh highlight ở giữa
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .height(itemHeightDp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(VNRed.copy(alpha = 0.08f))
+        )
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = itemHeightDp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            items(items.size) { idx ->
+                val distance = kotlin.math.abs(idx - (listState.firstVisibleItemIndex + 0))
+                val alpha = when (distance) {
+                    0 -> 1f
+                    1 -> 0.5f
+                    else -> 0.2f
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeightDp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = items[idx],
+                        fontSize = if (distance == 0) 22.sp else 16.sp,
+                        fontWeight = if (distance == 0) FontWeight.Bold else FontWeight.Normal,
+                        color = if (distance == 0) VNRed else SlateGray500,
+                        modifier = Modifier.alpha(alpha),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Dialog Time Picker cuộn (drum/wheel style).
+ * Trả về chuỗi dạng "hh:mm AM/PM", ví dụ "08:30 AM".
+ */
+@Composable
+fun ScrollTimePickerDialog(
+    initialTime: String = "08:00 AM",
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    // Parse initial time
+    val parts = initialTime.trim().split(" ")
+    val timeParts = parts.getOrNull(0)?.split(":") ?: listOf("08", "00")
+    val periodStr = parts.getOrNull(1)?.uppercase() ?: "AM"
+
+    val initialHour = timeParts.getOrNull(0)?.toIntOrNull()?.coerceIn(1, 12) ?: 8
+    val initialMinuteRaw = timeParts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+    // Snap initial minute to nearest 5-minute step
+    val initialMinuteStep = (MINUTES.indexOfFirst {
+        it.toInt() >= initialMinuteRaw
+    }).coerceAtLeast(0)
+
+    var hourIndex by remember { mutableStateOf(HOURS_12.indexOf(initialHour.toString().padStart(2, '0')).coerceAtLeast(0)) }
+    var minuteIndex by remember { mutableStateOf(initialMinuteStep) }
+    var periodIndex by remember { mutableStateOf(if (periodStr == "PM") 1 else 0) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Filled.AccessTime, contentDescription = null, tint = VNRed, modifier = Modifier.size(20.dp))
+                Text("Chọn thời gian", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = SlateGray900)
+            }
+        },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Preview label
+                val previewHour = HOURS_12[hourIndex]
+                val previewMin = MINUTES[minuteIndex]
+                val previewPeriod = PERIODS[periodIndex]
+                Text(
+                    text = "$previewHour:$previewMin $previewPeriod",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = VNRed,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                // Separator line
+                HorizontalDivider(color = SlateGray200)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Header labels
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Text("Giờ", fontSize = 11.sp, color = SlateGray400, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    Text("Phút", fontSize = 11.sp, color = SlateGray400, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                    Text("SA/CH", fontSize = 11.sp, color = SlateGray400, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Drum picker row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    PickerColumn(
+                        items = HOURS_12,
+                        selectedIndex = hourIndex,
+                        onSelectedIndexChange = { hourIndex = it },
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    Text(":", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = SlateGray500)
+
+                    PickerColumn(
+                        items = MINUTES,
+                        selectedIndex = minuteIndex,
+                        onSelectedIndexChange = { minuteIndex = it },
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    PickerColumn(
+                        items = PERIODS,
+                        selectedIndex = periodIndex,
+                        onSelectedIndexChange = { periodIndex = it },
+                        modifier = Modifier.weight(0.8f),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val result = "${HOURS_12[hourIndex]}:${MINUTES[minuteIndex]} ${PERIODS[periodIndex]}"
+                    onConfirm(result)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = VNRed),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Xác nhận", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy", color = SlateGray500)
+            }
+        }
+    )
+}
 
 fun parseItineraryDays(dateRange: String): List<Pair<String, String>> {
     val defaultDays = listOf(
@@ -755,6 +968,8 @@ fun EditItineraryScreen(
         var pendingInvites by remember { mutableStateOf<List<InviteMemberCandidate>>(emptyList()) }
         var newMemberRole by remember { mutableStateOf(ParticipantRole.VIEW_ONLY) }
         val memberSearchState by viewModel.memberSearchState.collectAsState()
+        // Bug fix: isInviting prevents clearing pendingInvites before API finishes
+        var isInviting by remember { mutableStateOf(false) }
 
         LaunchedEffect(showParticipantsDialog) {
             if (showParticipantsDialog) {
@@ -764,6 +979,7 @@ fun EditItineraryScreen(
                 viewModel.clearMemberSearch()
                 pendingInvites = emptyList()
                 memberSearchQuery = ""
+                isInviting = false
             }
         }
 
@@ -858,31 +1074,53 @@ fun EditItineraryScreen(
                                 }
                             }
                             
+                            // Bug fix: wait for API then update list — không xoá pendingInvites sớm
                             Button(
                                 onClick = {
                                     val invites = pendingInvites
-                                    if (invites.isEmpty()) return@Button
-                                    itinerary?.let { it ->
+                                    if (invites.isEmpty() || isInviting) return@Button
+                                    itinerary?.let { itin ->
+                                        isInviting = true
+                                        memberSearchQuery = ""
                                         viewModel.addParticipants(
-                                            itineraryId = it.id,
+                                            itineraryId = itin.id,
                                             members = invites,
                                             role = newMemberRole,
+                                            onDone = { successCount ->
+                                                // Callback chạy trên Main thread sau khi API hoàn tất
+                                                pendingInvites = emptyList()
+                                                isInviting = false
+                                                // fetchCollaborators đã được gọi bên trong addParticipants → uiState sẽ tự cập nhật
+                                                val msg = if (successCount > 0)
+                                                    "Đã gửi lời mời thành công!"
+                                                else
+                                                    "Gửi lời mời thất bại, thử lại nhé"
+                                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                            }
                                         )
                                     }
-                                    pendingInvites = emptyList()
-                                    memberSearchQuery = ""
                                 },
-                                enabled = pendingInvites.isNotEmpty(),
+                                enabled = pendingInvites.isNotEmpty() && !isInviting,
                                 colors = ButtonDefaults.buttonColors(containerColor = VNRed),
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                val label = if (pendingInvites.size <= 1) {
-                                    "THÊM THÀNH VIÊN"
+                                if (isInviting) {
+                                    CircularProgressIndicator(
+                                        color = Color.White,
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Đang gửi lời mời...", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 } else {
-                                    "MỜI ${pendingInvites.size} THÀNH VIÊN"
+                                    val label = if (pendingInvites.size <= 1) {
+                                        "THÊM THÀNH VIÊN"
+                                    } else {
+                                        "MỜI ${pendingInvites.size} THÀNH VIÊN"
+                                    }
+                                    Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                 }
-                                Text(label, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

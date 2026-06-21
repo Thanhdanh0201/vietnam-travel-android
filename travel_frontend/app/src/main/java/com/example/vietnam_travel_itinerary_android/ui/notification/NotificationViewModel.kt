@@ -82,7 +82,7 @@ class NotificationViewModel(
         if (currentUserId.isBlank()) return
         loadUnreadCount()
         refreshTabUnreadCounts()
-        loadNotifications()
+        loadNotifications(forceRefresh = true)
     }
 
     fun selectTab(tab: NotifTab) {
@@ -92,11 +92,14 @@ class NotificationViewModel(
         loadNotifications()
     }
 
-    fun loadNotifications() {
-        if (_isLoading.value) return
+    fun loadNotifications(forceRefresh: Boolean = false) {
+        // forceRefresh=true bỏ qua guard để đảm bảo data luôn được load khi cần
+        if (!forceRefresh && _isLoading.value) return
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                currentOffset = 0
+                hasMore = true
                 val raw = repository.getNotifications(
                     userId = currentUserId,
                     limit = pageSize,

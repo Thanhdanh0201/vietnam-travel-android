@@ -601,15 +601,23 @@ class ItineraryViewModel(
         }
     }
 
-    fun addParticipants(itineraryId: String, members: List<InviteMemberCandidate>, role: ParticipantRole) {
+    fun addParticipants(
+        itineraryId: String,
+        members: List<InviteMemberCandidate>,
+        role: ParticipantRole,
+        onDone: (successCount: Int) -> Unit = {}
+    ) {
         if (members.isEmpty()) return
         viewModelScope.launch {
             val roleStr = if (role == ParticipantRole.EDIT) "EDIT" else "VIEW"
+            var successCount = 0
             members.forEach { member ->
                 itineraryRepo.addCollaboratorByUserId(itineraryId, member.id, member.name, roleStr)
+                    .onSuccess { successCount++ }
                     .onFailure { it.printStackTrace() }
             }
             fetchCollaborators(itineraryId)
+            onDone(successCount)
         }
     }
 

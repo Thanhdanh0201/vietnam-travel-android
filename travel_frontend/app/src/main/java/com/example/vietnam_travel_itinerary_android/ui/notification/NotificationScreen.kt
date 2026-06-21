@@ -20,6 +20,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,6 +61,9 @@ fun NotificationScreen(
     LaunchedEffect(Unit) {
         viewModel.refreshAll()
     }
+
+    // Trạng thái pull-to-refresh
+    var isRefreshing by remember { mutableStateOf(false) }
 
     fun exitSelectionMode() {
         isSelectionMode = false
@@ -152,6 +157,16 @@ fun NotificationScreen(
                 Text("Chưa có thông báo", color = Color(0xFF64748B))
             }
         } else {
+            @OptIn(ExperimentalMaterial3Api::class)
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    isRefreshing = true
+                    viewModel.refreshAll()
+                    isRefreshing = false
+                },
+                modifier = Modifier.fillMaxSize()
+            ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -204,6 +219,7 @@ fun NotificationScreen(
                     )
                 }
             }
+            } // end PullToRefreshBox
         }
     }
 }
