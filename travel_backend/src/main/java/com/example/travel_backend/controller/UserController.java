@@ -20,7 +20,7 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
-    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable UUID userId) {
+    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable("id") UUID userId) {
         return ResponseEntity.ok(userService.getUserProfile(userId));
     }
 
