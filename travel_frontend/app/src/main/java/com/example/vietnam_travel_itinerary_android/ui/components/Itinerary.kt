@@ -222,6 +222,7 @@ fun ItineraryCard(
                                 AuthorAvatar(
                                     initials = participant.initials,
                                     color = Color(participant.avatarColor),
+                                    avatarUrl = participant.avatarUrl,
                                     size = 24
                                 )
                             }

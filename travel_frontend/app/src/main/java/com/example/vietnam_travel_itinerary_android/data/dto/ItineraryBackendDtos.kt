@@ -63,6 +63,7 @@ data class CollaboratorDto(
     val role: String,
     val status: String? = null,
     val userId: String? = null,
+    val avatarUrl: String? = null,
 )
 
 data class UserInviteSearchDto(

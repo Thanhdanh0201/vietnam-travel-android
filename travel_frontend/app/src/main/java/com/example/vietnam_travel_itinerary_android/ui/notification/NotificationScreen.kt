@@ -299,7 +299,7 @@ private fun NotificationCard(
         NotificationType.ACHIEVEMENT,
     )
 
-    val borderModifier = if (isInvite && !isSelectionMode) {
+    val borderModifier = if (isInvite && !isSelectionMode && notif.inviteStatus == ItineraryInviteStatus.PENDING) {
         Modifier.border(
             width = 1.5.dp,
             brush = Brush.linearGradient(listOf(VNRed, VNRedContainer)),
@@ -422,21 +422,41 @@ private fun NotificationCard(
                     NotificationType.ITINERARY_INVITE -> {
                         if (!isSelectionMode) {
                             Spacer(Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(
-                                    onClick = onAcceptInvite,
-                                    colors = ButtonDefaults.buttonColors(containerColor = VNRed),
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                ) {
-                                    Text("CHẤP NHẬN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            when (notif.inviteStatus) {
+                                ItineraryInviteStatus.PENDING -> {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Button(
+                                            onClick = onAcceptInvite,
+                                            colors = ButtonDefaults.buttonColors(containerColor = VNRed),
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                        ) {
+                                            Text("CHẤP NHẬN", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                        OutlinedButton(
+                                            onClick = onDeclineInvite,
+                                            shape = RoundedCornerShape(8.dp),
+                                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                                        ) {
+                                            Text("TỪ CHỐI", fontSize = 11.sp, color = Color(0xFF64748B))
+                                        }
+                                    }
                                 }
-                                OutlinedButton(
-                                    onClick = onDeclineInvite,
-                                    shape = RoundedCornerShape(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                                ) {
-                                    Text("TỪ CHỐI", fontSize = 11.sp, color = Color(0xFF64748B))
+                                ItineraryInviteStatus.ACCEPTED -> {
+                                    Text(
+                                        "✓ Đã chấp nhận lời mời",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2E7D32),
+                                    )
+                                }
+                                ItineraryInviteStatus.DECLINED -> {
+                                    Text(
+                                        "Đã từ chối lời mời",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF94A3B8),
+                                    )
                                 }
                             }
                         }
@@ -486,7 +506,14 @@ private fun buildNotifMessage(notif: NotificationUiModel): String {
         NotificationType.REPOST -> "$actor đã đăng lại bài viết của bạn"
         NotificationType.MENTION -> "$actor đã nhắc đến bạn"
         NotificationType.ACHIEVEMENT -> "Bạn đã đạt thành tựu mới!"
-        NotificationType.ITINERARY_INVITE -> "$actor mời bạn cộng tác lịch trình${notif.itineraryTitle?.let { " \"$it\"" } ?: ""}"
+        NotificationType.ITINERARY_INVITE -> when (notif.inviteStatus) {
+            ItineraryInviteStatus.ACCEPTED ->
+                "Bạn đã chấp nhận lời mời cộng tác lịch trình${notif.itineraryTitle?.let { " \"$it\"" } ?: ""}"
+            ItineraryInviteStatus.DECLINED ->
+                "Bạn đã từ chối lời mời cộng tác lịch trình${notif.itineraryTitle?.let { " \"$it\"" } ?: ""}"
+            ItineraryInviteStatus.PENDING ->
+                "$actor mời bạn cộng tác lịch trình${notif.itineraryTitle?.let { " \"$it\"" } ?: ""}"
+        }
         NotificationType.ITINERARY_UPDATED -> "Lịch trình${notif.itineraryTitle?.let { " \"$it\"" } ?: ""} đã được cập nhật"
         NotificationType.PLACE_SUGGESTION_APPROVED -> "Đề xuất địa điểm của bạn đã được phê duyệt"
     }

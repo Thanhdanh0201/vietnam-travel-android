@@ -6,6 +6,7 @@ import com.example.vietnam_travel_itinerary_android.data.dto.CollaboratorDto
 import com.example.vietnam_travel_itinerary_android.data.dto.*
 import com.example.vietnam_travel_itinerary_android.data.model.Itinerary
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.TimelineItemData
+import com.example.vietnam_travel_itinerary_android.ui.itinerary.formatItineraryTimeForDisplay
 import com.example.vietnam_travel_itinerary_android.ui.itinerary.UpdateItineraryRequest
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
@@ -100,17 +101,7 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
     }
 
     private fun ItineraryItemResponseDto.toTimelineItemData(): TimelineItemData {
-        val timeStr = if (scheduledTime != null) {
-            try {
-                val localTime = java.time.LocalTime.parse(scheduledTime)
-                val formatter = java.time.format.DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US)
-                localTime.format(formatter).uppercase()
-            } catch (e: Exception) {
-                "08:00 AM"
-            }
-        } else {
-            "08:00 AM"
-        }
+        val timeStr = formatItineraryTimeForDisplay(scheduledTime)
 
         return TimelineItemData(
             time = timeStr,
@@ -122,7 +113,8 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
             day = day ?: "",
             note = note,
             warningType = warningType,
-            warningValue = warningValue
+            warningValue = warningValue,
+            orderIndex = orderIndex ?: 0,
         )
     }
 
@@ -328,8 +320,16 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
                 val token = getAuthToken()
                 if (token.isBlank()) throw Exception("Chưa đăng nhập")
                 val response = api.acceptItineraryInvite(token, itineraryId)
-                if (!response.isSuccessful) throw Exception("Accept invite failed")
-                Result.success(Unit)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    val body = response.errorBody()?.string().orEmpty()
+                    if (response.code() == 400 && body.contains("already handled", ignoreCase = true)) {
+                        Result.success(Unit)
+                    } else {
+                        Result.failure(Exception(body.ifBlank { "Accept invite failed" }))
+                    }
+                }
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -341,8 +341,16 @@ class ItineraryRepository(private val supabase: SupabaseClient) {
                 val token = getAuthToken()
                 if (token.isBlank()) throw Exception("Chưa đăng nhập")
                 val response = api.declineItineraryInvite(token, itineraryId)
-                if (!response.isSuccessful) throw Exception("Decline invite failed")
-                Result.success(Unit)
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    val body = response.errorBody()?.string().orEmpty()
+                    if (response.code() == 400 && body.contains("already handled", ignoreCase = true)) {
+                        Result.success(Unit)
+                    } else {
+                        Result.failure(Exception(body.ifBlank { "Decline invite failed" }))
+                    }
+                }
             } catch (e: Exception) {
                 Result.failure(e)
             }

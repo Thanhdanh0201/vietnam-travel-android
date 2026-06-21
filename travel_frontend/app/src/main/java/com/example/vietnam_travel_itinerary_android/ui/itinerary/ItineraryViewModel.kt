@@ -34,6 +34,7 @@ data class Participant(
     val role: ParticipantRole,
     val inviteStatus: String = "pending",
     val userId: String? = null,
+    val avatarUrl: String = "",
 ) {
     val isAccepted: Boolean get() = inviteStatus.equals("accepted", ignoreCase = true)
     val isPending: Boolean get() = inviteStatus.equals("pending", ignoreCase = true)
@@ -276,7 +277,7 @@ class ItineraryViewModel(
 
                         val itemsByDay = items.groupBy { it.day ?: "12" }
                         itemsByDay.forEach { (day, list) ->
-                            newMap["$itineraryId-$day"] = list.sortedBy { it.time }
+                            newMap["$itineraryId-$day"] = list.sortedBy { it.timelineSortKey() }
                         }
                         state.copy(timelineMap = newMap)
                     }
@@ -453,14 +454,7 @@ class ItineraryViewModel(
 
     fun addPlaceToItinerary(itineraryId: String, day: String, time: String, place: Place, note: String?) {
         viewModelScope.launch {
-            val scheduledTime = try {
-                val cleanTime = time.ifBlank { "08:00 AM" }.trim()
-                val formatter = java.time.format.DateTimeFormatter.ofPattern("hh:mm a", java.util.Locale.US)
-                val localTime = java.time.LocalTime.parse(cleanTime, formatter)
-                localTime.format(java.time.format.DateTimeFormatter.ISO_LOCAL_TIME)
-            } catch (e: Exception) {
-                "08:00:00"
-            }
+            val scheduledTime = itineraryInputTimeToIso(time)
 
             val key = "$itineraryId-$day"
             val currentTimeline = _uiState.value.timelineMap[key] ?: emptyList()
@@ -477,7 +471,7 @@ class ItineraryViewModel(
                 _uiState.update { state ->
                     val list = (state.timelineMap[key] ?: emptyList()) + newItem
                     val newMap = state.timelineMap.toMutableMap()
-                    newMap[key] = list.sortedBy { it.time }
+                    newMap[key] = list.sortedBy { it.timelineSortKey() }
                     state.copy(timelineMap = newMap)
                 }
             }.onFailure {
@@ -519,24 +513,11 @@ class ItineraryViewModel(
         viewModelScope.launch {
             itineraryRepo.getCollaborators(itineraryId)
                 .onSuccess { list ->
+                    val currentUserId = SupabaseObject.client.auth.currentUserOrNull()?.id
+                    val currentList = list.map { c ->
+                        mapCollaboratorToParticipant(c, currentUserId)
+                    }
                     _uiState.update { state ->
-                        val currentList = list.map { c ->
-                            val colors = listOf(0xFF10B981, 0xFF3B82F6, 0xFFF59E0B, 0xFFEF4444, 0xFF8B5CF6, 0xFFEC4899)
-                            val colorIndex = (c.email.hashCode().and(0x7FFFFFFF)) % colors.size
-                            val initials = c.name.trim().take(1).uppercase()
-                            Participant(
-                                name = c.name,
-                                email = c.email,
-                                initials = if (initials.isBlank()) "M" else initials,
-                                avatarColor = colors[colorIndex],
-                                role = when (c.role) {
-                                    "EDIT" -> ParticipantRole.EDIT
-                                    else -> ParticipantRole.VIEW_ONLY
-                                },
-                                inviteStatus = c.status ?: "pending",
-                                userId = c.userId,
-                            )
-                        }
                         val newMap = state.participantsMap.toMutableMap()
                         newMap[itineraryId] = currentList
                         state.copy(participantsMap = newMap)
@@ -862,6 +843,42 @@ class ItineraryViewModel(
                     it.printStackTrace()
                     onFailure(it.message ?: "Lỗi cập nhật ghi chú")
                 }
+        }
+    }
+
+    private suspend fun mapCollaboratorToParticipant(
+        c: CollaboratorDto,
+        currentUserId: String?,
+    ): Participant {
+        val colors = listOf(0xFF10B981, 0xFF3B82F6, 0xFFF59E0B, 0xFFEF4444, 0xFF8B5CF6, 0xFFEC4899)
+        val colorIndex = (c.email.hashCode().and(0x7FFFFFFF)) % colors.size
+        val avatarUrl = c.avatarUrl?.trim().takeUnless { it.isNullOrBlank() }
+            ?: c.userId?.let { userId ->
+                runCatching { profileRepo.getProfile(userId, currentUserId).avatarUrl }.getOrNull()
+            }.orEmpty().trim()
+        return Participant(
+            name = c.name,
+            email = c.email,
+            initials = deriveParticipantInitials(c.name),
+            avatarColor = colors[colorIndex],
+            role = when (c.role) {
+                "EDIT" -> ParticipantRole.EDIT
+                else -> ParticipantRole.VIEW_ONLY
+            },
+            inviteStatus = c.status ?: "pending",
+            userId = c.userId,
+            avatarUrl = avatarUrl,
+        )
+    }
+
+    private fun deriveParticipantInitials(name: String): String {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return "U"
+        val parts = trimmed.split("\\s+".toRegex())
+        return if (parts.size == 1) {
+            parts[0].take(2).uppercase()
+        } else {
+            (parts.first().take(1) + parts.last().take(1)).uppercase()
         }
     }
 }

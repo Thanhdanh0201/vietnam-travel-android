@@ -46,6 +46,7 @@ public class ItineraryController {
         private String role;
         private String status;
         private String userId;
+        private String avatarUrl;
 
         public CollaboratorDto() {}
 
@@ -72,6 +73,22 @@ public class ItineraryController {
         public void setStatus(String status) { this.status = status; }
         public String getUserId() { return userId; }
         public void setUserId(String userId) { this.userId = userId; }
+        public String getAvatarUrl() { return avatarUrl; }
+        public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    }
+
+    private CollaboratorDto toCollaboratorDto(com.example.travel_backend.entity.ItineraryCollaborator collaborator) {
+        CollaboratorDto dto = new CollaboratorDto(
+                collaborator.getEmail(),
+                collaborator.getName(),
+                collaborator.getRole(),
+                collaborator.getStatus()
+        );
+        userRepository.findByEmailIgnoreCase(collaborator.getEmail()).ifPresent(user -> {
+            dto.setUserId(user.getId().toString());
+            dto.setAvatarUrl(user.getAvatarUrl());
+        });
+        return dto;
     }
 
 
@@ -201,12 +218,7 @@ public class ItineraryController {
 
         List<com.example.travel_backend.entity.ItineraryCollaborator> list = collaboratorRepository.findByItinerary_Id(itineraryId);
         List<CollaboratorDto> dtoList = list.stream()
-                .map(c -> {
-                    CollaboratorDto dto = new CollaboratorDto(c.getEmail(), c.getName(), c.getRole(), c.getStatus());
-                    userRepository.findByEmail(c.getEmail()).ifPresent(user ->
-                            dto.setUserId(user.getId().toString()));
-                    return dto;
-                })
+                .map(this::toCollaboratorDto)
                 .collect(java.util.stream.Collectors.toList());
         return ResponseEntity.ok(dtoList);
     }
@@ -294,12 +306,7 @@ public class ItineraryController {
             log.error("Failed to send itinerary invite notification for collaborator: {}", collaborator.getEmail(), e);
         }
 
-        return ResponseEntity.ok(new CollaboratorDto(
-                collaborator.getEmail(),
-                collaborator.getName(),
-                collaborator.getRole(),
-                collaborator.getStatus()
-        ));
+        return ResponseEntity.ok(toCollaboratorDto(collaborator));
     }
 
     @PostMapping("/{id}/invites/accept")
@@ -330,6 +337,7 @@ public class ItineraryController {
         collaborator.setStatus("accepted");
         collaborator.setRespondedAt(OffsetDateTime.now());
         collaboratorRepository.save(collaborator);
+        notificationTriggerService.resolveItineraryInviteNotifications(requesterId, itineraryId, "accepted");
         return ResponseEntity.ok().build();
     }
 
@@ -361,6 +369,7 @@ public class ItineraryController {
         collaborator.setStatus("rejected");
         collaborator.setRespondedAt(OffsetDateTime.now());
         collaboratorRepository.save(collaborator);
+        notificationTriggerService.resolveItineraryInviteNotifications(requesterId, itineraryId, "declined");
         return ResponseEntity.ok().build();
     }
 

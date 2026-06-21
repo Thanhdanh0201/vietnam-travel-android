@@ -108,7 +108,9 @@ class NotificationViewModel(
                 )
                 currentOffset = raw.size
                 hasMore = raw.size >= pageSize
-                _notifications.value = groupNotifications(raw.map { it.toUiModel() })
+                _notifications.value = groupNotifications(
+                    enrichInviteStatuses(raw.map { it.toUiModel() })
+                )
                 refreshTabUnreadCounts()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -223,9 +225,10 @@ class NotificationViewModel(
         viewModelScope.launch {
             val result = itineraryRepository.acceptInvite(itineraryId)
             if (result.isSuccess) {
-                markAsRead(notifId)
-                loadNotifications()
+                updateItineraryInviteStatus(itineraryId, ItineraryInviteStatus.ACCEPTED)
+                repository.markNotificationAsRead(notifId)
                 loadUnreadCount()
+                refreshTabUnreadCounts()
                 onDone(true)
             } else {
                 onDone(false)
@@ -237,12 +240,56 @@ class NotificationViewModel(
         viewModelScope.launch {
             val result = itineraryRepository.declineInvite(itineraryId)
             if (result.isSuccess) {
-                markAsRead(notifId)
-                loadNotifications()
+                updateItineraryInviteStatus(itineraryId, ItineraryInviteStatus.DECLINED)
+                repository.markNotificationAsRead(notifId)
                 loadUnreadCount()
+                refreshTabUnreadCounts()
                 onDone(true)
             } else {
                 onDone(false)
+            }
+        }
+    }
+
+    private fun updateItineraryInviteStatus(itineraryId: String, status: ItineraryInviteStatus) {
+        _notifications.update { list ->
+            list.map { notif ->
+                if (notif.type == NotificationType.ITINERARY_INVITE && notif.itineraryId == itineraryId) {
+                    notif.copy(
+                        inviteStatus = status,
+                        isRead = true,
+                        groupKey = "invite:${status.name.lowercase()}",
+                    )
+                } else {
+                    notif
+                }
+            }
+        }
+    }
+
+    private suspend fun enrichInviteStatuses(items: List<NotificationUiModel>): List<NotificationUiModel> {
+        val hasPendingInvites = items.any {
+            it.type == NotificationType.ITINERARY_INVITE &&
+                it.inviteStatus == ItineraryInviteStatus.PENDING &&
+                !it.itineraryId.isNullOrBlank()
+        }
+        if (!hasPendingInvites) return items
+
+        val joinedItineraryIds = itineraryRepository.getItineraries().getOrNull()
+            ?.filter { it.myRole == "EDIT" || it.myRole == "VIEW" }
+            ?.map { it.id }
+            ?.toSet()
+            ?: emptySet()
+        if (joinedItineraryIds.isEmpty()) return items
+
+        return items.map { notif ->
+            if (notif.type == NotificationType.ITINERARY_INVITE &&
+                notif.inviteStatus == ItineraryInviteStatus.PENDING &&
+                notif.itineraryId in joinedItineraryIds
+            ) {
+                notif.copy(inviteStatus = ItineraryInviteStatus.ACCEPTED, isRead = true)
+            } else {
+                notif
             }
         }
     }
@@ -359,6 +406,11 @@ class NotificationViewModel(
             itineraryTitle = itinerary_title,
             actorId = actor_id,
             groupKey = group_key,
+            inviteStatus = if (NotificationType.fromBackend(notif_type) == NotificationType.ITINERARY_INVITE) {
+                ItineraryInviteStatus.fromGroupKey(group_key)
+            } else {
+                ItineraryInviteStatus.PENDING
+            },
         )
     }
 

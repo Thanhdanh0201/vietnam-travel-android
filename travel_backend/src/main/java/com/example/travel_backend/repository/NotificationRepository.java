@@ -42,4 +42,18 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Notification n SET n.isDeleted = true WHERE n.id IN :ids AND n.user.id = :userId AND (n.isDeleted = false OR n.isDeleted IS NULL)")
     void softDeleteByIdInAndUserId(@Param("ids") List<UUID> ids, @Param("userId") UUID userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Notification n
+            SET n.groupKey = :groupKey, n.isRead = true
+            WHERE n.user.id = :userId
+              AND n.itinerary.id = :itineraryId
+              AND n.type = 'itinerary_invite'
+              AND (n.isDeleted = false OR n.isDeleted IS NULL)
+            """)
+    void resolveItineraryInviteNotifications(
+            @Param("userId") UUID userId,
+            @Param("itineraryId") UUID itineraryId,
+            @Param("groupKey") String groupKey);
 }

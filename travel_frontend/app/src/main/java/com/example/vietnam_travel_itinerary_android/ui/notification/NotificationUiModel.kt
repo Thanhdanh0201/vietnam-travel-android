@@ -1,5 +1,17 @@
 package com.example.vietnam_travel_itinerary_android.ui.notification
 
+enum class ItineraryInviteStatus {
+    PENDING, ACCEPTED, DECLINED;
+
+    companion object {
+        fun fromGroupKey(groupKey: String?): ItineraryInviteStatus = when (groupKey?.lowercase()) {
+            "invite:accepted" -> ACCEPTED
+            "invite:declined" -> DECLINED
+            else -> PENDING
+        }
+    }
+}
+
 data class ActorInfo(
     val id: String,
     val name: String,
@@ -24,6 +36,7 @@ data class NotificationUiModel(
     val itineraryTitle: String? = null,
     val actorId: String? = null,
     val groupKey: String? = null,
+    val inviteStatus: ItineraryInviteStatus = ItineraryInviteStatus.PENDING,
 )
 
 enum class NotificationType {

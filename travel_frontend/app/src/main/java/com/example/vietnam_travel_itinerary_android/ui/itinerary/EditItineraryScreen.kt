@@ -69,8 +69,27 @@ import kotlinx.coroutines.launch
 // ============================================================
 
 private val HOURS_12  = (1..12).map { it.toString().padStart(2, '0') }
-private val MINUTES   = (0..59 step 5).map { it.toString().padStart(2, '0') }
+private val MINUTES   = listOf("00", "15", "30", "45")
 private val PERIODS   = listOf("AM", "PM")
+
+private fun parseTimeString(time: String): Triple<Int, Int, Int> {
+    val parts = time.trim().split(" ")
+    val timeParts = parts.getOrNull(0)?.split(":") ?: listOf("08", "00")
+    val periodStr = parts.getOrNull(1)?.uppercase() ?: "AM"
+    val hour = timeParts.getOrNull(0)?.toIntOrNull()?.coerceIn(1, 12) ?: 8
+    val minuteRaw = timeParts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
+    val minuteStep = (MINUTES.indexOfFirst { it.toInt() >= minuteRaw }).let { if (it == -1) MINUTES.size - 1 else it }
+    val period = if (periodStr == "PM") 1 else 0
+    return Triple(
+        HOURS_12.indexOf(hour.toString().padStart(2, '0')).coerceAtLeast(0),
+        minuteStep,
+        period,
+    )
+}
+
+private fun formatTimeString(hourIndex: Int, minuteIndex: Int, periodIndex: Int): String {
+    return "${HOURS_12[hourIndex]}:${MINUTES[minuteIndex]} ${PERIODS[periodIndex]}"
+}
 
 /** Hiển thị một cột cuộn (giờ / phút / AM-PM) kiểu drum picker */
 @Composable
@@ -149,6 +168,98 @@ private fun PickerColumn(
 }
 
 /**
+ * Wheel time picker inline — cuộn chọn giờ / phút / AM-PM.
+ * AM/PM tự đổi khi cuộn qua mốc 12 (11↔12).
+ */
+@Composable
+fun ScrollTimePicker(
+    initialTime: String = "08:00 AM",
+    onTimeChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val (initHour, initMinute, initPeriod) = parseTimeString(initialTime)
+    var hourIndex by remember { mutableStateOf(initHour) }
+    var minuteIndex by remember { mutableStateOf(initMinute) }
+    var periodIndex by remember { mutableStateOf(initPeriod) }
+
+    LaunchedEffect(hourIndex, minuteIndex, periodIndex) {
+        onTimeChange(formatTimeString(hourIndex, minuteIndex, periodIndex))
+    }
+
+    val onHourChange: (Int) -> Unit = { newIndex ->
+        val oldIndex = hourIndex
+        if (newIndex != oldIndex) {
+            if ((oldIndex == 10 && newIndex == 11) || (oldIndex == 11 && newIndex == 10)) {
+                periodIndex = 1 - periodIndex
+            }
+            hourIndex = newIndex
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(192.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .border(1.dp, SlateGray100, RoundedCornerShape(24.dp))
+            .background(Color.White)
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .height(44.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(SlateGray100.copy(alpha = 0.5f))
+        )
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, start = 8.dp, end = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Text("Giờ", fontSize = 10.sp, color = SlateGray400, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Text("Phút", fontSize = 10.sp, color = SlateGray400, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Text("AM/PM", fontSize = 10.sp, color = SlateGray400, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                PickerColumn(
+                    items = HOURS_12,
+                    selectedIndex = hourIndex,
+                    onSelectedIndexChange = onHourChange,
+                    modifier = Modifier.weight(1f),
+                    itemHeight = 44,
+                )
+                PickerColumn(
+                    items = MINUTES,
+                    selectedIndex = minuteIndex,
+                    onSelectedIndexChange = { minuteIndex = it },
+                    modifier = Modifier.weight(1f),
+                    itemHeight = 44,
+                )
+                PickerColumn(
+                    items = PERIODS,
+                    selectedIndex = periodIndex,
+                    onSelectedIndexChange = { periodIndex = it },
+                    modifier = Modifier.weight(1f),
+                    itemHeight = 44,
+                )
+            }
+        }
+    }
+}
+
+/**
  * Dialog Time Picker cuộn (drum/wheel style).
  * Trả về chuỗi dạng "hh:mm AM/PM", ví dụ "08:30 AM".
  */
@@ -158,21 +269,7 @@ fun ScrollTimePickerDialog(
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    // Parse initial time
-    val parts = initialTime.trim().split(" ")
-    val timeParts = parts.getOrNull(0)?.split(":") ?: listOf("08", "00")
-    val periodStr = parts.getOrNull(1)?.uppercase() ?: "AM"
-
-    val initialHour = timeParts.getOrNull(0)?.toIntOrNull()?.coerceIn(1, 12) ?: 8
-    val initialMinuteRaw = timeParts.getOrNull(1)?.toIntOrNull()?.coerceIn(0, 59) ?: 0
-    // Snap initial minute to nearest 5-minute step
-    val initialMinuteStep = (MINUTES.indexOfFirst {
-        it.toInt() >= initialMinuteRaw
-    }).coerceAtLeast(0)
-
-    var hourIndex by remember { mutableStateOf(HOURS_12.indexOf(initialHour.toString().padStart(2, '0')).coerceAtLeast(0)) }
-    var minuteIndex by remember { mutableStateOf(initialMinuteStep) }
-    var periodIndex by remember { mutableStateOf(if (periodStr == "PM") 1 else 0) }
+    var selectedTime by remember { mutableStateOf(initialTime) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -192,72 +289,24 @@ fun ScrollTimePickerDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Preview label
-                val previewHour = HOURS_12[hourIndex]
-                val previewMin = MINUTES[minuteIndex]
-                val previewPeriod = PERIODS[periodIndex]
                 Text(
-                    text = "$previewHour:$previewMin $previewPeriod",
+                    text = selectedTime,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = VNRed,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
-
-                // Separator line
                 HorizontalDivider(color = SlateGray200)
                 Spacer(modifier = Modifier.height(8.dp))
-
-                // Header labels
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Text("Giờ", fontSize = 11.sp, color = SlateGray400, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    Text("Phút", fontSize = 11.sp, color = SlateGray400, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                    Text("SA/CH", fontSize = 11.sp, color = SlateGray400, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(0.8f), textAlign = TextAlign.Center)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Drum picker row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    PickerColumn(
-                        items = HOURS_12,
-                        selectedIndex = hourIndex,
-                        onSelectedIndexChange = { hourIndex = it },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    Text(":", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = SlateGray500)
-
-                    PickerColumn(
-                        items = MINUTES,
-                        selectedIndex = minuteIndex,
-                        onSelectedIndexChange = { minuteIndex = it },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    PickerColumn(
-                        items = PERIODS,
-                        selectedIndex = periodIndex,
-                        onSelectedIndexChange = { periodIndex = it },
-                        modifier = Modifier.weight(0.8f),
-                    )
-                }
+                ScrollTimePicker(
+                    initialTime = initialTime,
+                    onTimeChange = { selectedTime = it },
+                )
             }
         },
         confirmButton = {
             Button(
-                onClick = {
-                    val result = "${HOURS_12[hourIndex]}:${MINUTES[minuteIndex]} ${PERIODS[periodIndex]}"
-                    onConfirm(result)
-                },
+                onClick = { onConfirm(selectedTime) },
                 colors = ButtonDefaults.buttonColors(containerColor = VNRed),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -610,6 +659,7 @@ fun EditItineraryScreen(
                                     AuthorAvatar(
                                         initials = participant.initials,
                                         color = Color(participant.avatarColor),
+                                        avatarUrl = participant.avatarUrl,
                                         size = 40
                                     )
                                 }
@@ -864,18 +914,14 @@ fun EditItineraryScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp)
+                        .heightIn(max = 480.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Thời gian", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SlateGray600)
-                        OutlinedTextField(
-                            value = timeInput,
-                            onValueChange = { timeInput = it },
-                            placeholder = { Text("Ví dụ: 08:30 AM") },
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                        ScrollTimePicker(
+                            initialTime = timeInput,
+                            onTimeChange = { timeInput = it },
                         )
                     }
 
@@ -1154,6 +1200,7 @@ fun EditItineraryScreen(
                                     AuthorAvatar(
                                         initials = participant.initials,
                                         color = Color(participant.avatarColor),
+                                        avatarUrl = participant.avatarUrl,
                                         size = 36
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -1513,7 +1560,8 @@ data class TimelineItemData(
     val day: String = "",
     val note: String? = null,
     val warningType: String? = null,
-    val warningValue: Float? = null
+    val warningValue: Float? = null,
+    val orderIndex: Int = 0,
 )
 
 @Composable

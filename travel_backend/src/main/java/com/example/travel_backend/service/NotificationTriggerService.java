@@ -65,7 +65,12 @@ public class NotificationTriggerService {
     public void notifyItineraryInvite(UUID actorId, UUID invitedUserId, UUID itineraryId) {
         if (!shouldNotify(actorId, invitedUserId, "itinerary_invite")) return;
         saveNotification(invitedUserId, actorId, "itinerary_invite", null, null, itineraryId, null,
-                null, null, null);
+                null, "invite:pending", null);
+    }
+
+    public void resolveItineraryInviteNotifications(UUID userId, UUID itineraryId, String status) {
+        notificationRepository.resolveItineraryInviteNotifications(
+                userId, itineraryId, "invite:" + status);
     }
 
     public void notifyItineraryUpdated(UUID actorId, UUID itineraryId) {
