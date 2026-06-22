@@ -244,6 +244,9 @@ class ProfileRepository(
     suspend fun deletePost(postId: String): Boolean =
         communityRepository.deletePost(postId)
 
+    suspend fun repostPost(userId: String, postId: String, quoteText: String? = null): Boolean =
+        communityRepository.repostPost(userId, postId, quoteText)
+
     suspend fun reportUser(reportedUserId: String, reason: String, description: String?): Boolean {
         val reporterId = supabase.auth.currentUserOrNull()?.id ?: return false
         return communityRepository.report(

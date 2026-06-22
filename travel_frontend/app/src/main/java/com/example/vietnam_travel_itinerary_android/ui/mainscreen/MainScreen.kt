@@ -357,8 +357,14 @@ fun MainScreen(
                         when {
                             route == "edit_profile" -> bottomNavController.navigate("edit_profile")
                             route.startsWith("post_detail/") -> {
-                                val postId = route.removePrefix("post_detail/")
+                                val remaining = route.removePrefix("post_detail/")
+                                val parts = remaining.split("/")
+                                val postId = parts[0]
+                                val focusComment = parts.getOrNull(1) == "comment"
                                 communityViewModel.setOpenedPostId(postId)
+                                if (focusComment) {
+                                    communityViewModel.setFocusCommentInput(true)
+                                }
                                 navigateToMainTab("community")
                             }
                             route.startsWith("profile/") -> {
@@ -395,8 +401,14 @@ fun MainScreen(
                     onNavigate = { route ->
                         when {
                             route.startsWith("post_detail/") -> {
-                                val postId = route.removePrefix("post_detail/")
+                                val remaining = route.removePrefix("post_detail/")
+                                val parts = remaining.split("/")
+                                val postId = parts[0]
+                                val focusComment = parts.getOrNull(1) == "comment"
                                 communityViewModel.setOpenedPostId(postId)
+                                if (focusComment) {
+                                    communityViewModel.setFocusCommentInput(true)
+                                }
                                 navigateToMainTab("community")
                             }
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
@@ -425,8 +437,14 @@ fun MainScreen(
                     onNavigate = { route ->
                         when {
                             route.startsWith("post_detail/") -> {
-                                val postId = route.removePrefix("post_detail/")
+                                val remaining = route.removePrefix("post_detail/")
+                                val parts = remaining.split("/")
+                                val postId = parts[0]
+                                val focusComment = parts.getOrNull(1) == "comment"
                                 communityViewModel.setOpenedPostId(postId)
+                                if (focusComment) {
+                                    communityViewModel.setFocusCommentInput(true)
+                                }
                                 navigateToMainTab("community")
                             }
                             route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
