@@ -329,6 +329,37 @@ class ProfileViewModel(
         }
     }
 
+    fun repostPost(postId: String, quoteText: String? = null) {
+        val profile = _uiState.value.profile ?: return
+        val userId = currentUserId ?: return
+
+        viewModelScope.launch {
+            val success = repository.repostPost(userId, postId, quoteText)
+            if (success) {
+                _uiState.update { state ->
+                    val freshProfile = state.profile ?: return@update state
+                    state.copy(
+                        profile = freshProfile.copy(
+                            posts = freshProfile.posts.map { post ->
+                                if (post.id == postId) {
+                                    post.copy(repostCount = post.repostCount + 1)
+                                } else post
+                            },
+                            savedPosts = freshProfile.savedPosts.map { post ->
+                                if (post.id == postId) {
+                                    post.copy(repostCount = post.repostCount + 1)
+                                } else post
+                            }
+                        )
+                    )
+                }
+                loadProfile(profile.id, force = true)
+            } else {
+                _uiState.update { it.copy(error = "Chia sẻ bài viết thất bại.") }
+            }
+        }
+    }
+
     fun reportUser(reason: String, description: String?) {
         val targetId = _uiState.value.profile?.id ?: return
         viewModelScope.launch {

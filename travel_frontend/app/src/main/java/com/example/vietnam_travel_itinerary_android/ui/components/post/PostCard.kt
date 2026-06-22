@@ -57,8 +57,13 @@ fun PostCard(
     onNavigateToPost: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val cardModifier = if (onNavigateToPost != null) {
+        modifier.clickable { onNavigateToPost(post.id) }
+    } else {
+        modifier
+    }
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = cardModifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = Color.White,
         shadowElevation = 1.dp

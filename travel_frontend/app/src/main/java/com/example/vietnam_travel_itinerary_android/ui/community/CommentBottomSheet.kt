@@ -2,12 +2,17 @@ package com.example.vietnam_travel_itinerary_android.ui.community
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -91,6 +96,17 @@ fun PostDetailScreen(
 
     val keyboard = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
+
+    val focusCommentInput by viewModel.focusCommentInput.collectAsState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(focusCommentInput) {
+        if (focusCommentInput) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+            viewModel.setFocusCommentInput(false)
+        }
+    }
 
     fun openAuthorProfile(userId: String) {
         if (userId.isNotBlank()) onAuthorClick(userId)
@@ -202,7 +218,8 @@ fun PostDetailScreen(
                     inputText = ""
                     commentImageUri = null
                     keyboard?.hide()
-                }
+                },
+                focusRequester = focusRequester
             )
         }
     ) { padding ->
@@ -362,45 +379,84 @@ fun PostDetailScreen(
 
                     // ── Action buttons row (Threads-style)
                     HorizontalDivider(color = SlateGray100)
-                    Row(
+                    val actionScrollState = rememberScrollState()
+                    Box(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceAround
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        // Like
-                        ActionButton(
-                            icon = if (currentPost.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            label = "Thích",
-                            tint = if (currentPost.isLiked) VNRed else SlateGray500,
-                            onClick = {
-                                if (currentPost.isLiked) viewModel.unlikePost(currentPost.id) else viewModel.likePost(currentPost.id)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(actionScrollState)
+                                .padding(horizontal = 16.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Like
+                            ActionButton(
+                                icon = if (currentPost.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                label = "Thích",
+                                tint = if (currentPost.isLiked) VNRed else SlateGray500,
+                                onClick = {
+                                    if (currentPost.isLiked) viewModel.unlikePost(currentPost.id) else viewModel.likePost(currentPost.id)
+                                }
+                            )
+                            // Comment — scroll to first comment
+                            ActionButton(
+                                icon = Icons.Outlined.ChatBubbleOutline,
+                                label = "Bình luận",
+                                tint = SlateGray500,
+                                onClick = {}
+                            )
+                            // Share
+                            ActionButton(
+                                icon = Icons.Outlined.Share,
+                                label = "Chia sẻ",
+                                tint = SlateGray500,
+                                onClick = {
+                                    quoteText = ""
+                                    showShareDialog = true
+                                }
+                            )
+                            // Save
+                            ActionButton(
+                                icon = if (currentPost.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                                label = if (currentPost.isSaved) "Đã lưu" else "Lưu",
+                                tint = if (currentPost.isSaved) VNRed else SlateGray500,
+                                onClick = {
+                                    if (currentPost.isSaved) viewModel.unsavePost(currentPost.id) else viewModel.savePost(currentPost.id)
+                                }
+                            )
+                        }
+
+                        val canScrollRight = actionScrollState.value < actionScrollState.maxValue
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = canScrollRight,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .background(
+                                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                            colors = listOf(Color.White.copy(alpha = 0f), Color.White)
+                                        )
+                                    )
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.KeyboardArrowRight,
+                                    contentDescription = "Cuộn sang phải",
+                                    tint = VNRed,
+                                    modifier = Modifier
+                                        .padding(end = 4.dp)
+                                        .size(24.dp)
+                                )
                             }
-                        )
-                        // Comment — scroll to first comment
-                        ActionButton(
-                            icon = Icons.Outlined.ChatBubbleOutline,
-                            label = "Bình luận",
-                            tint = SlateGray500,
-                            onClick = {}
-                        )
-                        // Share
-                        ActionButton(
-                            icon = Icons.Outlined.Share,
-                            label = "Chia sẻ",
-                            tint = SlateGray500,
-                            onClick = {
-                                quoteText = ""
-                                showShareDialog = true
-                            }
-                        )
-                        // Save
-                        ActionButton(
-                            icon = if (currentPost.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                            label = if (currentPost.isSaved) "Đã lưu" else "Lưu",
-                            tint = if (currentPost.isSaved) VNRed else SlateGray500,
-                            onClick = {
-                                if (currentPost.isSaved) viewModel.unsavePost(currentPost.id) else viewModel.savePost(currentPost.id)
-                            }
-                        )
+                        }
                     }
                     HorizontalDivider(color = SlateGray100)
                 }
@@ -669,7 +725,8 @@ private fun CommentInputBar(
     onCancelReply: () -> Unit,
     onImageClick: () -> Unit = {},
     onRemoveImage: () -> Unit = {},
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    focusRequester: FocusRequester
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -764,7 +821,7 @@ private fun CommentInputBar(
                     BasicTextField(
                         value = text,
                         onValueChange = onTextChange,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                         textStyle = TextStyle(color = SlateGray700, fontSize = 14.sp),
                         maxLines = 4
                     )

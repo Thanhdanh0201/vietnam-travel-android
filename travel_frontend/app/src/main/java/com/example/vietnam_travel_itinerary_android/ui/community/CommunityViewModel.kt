@@ -79,15 +79,23 @@ class CommunityViewModel(
     private val _highlightCommentId = MutableStateFlow<String?>(null)
     val highlightCommentId: StateFlow<String?> = _highlightCommentId.asStateFlow()
 
+    private val _focusCommentInput = MutableStateFlow(false)
+    val focusCommentInput: StateFlow<Boolean> = _focusCommentInput.asStateFlow()
+
     fun setOpenedPostId(postId: String?) {
         _openedPostId.value = postId
         if (postId == null) {
             _highlightCommentId.value = null
+            _focusCommentInput.value = false
         }
     }
 
     fun setHighlightCommentId(commentId: String?) {
         _highlightCommentId.value = commentId
+    }
+
+    fun setFocusCommentInput(focus: Boolean) {
+        _focusCommentInput.value = focus
     }
 
     private val _selectedPlace = MutableStateFlow<PostPlace?>(null)

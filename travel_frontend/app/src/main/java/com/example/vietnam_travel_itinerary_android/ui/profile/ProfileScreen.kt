@@ -141,6 +141,9 @@ private fun ProfileContent(
         }
     }
     var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
+    var postToShare by remember { mutableStateOf<CommunityPost?>(null) }
+    var showShareDialog by remember { mutableStateOf(false) }
+    var quoteText by remember { mutableStateOf("") }
     var showProfileMenu by remember { mutableStateOf(false) }
     var showReportSheet by remember { mutableStateOf(false) }
     val reportContext = LocalContext.current
@@ -271,9 +274,14 @@ private fun ProfileContent(
                                     post = post,
                                     currentUserId = viewModel.currentUserId,
                                     onLikeClick = { onLikePost(post.id, post.isLiked) },
-                                    onCommentClick = {},
+                                    onCommentClick = { onNavigate("post_detail/${post.id}/comment") },
                                     onSaveClick = {
                                         if (post.isSaved) viewModel.unsavePost(post.id) else viewModel.savePost(post.id)
+                                    },
+                                    onShareClick = {
+                                        postToShare = post
+                                        quoteText = ""
+                                        showShareDialog = true
                                     },
                                     onDeleteClick = {
                                         postToDelete = post
@@ -325,9 +333,14 @@ private fun ProfileContent(
                                     post = post,
                                     currentUserId = viewModel.currentUserId,
                                     onLikeClick = { onLikePost(post.id, post.isLiked) },
-                                    onCommentClick = {},
+                                    onCommentClick = { onNavigate("post_detail/${post.id}/comment") },
                                     onSaveClick = {
                                         if (post.isSaved) viewModel.unsavePost(post.id) else viewModel.savePost(post.id)
+                                    },
+                                    onShareClick = {
+                                        postToShare = post
+                                        quoteText = ""
+                                        showShareDialog = true
                                     },
                                     onDeleteClick = {
                                         postToDelete = post
@@ -363,6 +376,72 @@ private fun ProfileContent(
                         Text("Huỷ", color = SlateGray500)
                     }
                 }
+            )
+        }
+
+        if (showShareDialog && postToShare != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    showShareDialog = false
+                    postToShare = null
+                },
+                title = {
+                    Text(
+                        text = "Chia sẻ bài viết",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF0F172A)
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = "Bạn có muốn chia sẻ bài viết này lên bảng tin của mình?",
+                            fontSize = 14.sp,
+                            color = Color(0xFF475569)
+                        )
+                        OutlinedTextField(
+                            value = quoteText,
+                            onValueChange = { quoteText = it },
+                            placeholder = { Text("Viết suy nghĩ của bạn... (Tùy chọn)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            maxLines = 3,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = VNRed,
+                                cursorColor = VNRed
+                            )
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val targetPost = postToShare
+                            if (targetPost != null) {
+                                viewModel.repostPost(
+                                    postId = targetPost.id,
+                                    quoteText = quoteText.takeIf { it.isNotBlank() }
+                                )
+                            }
+                            showShareDialog = false
+                            postToShare = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = VNRed)
+                    ) {
+                        Text("Chia sẻ", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showShareDialog = false
+                            postToShare = null
+                        }
+                    ) {
+                        Text("Hủy", color = SlateGray500)
+                    }
+                },
+                containerColor = Color.White
             )
         }
     }
