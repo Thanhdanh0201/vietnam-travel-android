@@ -120,14 +120,6 @@ fun CreateItineraryScreen(
     var selectedProvinceCode by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
 
-    LaunchedEffect(provinces) {
-        if (provinces.isNotEmpty() && selectedProvinceName.isEmpty()) {
-            val firstProv = provinces.first()
-            selectedProvinceName = firstProv.name
-            selectedProvinceCode = firstProv.code
-        }
-    }
-
 
     if (showDatePicker) {
         DateRangePickerDialog(
@@ -245,6 +237,24 @@ fun CreateItineraryScreen(
                 )
             }
 
+            // Nơi dự định đi
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "NƠI DỰ ĐỊNH ĐI",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = SlateGray500
+                )
+                ProvinceSelectorDropdown(
+                    provinces = provinces,
+                    selectedName = selectedProvinceName,
+                    onSelect = { province ->
+                        selectedProvinceName = province.name
+                        selectedProvinceCode = province.code
+                    }
+                )
+            }
+
             // Chọn thời gian chuyến đi thực tế
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(
@@ -328,7 +338,7 @@ fun CreateItineraryScreen(
                         if (isUploadingImage) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 CircularProgressIndicator(color = VNRed, modifier = Modifier.size(32.dp))
-                                Text("Đang tải ảnh lên Supabase...", fontSize = 12.sp, color = SlateGray500)
+                                Text("Đang tải ảnh lên...", fontSize = 12.sp, color = SlateGray500)
                             }
                         } else if (uploadedImageUrl != null) {
                             Box(modifier = Modifier.fillMaxSize()) {
@@ -368,24 +378,6 @@ fun CreateItineraryScreen(
                 }
             }
 
-            // Nơi dự định đi
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "NƠI DỰ ĐỊNH ĐI",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp,
-                    color = SlateGray500
-                )
-                ProvinceSelectorDropdown(
-                    provinces = provinces,
-                    selectedName = selectedProvinceName,
-                    onSelect = { province ->
-                        selectedProvinceName = province.name
-                        selectedProvinceCode = province.code
-                    }
-                )
-            }
-            
             Spacer(modifier = Modifier.height(24.dp)) // padding for bottom bar
         }
     }
@@ -464,16 +456,35 @@ private fun ProvinceSelectorDropdown(
     onSelect: (Province) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    LaunchedEffect(selectedName, expanded) {
+        if (!expanded) {
+            searchQuery = selectedName
+        }
+    }
+
+    val filteredProvinces = remember(searchQuery, provinces) {
+        if (searchQuery.isBlank() || searchQuery == selectedName) {
+            provinces
+        } else {
+            val queryNormalized = searchQuery.removeDiacritics()
+            provinces.filter { it.name.removeDiacritics().contains(queryNormalized, ignoreCase = true) }
+        }
+    }
+
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = { expanded = it },
         modifier = Modifier.fillMaxWidth(),
     ) {
         OutlinedTextField(
-            value = selectedName,
-            onValueChange = {},
-            readOnly = true,
-            placeholder = { Text("Chọn Tỉnh/Thành", color = SlateGray400, fontSize = 14.sp) },
+            value = searchQuery,
+            onValueChange = {
+                searchQuery = it
+                expanded = true
+            },
+            placeholder = { Text("Nhập để tìm kiếm tỉnh / thành", color = SlateGray400, fontSize = 14.sp) },
             label = { Text("Tỉnh/Thành phố", fontSize = 12.sp) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             shape = RoundedCornerShape(12.dp),
@@ -485,23 +496,40 @@ private fun ProvinceSelectorDropdown(
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                .menuAnchor(MenuAnchorType.PrimaryEditable),
         )
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.heightIn(max = 320.dp),
+            modifier = Modifier.heightIn(max = 280.dp),
         ) {
-            provinces.forEach { province ->
+            if (filteredProvinces.isEmpty()) {
                 DropdownMenuItem(
-                    text = { Text(province.name) },
-                    onClick = {
-                        onSelect(province)
-                        expanded = false
-                    },
+                    text = { Text("Không tìm thấy kết quả", color = SlateGray400) },
+                    onClick = {},
+                    enabled = false
                 )
+            } else {
+                filteredProvinces.forEach { province ->
+                    DropdownMenuItem(
+                        text = { Text(province.name) },
+                        onClick = {
+                            onSelect(province)
+                            searchQuery = province.name
+                            expanded = false
+                        },
+                    )
+                }
             }
         }
     }
+}
+
+private fun String.removeDiacritics(): String {
+    val temp = java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+    val pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
+    return pattern.matcher(temp).replaceAll("")
+        .replace('đ', 'd')
+        .replace('Đ', 'D')
 }
 
