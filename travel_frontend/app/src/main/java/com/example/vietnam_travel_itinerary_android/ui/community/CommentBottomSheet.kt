@@ -178,7 +178,10 @@ fun PostDetailScreen(
                     val parent = replyingTo
                     val text = inputText
                     val imageUri = commentImageUri
-                    if (text.isBlank() && imageUri == null) return@CommentInputBar
+                    if (text.isBlank() && imageUri == null) {
+                        android.widget.Toast.makeText(context, "Vui lòng nhập nội dung bình luận hoặc chọn ảnh", android.widget.Toast.LENGTH_SHORT).show()
+                        return@CommentInputBar
+                    }
                     if (parent != null) {
                         viewModel.postComment(
                             post.id,
