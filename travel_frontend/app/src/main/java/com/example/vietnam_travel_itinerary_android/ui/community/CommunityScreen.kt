@@ -177,6 +177,12 @@ fun CommunityScreen(
         }
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.setOpenedPostId(null)
+        }
+    }
+
     // ── Place Picker Bottom Sheet
     if (showPlacePicker) {
         PlacePickerBottomSheet(

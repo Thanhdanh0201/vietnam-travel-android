@@ -317,7 +317,7 @@ fun CreateItineraryScreen(
             // Chọn & Tải ảnh bìa (Supabase storage)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "ẢNH BÌA LỊCH TRÌNH (Tải lên Supabase)",
+                    text = "ẢNH BÌA LỊCH TRÌNH",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = SlateGray500
