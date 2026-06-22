@@ -737,7 +737,7 @@ class CommunityViewModel(
             } catch (e: retrofit2.HttpException) {
                 e.printStackTrace()
                 val errorBody = e.response()?.errorBody()?.string()
-                _error.value = "Không thể gửi bình luận (${e.code()}): ${errorBody?.take(100) ?: e.message()}"
+                _error.value = "Không thể gửi bình luận (${e.code()}): ${errorBody?.take(500) ?: e.message()}"
             } catch (e: Exception) {
                 e.printStackTrace()
                 _error.value = "Lỗi kết nối bình luận: ${e.localizedMessage}"
