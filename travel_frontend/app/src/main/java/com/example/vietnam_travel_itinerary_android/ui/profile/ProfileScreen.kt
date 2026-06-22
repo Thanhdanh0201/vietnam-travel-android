@@ -72,6 +72,33 @@ fun ProfileScreen(
                 CircularProgressIndicator(color = VNRed)
             }
         }
+        uiState.isUserBanned -> {
+            OtherUserProfileShell(
+                isOtherUserProfile = isOtherUserProfile,
+                onBack = onBack,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(24.dp),
+                ) {
+                    Text("🚫", fontSize = 40.sp)
+                    Text(
+                        text = "Người dùng đã bị cấm",
+                        color = SlateGray900,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Text(
+                        text = "Trang cá nhân này không còn khả dụng.",
+                        color = Color(0xFF64748B),
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
         uiState.error != null && uiState.profile == null -> {
             OtherUserProfileShell(
                 isOtherUserProfile = isOtherUserProfile,

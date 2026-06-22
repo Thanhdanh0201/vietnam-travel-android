@@ -20,8 +20,11 @@ public class UserController {
     private UserService userService;
 
     @GetMapping("/{id:[0-9a-fA-F\\-]{36}}")
-    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable("id") UUID userId) {
-        return ResponseEntity.ok(userService.getUserProfile(userId));
+    public ResponseEntity<UserProfileResponseDto> getProfile(
+            @PathVariable("id") UUID userId,
+            @AuthenticationPrincipal Jwt jwt) {
+        UUID viewerId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
+        return ResponseEntity.ok(userService.getUserProfile(userId, viewerId));
     }
 
     @PatchMapping("/me")

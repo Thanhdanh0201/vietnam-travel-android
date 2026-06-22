@@ -8,7 +8,9 @@ import com.example.travel_backend.repository.UserRepository;
 import com.example.travel_backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,10 +26,25 @@ public class UserServiceImpl implements UserService {
     private UserRepository userRepository;
 
     @Override
-    public UserProfileResponseDto getUserProfile(UUID userId) {
+    public UserProfileResponseDto getUserProfile(UUID userId, UUID viewerId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (Boolean.TRUE.equals(user.getIsBanned())) {
+            boolean isSelf = viewerId != null && viewerId.equals(userId);
+            boolean viewerIsAdmin = viewerId != null && isAdmin(viewerId);
+            if (!isSelf && !viewerIsAdmin) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is banned");
+            }
+        }
+
         return convertToDto(user);
+    }
+
+    private boolean isAdmin(UUID userId) {
+        return userRepository.findById(userId)
+                .map(u -> "admin".equals(u.getRole()))
+                .orElse(false);
     }
 
     @Override
@@ -95,6 +112,7 @@ public class UserServiceImpl implements UserService {
         dto.setPostCount(user.getPostCount());
         dto.setIsVerified(user.getIsVerified());
         dto.setIsPrivate(user.getIsPrivate());
+        dto.setIsBanned(user.getIsBanned());
         dto.setRole(user.getRole());
         return dto;
     }

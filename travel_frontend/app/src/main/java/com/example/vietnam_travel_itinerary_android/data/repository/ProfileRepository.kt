@@ -24,6 +24,8 @@ class ProfileRepository(
 ) {
     private val api = RetrofitInstance.api
 
+    class UserBannedException : Exception("Người dùng đã bị cấm")
+
     suspend fun loadSessionProfile(): UserProfile = withContext(Dispatchers.IO) {
         val currentUserId = supabase.auth.currentUserOrNull()?.id
             ?: throw IllegalStateException("Not authenticated")
@@ -43,6 +45,9 @@ class ProfileRepository(
         val token = supabase.auth.currentAccessTokenOrNull()?.let { "Bearer $it" }
         val profileDto = fetchProfileDto(userId, token)
         val isOwnProfile = currentUserId != null && userId == currentUserId
+        if (profileDto.isBanned == true && !isOwnProfile) {
+            throw UserBannedException()
+        }
 
         val isFollowing = if (!isOwnProfile && token != null && currentUserId != null) {
             try {
@@ -263,7 +268,6 @@ class ProfileRepository(
     private suspend fun fetchProfileDto(userId: String, token: String?): UserProfileResponseDto {
         try {
             val profile = api.getProfile(userId, token)
-            // Nếu user đã tồn tại nhưng chưa được verify trên backend, ta cần đồng bộ lại
             if (profile.isVerified != true && token != null) {
                 val user = supabase.auth.currentUserOrNull()
                 if (user != null && user.id == userId) {
@@ -283,6 +287,13 @@ class ProfileRepository(
                 }
             }
             return profile
+        } catch (e: HttpException) {
+            if (e.code() == 403) {
+                throw UserBannedException()
+            }
+            throw e
+        } catch (e: UserBannedException) {
+            throw e
         } catch (e: Exception) {
             e.printStackTrace()
             if (token == null) throw e

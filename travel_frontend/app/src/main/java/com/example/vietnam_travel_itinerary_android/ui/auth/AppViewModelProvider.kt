@@ -112,7 +112,8 @@ object AppViewModelProvider {
                 placeRepository = PlaceRepository(),
                 itineraryRepository = ItineraryRepository(SupabaseObject.client),
                 communityRepository = CommunityRepository(SupabaseObject.client),
-                searchRepository = SearchRepository(SupabaseObject.client)
+                searchRepository = SearchRepository(SupabaseObject.client),
+                supabase = SupabaseObject.client,
             )
         }
 

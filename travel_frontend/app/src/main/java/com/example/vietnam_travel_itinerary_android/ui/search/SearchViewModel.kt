@@ -7,9 +7,12 @@ import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.data.repository.ItineraryRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.PlaceRepository
 import com.example.vietnam_travel_itinerary_android.data.repository.SearchRepository
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
 import kotlinx.coroutines.Job
@@ -24,6 +27,7 @@ class SearchViewModel(
     private val itineraryRepository: ItineraryRepository,
     private val communityRepository: CommunityRepository,
     private val searchRepository: SearchRepository,
+    private val supabase: SupabaseClient,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -31,6 +35,9 @@ class SearchViewModel(
     val uiState: StateFlow<SearchUiState> =
         _uiState.asStateFlow()
     private var searchJob: Job? = null
+
+    val currentUserId: String?
+        get() = supabase.auth.currentUserOrNull()?.id
 
     init {
         loadTrending()
@@ -85,7 +92,8 @@ class SearchViewModel(
                 Log.d("SEARCH_DEBUG", "Raw result: $placesResult")
                 val itineraryResult = itineraryRepository.getItineraries()
                 val postResult = communityRepository.getPublicFeed(
-                    limit = 100
+                    currentUserId = currentUserId,
+                    limit = 100,
                 )
 
                 val users = postResult
@@ -163,6 +171,85 @@ class SearchViewModel(
                     error = e.message ?: "Search failed"
                 )
             }
+        }
+    }
+
+    fun likePost(postId: String) {
+        val userId = currentUserId ?: return
+        updatePost(postId) { it.copy(isLiked = true, likeCount = it.likeCount + 1) }
+        viewModelScope.launch {
+            if (!communityRepository.likePost(userId, postId)) {
+                updatePost(postId) {
+                    it.copy(isLiked = false, likeCount = (it.likeCount - 1).coerceAtLeast(0))
+                }
+            }
+        }
+    }
+
+    fun unlikePost(postId: String) {
+        val userId = currentUserId ?: return
+        updatePost(postId) {
+            it.copy(isLiked = false, likeCount = (it.likeCount - 1).coerceAtLeast(0))
+        }
+        viewModelScope.launch {
+            if (!communityRepository.unlikePost(userId, postId)) {
+                updatePost(postId) { it.copy(isLiked = true, likeCount = it.likeCount + 1) }
+            }
+        }
+    }
+
+    fun savePost(postId: String) {
+        val userId = currentUserId ?: return
+        updatePost(postId) { it.copy(isSaved = true) }
+        viewModelScope.launch {
+            if (!communityRepository.savePost(userId, postId)) {
+                updatePost(postId) { it.copy(isSaved = false) }
+            }
+        }
+    }
+
+    fun unsavePost(postId: String) {
+        val userId = currentUserId ?: return
+        updatePost(postId) { it.copy(isSaved = false) }
+        viewModelScope.launch {
+            if (!communityRepository.unsavePost(userId, postId)) {
+                updatePost(postId) { it.copy(isSaved = true) }
+            }
+        }
+    }
+
+    fun deletePost(postId: String) {
+        viewModelScope.launch {
+            val success = communityRepository.deletePost(postId)
+            if (success) {
+                _uiState.update { state ->
+                    state.copy(posts = state.posts.filter { it.id != postId })
+                }
+            }
+        }
+    }
+
+    fun reportPost(postId: String, reason: String, description: String?) {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            communityRepository.report(
+                userId = userId,
+                reason = reason,
+                reportedPostId = postId,
+                reportedCommentId = null,
+                reportedUserId = null,
+                description = description,
+            )
+        }
+    }
+
+    private fun updatePost(postId: String, transform: (CommunityPost) -> CommunityPost) {
+        _uiState.update { state ->
+            state.copy(
+                posts = state.posts.map { post ->
+                    if (post.id == postId) transform(post) else post
+                },
+            )
         }
     }
 

@@ -264,12 +264,8 @@ fun MainScreen(
                 val searchViewModel: SearchViewModel =
                     viewModel(factory = AppViewModelProvider.Factory)
 
-                val state by searchViewModel.uiState.collectAsState()
-
                 SearchScreen(
-                    state = state,
-                    currentUserId = communityViewModel.currentUserId,
-                    onQueryChange = { searchViewModel.search(it) },
+                    viewModel = searchViewModel,
                     onBackClick = { bottomNavController.navigateUp() },
                     onPlaceClick = { place ->
                         selectedPlace = place
@@ -278,11 +274,22 @@ fun MainScreen(
                         searchViewModel.setFilter(it)
                     },
                     onNavigate = { route ->
-                        bottomNavController.navigate(route)
+                        when {
+                            route.startsWith("post_detail/") -> {
+                                val postId = route.removePrefix("post_detail/")
+                                communityViewModel.setOpenedPostId(postId)
+                                navigateToMainTab("community")
+                            }
+                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
+                            route == "profile" -> bottomNavController.navigate("profile")
+                            route.startsWith("itinerary_detail/") -> bottomNavController.navigate(route)
+                            route in mainTabRoutes -> navigateToMainTab(route)
+                            else -> bottomNavController.navigate(route)
+                        }
                     },
                     onTrendingClick = { keyword ->
                         searchViewModel.onTrendingClick(keyword)
-                    }
+                    },
                 )
             }
 

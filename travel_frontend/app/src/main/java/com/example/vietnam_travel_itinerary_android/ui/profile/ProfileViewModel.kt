@@ -23,6 +23,7 @@ class ProfileViewModel(
         val isRefreshing: Boolean = false,
         val profile: UserProfile? = null,
         val error: String? = null,
+        val isUserBanned: Boolean = false,
         val isFollowLoading: Boolean = false,
     )
 
@@ -66,13 +67,14 @@ class ProfileViewModel(
                     isLoading = false,
                     profile = existingProfile ?: cachedProfile,
                     error = null,
+                    isUserBanned = false,
                 )
             }
             fetchProfileInBackground(targetUserId, showRefreshingIndicator = hasExistingProfile)
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, error = null) }
+        _uiState.update { it.copy(isLoading = true, error = null, isUserBanned = false) }
         viewModelScope.launch {
             fetchAndApplyProfile(targetUserId, showRefreshingIndicator = false)
         }
@@ -91,7 +93,7 @@ class ProfileViewModel(
 
         viewModelScope.launch {
             if (showRefreshingIndicator) {
-                _uiState.update { it.copy(isRefreshing = true, error = null) }
+                _uiState.update { it.copy(isRefreshing = true, error = null, isUserBanned = false) }
             }
             fetchAndApplyProfile(targetUserId, showRefreshingIndicator = showRefreshingIndicator)
         }
@@ -105,7 +107,13 @@ class ProfileViewModel(
             val profile = repository.getProfile(targetUserId, currentUserId)
             lastLoadedUserId = targetUserId
             lastLoadedAtMs = System.currentTimeMillis()
-            _uiState.value = ProfileUiState(isLoading = false, profile = profile)
+            _uiState.value = ProfileUiState(isLoading = false, profile = profile, isUserBanned = false)
+        } catch (e: ProfileRepository.UserBannedException) {
+            _uiState.value = ProfileUiState(
+                isLoading = false,
+                isUserBanned = true,
+                error = e.message ?: "Người dùng đã bị cấm",
+            )
         } catch (e: Exception) {
             e.printStackTrace()
             _uiState.update { state ->
@@ -134,7 +142,7 @@ class ProfileViewModel(
         if (targetUserId.isNullOrBlank() || _uiState.value.isRefreshing || _uiState.value.isLoading) return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            _uiState.update { it.copy(isRefreshing = true, error = null, isUserBanned = false) }
             fetchAndApplyProfile(targetUserId, showRefreshingIndicator = true)
         }
     }

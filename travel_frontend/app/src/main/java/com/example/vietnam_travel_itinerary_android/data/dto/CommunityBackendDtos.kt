@@ -169,6 +169,7 @@ data class UserProfileResponseDto(
     val postCount: Int? = 0,
     val isVerified: Boolean? = false,
     val isPrivate: Boolean? = false,
+    val isBanned: Boolean? = false,
     val role: String? = "user"
 )
 

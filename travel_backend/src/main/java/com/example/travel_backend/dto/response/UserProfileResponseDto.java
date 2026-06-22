@@ -20,5 +20,6 @@ public class UserProfileResponseDto {
     private Integer postCount;
     private Boolean isVerified;
     private Boolean isPrivate;
+    private Boolean isBanned;
     private String role;
 }

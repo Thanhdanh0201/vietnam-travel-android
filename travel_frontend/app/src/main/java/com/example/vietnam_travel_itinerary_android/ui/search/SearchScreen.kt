@@ -1,5 +1,6 @@
 package com.example.vietnam_travel_itinerary_android.ui.search
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -14,34 +15,42 @@ import com.example.vietnam_travel_itinerary_android.ui.components.post.PostCard
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.vietnam_travel_itinerary_android.data.model.CommunityPost
 import com.example.vietnam_travel_itinerary_android.data.model.Place
-import com.example.vietnam_travel_itinerary_android.ui.auth.AppViewModelProvider
+import com.example.vietnam_travel_itinerary_android.ui.community.ReportBottomSheet
+import com.example.vietnam_travel_itinerary_android.ui.community.ReportTarget
 import com.example.vietnam_travel_itinerary_android.ui.components.AppBackTopBar
 import com.example.vietnam_travel_itinerary_android.ui.components.ItineraryCard
-import com.example.vietnam_travel_itinerary_android.ui.components.PlaceCard
 import com.example.vietnam_travel_itinerary_android.ui.components.PlaceSearchCard
 import com.example.vietnam_travel_itinerary_android.ui.components.post.AuthorAvatar
+import com.example.vietnam_travel_itinerary_android.ui.theme.SlateGray500
 import com.example.vietnam_travel_itinerary_android.ui.theme.VNRed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    state: SearchUiState,
-    currentUserId: String,
-    onQueryChange: (String) -> Unit,
+    viewModel: SearchViewModel,
     onBackClick: () -> Unit,
     onPlaceClick: (Place) -> Unit,
     onNavigate: (String) -> Unit,
     onFilterChange: (SearchFilter) -> Unit,
     onTrendingClick: (String) -> Unit = {},
 ) {
+    val state by viewModel.uiState.collectAsState()
+    val currentUserId = viewModel.currentUserId
+    val context = LocalContext.current
+    var postToDelete by remember { mutableStateOf<CommunityPost?>(null) }
+    var postToReport by remember { mutableStateOf<CommunityPost?>(null) }
     Column(modifier = Modifier.fillMaxSize()) {
         AppBackTopBar(
             onBackClick = onBackClick,
@@ -50,7 +59,7 @@ fun SearchScreen(
 
         OutlinedTextField(
             value = state.query,
-            onValueChange = { onQueryChange(it) },
+            onValueChange = { viewModel.search(it) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -198,27 +207,39 @@ fun SearchScreen(
                     )
                 }
 
-                items(state.posts) { post ->
+                items(state.posts, key = { it.id }) { post ->
                     PostCard(
                         post = post,
                         currentUserId = currentUserId,
-                        onLikeClick = {},
-                        onCommentClick = {},
-                        onSaveClick = {},
-                        onDeleteClick = {},
+                        onLikeClick = {
+                            if (post.isLiked) viewModel.unlikePost(post.id) else viewModel.likePost(post.id)
+                        },
+                        onCommentClick = {
+                            onNavigate("post_detail/${post.id}")
+                        },
+                        onSaveClick = {
+                            if (post.isSaved) viewModel.unsavePost(post.id) else viewModel.savePost(post.id)
+                        },
+                        onDeleteClick = {
+                            postToDelete = post
+                        },
+                        onReportClick = {
+                            postToReport = post
+                        },
                         onItineraryClick = { itineraryId ->
                             onNavigate("itinerary_detail/$itineraryId")
                         },
-
                         onAuthorClick = {
                             val authorId = post.userId.takeIf { it.isNotBlank() } ?: return@PostCard
-
                             if (authorId == currentUserId) {
                                 onNavigate("profile")
                             } else {
                                 onNavigate("profile/$authorId")
                             }
-                        }
+                        },
+                        onNavigateToPost = { originalPostId ->
+                            onNavigate("post_detail/$originalPostId")
+                        },
                     )
                 }
             }
@@ -270,5 +291,40 @@ fun SearchScreen(
             }
 
         }
+    }
+
+    postToDelete?.let { post ->
+        AlertDialog(
+            onDismissRequest = { postToDelete = null },
+            title = { Text("Xoá bài viết", fontWeight = FontWeight.Bold) },
+            text = { Text("Bạn có chắc chắn muốn xoá bài viết này không? Hành động này không thể hoàn tác.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deletePost(post.id)
+                        postToDelete = null
+                    },
+                ) {
+                    Text("Xoá", color = VNRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { postToDelete = null }) {
+                    Text("Huỷ", color = SlateGray500)
+                }
+            },
+        )
+    }
+
+    postToReport?.let { post ->
+        ReportBottomSheet(
+            target = ReportTarget.POST,
+            onDismiss = { postToReport = null },
+            onSubmit = { reason, description ->
+                viewModel.reportPost(post.id, reason, description)
+                postToReport = null
+                Toast.makeText(context, "Đã gửi báo cáo. Cảm ơn bạn!", Toast.LENGTH_SHORT).show()
+            },
+        )
     }
 }
