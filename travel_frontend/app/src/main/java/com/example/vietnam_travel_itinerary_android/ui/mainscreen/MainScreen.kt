@@ -360,10 +360,15 @@ fun MainScreen(
                                 val remaining = route.removePrefix("post_detail/")
                                 val parts = remaining.split("/")
                                 val postId = parts[0]
-                                val focusComment = parts.getOrNull(1) == "comment"
+                                val subAction = parts.getOrNull(1)
                                 communityViewModel.setOpenedPostId(postId)
-                                if (focusComment) {
-                                    communityViewModel.setFocusCommentInput(true)
+                                if (subAction == "comment") {
+                                    val commentId = parts.getOrNull(2)
+                                    if (commentId != null) {
+                                        communityViewModel.setHighlightCommentId(commentId)
+                                    } else {
+                                        communityViewModel.setFocusCommentInput(true)
+                                    }
                                 }
                                 navigateToMainTab("community")
                             }
@@ -399,22 +404,54 @@ fun MainScreen(
                     onBack = { bottomNavController.popBackStack() },
                     onItineraryInviteHandled = { itineraryViewModel.fetchItineraries() },
                     onNavigate = { route ->
+                        val previousRoute = bottomNavController.previousBackStackEntry?.destination?.route
+                        val previousEntry = bottomNavController.previousBackStackEntry
+                        bottomNavController.popBackStack()
                         when {
                             route.startsWith("post_detail/") -> {
                                 val remaining = route.removePrefix("post_detail/")
                                 val parts = remaining.split("/")
                                 val postId = parts[0]
-                                val focusComment = parts.getOrNull(1) == "comment"
+                                val subAction = parts.getOrNull(1)
                                 communityViewModel.setOpenedPostId(postId)
-                                if (focusComment) {
-                                    communityViewModel.setFocusCommentInput(true)
+                                if (subAction == "comment") {
+                                    val commentId = parts.getOrNull(2)
+                                    if (commentId != null) {
+                                        communityViewModel.setHighlightCommentId(commentId)
+                                    } else {
+                                        communityViewModel.setFocusCommentInput(true)
+                                    }
                                 }
-                                navigateToMainTab("community")
+                                if (previousRoute != "community") {
+                                    navigateToMainTab("community")
+                                }
                             }
-                            route.startsWith("profile/") -> navigateToProfile(route.removePrefix("profile/"))
-                            route.startsWith("itinerary_detail/") -> bottomNavController.navigate(route)
-                            route in mainTabRoutes -> navigateToMainTab(route)
-                            else -> bottomNavController.navigate(route)
+                            route.startsWith("profile/") -> {
+                                val userId = route.removePrefix("profile/")
+                                val isSameProfile = previousRoute == "profile/{userId}" &&
+                                        previousEntry?.arguments?.getString("userId") == userId
+                                if (!isSameProfile) {
+                                    navigateToProfile(userId)
+                                }
+                            }
+                            route.startsWith("itinerary_detail/") -> {
+                                val itineraryId = route.removePrefix("itinerary_detail/")
+                                val isSameItinerary = previousRoute == "itinerary_detail/{itineraryId}" &&
+                                        previousEntry?.arguments?.getString("itineraryId") == itineraryId
+                                if (!isSameItinerary) {
+                                    bottomNavController.navigate(route)
+                                }
+                            }
+                            route in mainTabRoutes -> {
+                                if (previousRoute != route) {
+                                    navigateToMainTab(route)
+                                }
+                            }
+                            else -> {
+                                if (previousRoute != route) {
+                                    bottomNavController.navigate(route)
+                                }
+                            }
                         }
                     },
                     viewModel = notificationViewModel,
@@ -440,10 +477,15 @@ fun MainScreen(
                                 val remaining = route.removePrefix("post_detail/")
                                 val parts = remaining.split("/")
                                 val postId = parts[0]
-                                val focusComment = parts.getOrNull(1) == "comment"
+                                val subAction = parts.getOrNull(1)
                                 communityViewModel.setOpenedPostId(postId)
-                                if (focusComment) {
-                                    communityViewModel.setFocusCommentInput(true)
+                                if (subAction == "comment") {
+                                    val commentId = parts.getOrNull(2)
+                                    if (commentId != null) {
+                                        communityViewModel.setHighlightCommentId(commentId)
+                                    } else {
+                                        communityViewModel.setFocusCommentInput(true)
+                                    }
                                 }
                                 navigateToMainTab("community")
                             }
