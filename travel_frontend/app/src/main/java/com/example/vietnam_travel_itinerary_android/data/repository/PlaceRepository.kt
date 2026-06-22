@@ -1,6 +1,8 @@
 package com.example.vietnam_travel_itinerary_android.data.repository
 
+import com.example.vietnam_travel_itinerary_android.SupabaseObject
 import com.example.vietnam_travel_itinerary_android.data.api.RetrofitInstance
+import io.github.jan.supabase.storage.storage
 import com.example.vietnam_travel_itinerary_android.data.model.Place
 import com.example.vietnam_travel_itinerary_android.data.model.PlaceDetail
 import com.example.vietnam_travel_itinerary_android.data.model.PlaceReview
@@ -55,6 +57,18 @@ class PlaceRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun uploadReviewPhoto(byteArray: ByteArray, fileName: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                val bucket = SupabaseObject.client.storage["post-media"]
+                val path = "reviews/${System.currentTimeMillis()}_$fileName"
+                bucket.upload(path, byteArray) { upsert = true }
+                Result.success(bucket.publicUrl(path))
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
 
     suspend fun submitPlaceReview(
         placeId: String,

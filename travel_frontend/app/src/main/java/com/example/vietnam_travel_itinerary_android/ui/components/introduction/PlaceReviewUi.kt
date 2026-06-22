@@ -371,6 +371,7 @@ fun PlaceWriteReviewSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val placeRepo = remember { PlaceRepository() }
     var selectedStars by remember { mutableIntStateOf(0) }
     var reviewText by remember { mutableStateOf("") }
@@ -508,7 +509,7 @@ fun PlaceWriteReviewSheet(
                         text = if (pickedPhotos.isEmpty()) {
                             "Thêm ảnh trải nghiệm"
                         } else {
-                            "Đã chọn ${pickedPhotos.size} ảnh (lưu sau khi có upload)"
+                            "Đã chọn ${pickedPhotos.size} ảnh"
                         },
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold,
@@ -550,12 +551,32 @@ fun PlaceWriteReviewSheet(
                             }
                             return@launch
                         }
+                        val photoUrls = mutableListOf<String>()
+                        for ((index, uri) in pickedPhotos.withIndex()) {
+                            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            if (bytes == null) {
+                                submitting = false
+                                onError("Không đọc được ảnh đã chọn")
+                                return@launch
+                            }
+                            val fileName = "review_${System.currentTimeMillis()}_$index.jpg"
+                            val uploadResult = placeRepo.uploadReviewPhoto(bytes, fileName)
+                            val url = uploadResult.getOrElse { error ->
+                                submitting = false
+                                onError(
+                                    "Không tải được ảnh lên: ${AuthSessionHelper.humanReadableError(error)}",
+                                )
+                                return@launch
+                            }
+                            photoUrls.add(url)
+                        }
+
                         placeRepo.submitPlaceReview(
                             placeId = placeId,
                             token = token,
                             rating = selectedStars,
                             review = reviewText,
-                            photoUrls = emptyList(),
+                            photoUrls = photoUrls,
                         ).fold(
                             onSuccess = {
                                 submitting = false
