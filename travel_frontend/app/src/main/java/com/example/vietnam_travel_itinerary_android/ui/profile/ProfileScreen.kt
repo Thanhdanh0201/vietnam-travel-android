@@ -3,6 +3,13 @@ package com.example.vietnam_travel_itinerary_android.ui.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -600,25 +607,61 @@ private fun ProfileTabRow(
         shadowElevation = 0.dp,
     ) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(32.dp),
+            val scrollState = rememberScrollState()
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.CenterStart
             ) {
-                tabs.forEachIndexed { index, tab ->
-                    val isSelected = index == selectedIndex
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(scrollState)
+                        .padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(48.dp),
+                ) {
+                    tabs.forEachIndexed { index, tab ->
+                        val isSelected = index == selectedIndex
+                        Box(
+                            modifier = Modifier
+                                .clickable { onTabSelected(index) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            contentAlignment = Alignment.BottomCenter,
+                        ) {
+                            Text(
+                                text = tab,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = if (isSelected) VNRed else Color(0xFF94A3B8),
+                            )
+                        }
+                    }
+                }
+
+                val canScrollRight = scrollState.value < scrollState.maxValue
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = canScrollRight,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
                     Box(
                         modifier = Modifier
-                            .clickable { onTabSelected(index) }
+                            .width(60.dp)
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(Color.White.copy(alpha = 0f), Color.White)
+                                )
+                            )
                             .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.BottomCenter,
+                        contentAlignment = Alignment.CenterEnd
                     ) {
-                        Text(
-                            text = tab,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = if (isSelected) VNRed else Color(0xFF94A3B8),
+                        Icon(
+                            imageVector = Icons.Outlined.KeyboardArrowRight,
+                            contentDescription = "Cuộn sang phải",
+                            tint = VNRed,
+                            modifier = Modifier
+                                .padding(end = 4.dp)
+                                .size(24.dp)
                         )
                     }
                 }
